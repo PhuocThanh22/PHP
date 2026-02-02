@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Shop - A pet store with everything you need</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <!-- Decorative Circles -->
+        <div class="decorative-circle circle-1"></div>
+        <div class="decorative-circle circle-2"></div>
+        <div class="decorative-circle circle-3"></div>
+        <div class="decorative-circle circle-4"></div>
+        
+        <div class="container-fluid px-5">
+            <!-- Top Header -->
+            <div class="top-header py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex gap-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <i data-feather="phone" class="icon-sm"></i>
+                            <span class="text-medium">+379 871-8371</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <i data-feather="mail" class="icon-sm"></i>
+                            <span class="text-medium">rgarton@outlook.com</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <i data-feather="map-pin" class="icon-sm"></i>
+                        <span class="text-medium">8592 Fairground St. Tallahassee, FL 32303</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Header -->
+            <div class="main-header bg-white rounded-pill shadow-sm py-3 px-5 mb-5">
+                <div class="d-flex justify-content-between align-items-center">
+                    <!-- Logo -->
+                    <div class="logo-container">
+                        <svg class="logo-image" viewBox="0 0 30 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7.5 8C8.88071 8 10 6.88071 10 5.5C10 4.11929 8.88071 3 7.5 3C6.11929 3 5 4.11929 5 5.5C5 6.88071 6.11929 8 7.5 8Z" fill="#FD7E14"/>
+                            <path d="M22.5 8C23.8807 8 25 6.88071 25 5.5C25 4.11929 23.8807 3 22.5 3C21.1193 3 20 4.11929 20 5.5C20 6.88071 21.1193 8 22.5 8Z" fill="#FD7E14"/>
+                            <path d="M3.5 15C4.88071 15 6 13.8807 6 12.5C6 11.1193 4.88071 10 3.5 10C2.11929 10 1 11.1193 1 12.5C1 13.8807 2.11929 15 3.5 15Z" fill="#FD7E14"/>
+                            <path d="M26.5 15C27.8807 15 29 13.8807 29 12.5C29 11.1193 27.8807 10 26.5 10C25.1193 10 24 11.1193 24 12.5C24 13.8807 25.1193 15 26.5 15Z" fill="#FD7E14"/>
+                            <path d="M15 21C19.4183 21 23 17.4183 23 13C23 8.58172 19.4183 5 15 5C10.5817 5 7 8.58172 7 13C7 17.4183 10.5817 21 15 21Z" fill="#000"/>
+                        </svg>
+                        <span class="logo-text">Pet Shop</span>
+                    </div>
+
+                    <!-- Navigation Menu -->
+                    <nav class="nav-menu">
+                        <ul class="d-flex list-unstyled mb-0 gap-4">
+                            <li><a href="#" class="nav-link active">Home</a></li>
+                            <li><a href="#" class="nav-link">Shop</a></li>
+                            <li><a href="#" class="nav-link">About Us</a></li>
+                            <li><a href="#" class="nav-link">Contact Us</a></li>
+                        </ul>
+                    </nav>
+
+                    <!-- Search & Icons -->
+                    <div class="d-flex align-items-center gap-4">
+                        <div class="search-box position-relative">
+                            <input type="text" class="form-control rounded-pill" placeholder="Search products...">
+                            <button class="btn btn-dark btn-sm search-btn">
+                                <i data-feather="search" class="icon-xs"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex gap-4">
+                            <div class="position-relative icon-badge">
+                                <i data-feather="heart" class="icon-sm"></i>
+                                <span class="badge-count">0</span>
+                            </div>
+                            <div class="position-relative icon-badge">
+                                <i data-feather="shopping-cart" class="icon-sm"></i>
+                                <span class="badge-count">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero Content -->
+            <div class="row align-items-center hero-content">
+                <div class="col-lg-6">
+                    <div class="hero-text">
+                        <p class="text-uppercase text-orange fw-bold mb-3">Pet shop</p>
+                        <h1 class="display-3 fw-bold mb-4">A pet store with everything you need</h1>
+                        <p class="lead text-muted mb-5">Sociis blandit et pellentesque aliquet at quisque tortor lacinia nullam. Mattis aenean scelerisque dui libero</p>
+                        <button class="btn btn-dark btn-lg px-5 py-3 rounded-3">Shop Now</button>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="hero-images position-relative">
+                        <img src="https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=400&h=500&fit=crop" alt="Golden Retriever" class="img-fluid hero-img-main">
+                        <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=342&h=342&fit=crop" alt="Cat" class="img-fluid hero-img-secondary">
+                        <img src="https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=163&h=197&fit=crop" alt="Dog" class="img-fluid hero-img-small">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories Section -->
+    <section class="categories-section py-5">
+        <div class="container-fluid px-5">
+            <div class="d-flex justify-content-between align-items-center mb-5">
+                <h2 class="section-title">Browse by category</h2>
+                <div class="d-flex gap-3">
+                    <button class="btn btn-dark btn-circle">
+                        <i data-feather="chevron-left"></i>
+                    </button>
+                    <button class="btn btn-dark btn-circle">
+                        <i data-feather="chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-3 col-md-6">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1615751072497-5f5169febe17?w=306&h=216&fit=crop" alt="Accessories" class="img-fluid">
+                        </div>
+                        <div class="category-content">
+                            <div>
+                                <h5 class="category-title">Accessories</h5>
+                                <p class="category-count">84 products</p>
+                            </div>
+                            <button class="btn btn-white btn-sm btn-circle-sm">
+                                <i data-feather="arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=306&h=216&fit=crop" alt="Food" class="img-fluid">
+                        </div>
+                        <div class="category-content">
+                            <div>
+                                <h5 class="category-title">Food</h5>
+                                <p class="category-count">64 products</p>
+                            </div>
+                            <button class="btn btn-white btn-sm btn-circle-sm">
+                                <i data-feather="arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=306&h=216&fit=crop" alt="Furniture" class="img-fluid">
+                        </div>
+                        <div class="category-content">
+                            <div>
+                                <h5 class="category-title">Furniture</h5>
+                                <p class="category-count">22 products</p>
+                            </div>
+                            <button class="btn btn-white btn-sm btn-circle-sm">
+                                <i data-feather="arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1553688738-a278b9f063e0?w=306&h=216&fit=crop" alt="Bags" class="img-fluid">
+                        </div>
+                        <div class="category-content">
+                            <div>
+                                <h5 class="category-title">Bags</h5>
+                                <p class="category-count">16 products</p>
+                            </div>
+                            <button class="btn btn-white btn-sm btn-circle-sm">
+                                <i data-feather="arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Products Section -->
+    <section class="featured-section py-5">
+        <div class="container-fluid px-5">
+            <h2 class="section-title text-center mb-5">Featured products</h2>
+            <div class="row g-4">
+                <div class="col-lg-4 col-md-6">
+                    <div class="product-card">
+                        <div class="product-image">
+                            <img src="https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=416&h=416&fit=crop" alt="Premium Dog Food" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h5 class="product-title">Premium Dog Food</h5>
+                                <p class="product-price">$19.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="product-card">
+                        <div class="product-image">
+                            <img src="https://images.unsplash.com/photo-1611003228941-98852ba62227?w=416&h=416&fit=crop" alt="Premium Cat Food" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h5 class="product-title">Premium Cat Food</h5>
+                                <p class="product-price">$19.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="product-card">
+                        <div class="product-image">
+                            <img src="https://images.unsplash.com/photo-1600804340584-c7db2eacf0bf?w=416&h=416&fit=crop" alt="Premium Dog Food" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h5 class="product-title">Premium Dog Food</h5>
+                                <p class="product-price">$19.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Info Block Section -->
+    <section class="info-section py-5">
+        <div class="container-fluid px-5">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <div class="info-image-container">
+                        <div class="cat-circle">
+                            <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop" alt="Cat" class="img-fluid cat-image">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="info-content">
+                        <p class="text-uppercase text-orange fw-bold mb-3">Pet shop</p>
+                        <h2 class="display-4 fw-bold mb-4">The smarter way to shop for your pet</h2>
+                        <p class="lead text-muted mb-5">Lorem ipsum dolor sit amet consectetur. At et vehicula sodales est proin turpis pellentesque sinulla a aliquam amet rhoncus quisque eget sit</p>
+                        <button class="btn btn-dark btn-lg px-5 py-3 rounded-3">Learn More</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Best Selling Products Section -->
+    <section class="best-selling-section py-5">
+        <div class="container-fluid px-5">
+            <h2 class="section-title text-center mb-5">Best selling products</h2>
+            <div class="row g-4">
+                <div class="col-lg-3 col-md-6">
+                    <div class="product-card-small">
+                        <div class="product-image-small">
+                            <img src="https://images.unsplash.com/photo-1585664811087-47f65abbad64?w=306&h=306&fit=crop" alt="Cat Bowl" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h6 class="product-title-small">Cat Bowl</h6>
+                                <p class="product-price">$20.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="product-card-small">
+                        <div class="product-image-small">
+                            <img src="https://images.unsplash.com/photo-1585664811087-47f65abbad64?w=306&h=306&fit=crop" alt="Cat Bowl" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h6 class="product-title-small">Cat Bowl</h6>
+                                <p class="product-price">$49.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="product-card-small">
+                        <div class="product-image-small">
+                            <img src="https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=306&h=306&fit=crop" alt="Dog Leash" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h6 class="product-title-small">Dog Leash</h6>
+                                <p class="product-price">$9.99</p>Đ
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="product-card-small">
+                        <div class="product-image-small">
+                            <img src="https://images.unsplash.com/photo-1611003228941-98852ba62227?w=306&h=306&fit=crop" alt="Premium Cat Food" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h6 class="product-title-small">Premium Cat Food</h6>
+                                <p class="product-price">$19.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="product-card-small">
+                        <div class="product-image-small">
+                            <img src="https://images.unsplash.com/photo-1544568104-5b7eb8189dd4?w=306&h=306&fit=crop" alt="Dog Bowl" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h6 class="product-title-small">Dog Bowl</h6>
+                                <p class="product-price">$19.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="product-card-small">
+                        <div class="product-image-small">
+                            <img src="https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=306&h=306&fit=crop" alt="Premium Dog Food" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h6 class="product-title-small">Premium Dog Food</h6>
+                                <p class="product-price">$29.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="product-card-small">
+                        <div class="product-image-small">
+                            <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=306&h=306&fit=crop" alt="Dog Bed" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h6 class="product-title-small">Dog Bed</h6>
+                                <p class="product-price">$49.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="product-card-small">
+                        <div class="product-image-small">
+                            <img src="https://images.unsplash.com/photo-1600804340584-c7db2eacf0bf?w=306&h=306&fit=crop" alt="Premium Dog Food" class="img-fluid">
+                        </div>
+                        <div class="product-content">
+                            <div>
+                                <h6 class="product-title-small">Premium Dog Food</h6>
+                                <p class="product-price">$19.99</p>
+                            </div>
+                            <button class="btn btn-light btn-sm btn-circle-sm">
+                                <i data-feather="heart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Shop by Pet Section -->
+    <section class="shop-by-pet-section py-5">
+        <div class="container-fluid px-5">
+            <div class="d-flex justify-content-between align-items-center mb-5">
+                <h2 class="section-title">Shop by pet</h2>
+                <div class="d-flex gap-3">
+                    <button class="btn btn-dark btn-circle">
+                        <i data-feather="chevron-left"></i>
+                    </button>
+                    <button class="btn btn-dark btn-circle">
+                        <i data-feather="chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-2 col-md-4 col-6">
+                    <div class="pet-card">
+                        <div class="pet-image-container">
+                            <div class="pet-circle orange"></div>
+                            <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&h=200&fit=crop" alt="Cat" class="pet-image">
+                        </div>
+                        <p class="pet-name">Cat</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6">
+                    <div class="pet-card">
+                        <div class="pet-image-container">
+                            <div class="pet-circle gray"></div>
+                            <img src="https://images.unsplash.com/photo-1425082661705-1834bfd09dca?w=200&h=200&fit=crop" alt="Hamster" class="pet-image">
+                        </div>
+                        <p class="pet-name">Hamster</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6">
+                    <div class="pet-card">
+                        <div class="pet-image-container">
+                            <div class="pet-circle orange"></div>
+                            <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=200&fit=crop" alt="Dog" class="pet-image">
+                        </div>
+                        <p class="pet-name">Dog</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6">
+                    <div class="pet-card">
+                        <div class="pet-image-container">
+                            <div class="pet-circle gray"></div>
+                            <img src="https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=200&h=200&fit=crop" alt="Parrot" class="pet-image">
+                        </div>
+                        <p class="pet-name">Parrot</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6">
+                    <div class="pet-card">
+                        <div class="pet-image-container">
+                            <div class="pet-circle orange"></div>
+                            <img src="https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=200&h=200&fit=crop" alt="Rabbit" class="pet-image">
+                        </div>
+                        <p class="pet-name">Rabbit</p>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-6">
+                    <div class="pet-card">
+                        <div class="pet-image-container">
+                            <div class="pet-circle gray"></div>
+                            <img src="https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?w=200&h=200&fit=crop" alt="Turtle" class="pet-image">
+                        </div>
+                        <p class="pet-name">Turtle</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- News & Blog Section -->
+    <section class="news-blog-section py-5">
+        <div class="container-fluid px-5">
+            <h2 class="section-title text-center mb-5">News & Blog</h2>
+            <div class="row g-4">
+                <div class="col-lg-4 col-md-6">
+                    <div class="blog-card">
+                        <div class="blog-image">
+                            <img src="https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=416&h=360&fit=crop" alt="Blog Post" class="img-fluid">
+                            <span class="blog-badge">NEWS</span>
+                        </div>
+                        <div class="blog-content">
+                            <p class="blog-date">24 May, 2024</p>
+                            <h5 class="blog-title">Urna cras et mauris congue nunc nisi nec tempus cursus</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="blog-card">
+                        <div class="blog-image">
+                            <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=416&h=360&fit=crop" alt="Blog Post" class="img-fluid">
+                            <span class="blog-badge">NEWS</span>
+                        </div>
+                        <div class="blog-content">
+                            <p class="blog-date">24 May, 2024</p>
+                            <h5 class="blog-title">Id tellus dignissim eu nisl aliquam. Massa id interdum</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="blog-card">
+                        <div class="blog-image">
+                            <img src="https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=416&h=360&fit=crop" alt="Blog Post" class="img-fluid">
+                            <span class="blog-badge">NEWS</span>
+                        </div>
+                        <div class="blog-content">
+                            <p class="blog-date">24 May, 2024</p>
+                            <h5 class="blog-title">mus cursus pellentesque blandit tortor suspendisse ornare</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer-section bg-light py-5">
+        <div class="container-fluid px-5">
+            <div class="row mb-5">
+                <div class="col-lg-3">
+                    <div class="logo-container mb-3">
+                        <svg class="logo-image" viewBox="0 0 30 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7.5 8C8.88071 8 10 6.88071 10 5.5C10 4.11929 8.88071 3 7.5 3C6.11929 3 5 4.11929 5 5.5C5 6.88071 6.11929 8 7.5 8Z" fill="#FD7E14"/>
+                            <path d="M22.5 8C23.8807 8 25 6.88071 25 5.5C25 4.11929 23.8807 3 22.5 3C21.1193 3 20 4.11929 20 5.5C20 6.88071 21.1193 8 22.5 8Z" fill="#FD7E14"/>
+                            <path d="M3.5 15C4.88071 15 6 13.8807 6 12.5C6 11.1193 4.88071 10 3.5 10C2.11929 10 1 11.1193 1 12.5C1 13.8807 2.11929 15 3.5 15Z" fill="#FD7E14"/>
+                            <path d="M26.5 15C27.8807 15 29 13.8807 29 12.5C29 11.1193 27.8807 10 26.5 10C25.1193 10 24 11.1193 24 12.5C24 13.8807 25.1193 15 26.5 15Z" fill="#FD7E14"/>
+                            <path d="M15 21C19.4183 21 23 17.4183 23 13C23 8.58172 19.4183 5 15 5C10.5817 5 7 8.58172 7 13C7 17.4183 10.5817 21 15 21Z" fill="#000"/>
+                        </svg>
+                        <span class="logo-text">Pet Shop</span>
+                    </div>
+                    <p class="text-muted mb-4">Sed viverra eget fames sit varius. Pellentesque mattis libero viverra dictumst ornaresed justo convallis vitae</p>
+                    <div class="d-flex gap-3 social-icons">
+                        <a href="#"><img src="https://www.figma.com/api/mcp/asset/9ad790ff-6532-419a-a017-eb7c73e9648f" alt="Facebook" class="social-icon"></a>
+                        <a href="#"><img src="https://www.figma.com/api/mcp/asset/12414be7-f0ac-40e9-8cf3-6c367a996191" alt="Twitter" class="social-icon"></a>
+                        <a href="#"><img src="https://www.figma.com/api/mcp/asset/c9d73b14-f34e-48cf-a481-e470dcfdd6c1" alt="Instagram" class="social-icon"></a>
+                        <a href="#"><img src="https://www.figma.com/api/mcp/asset/23d23c55-01a6-4bba-8c2c-3fe6618bf543" alt="YouTube" class="social-icon"></a>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <h6 class="footer-title">Company</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Gift cards</a></li>
+                        <li><a href="#">Careers</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2">
+                    <h6 class="footer-title">Useful Links</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a href="#">New products</a></li>
+                        <li><a href="#">Best sellers</a></li>
+                        <li><a href="#">Discount</a></li>
+                        <li><a href="#">F.A.Q</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2">
+                    <h6 class="footer-title">Customer Service</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a href="#">Contact Us</a></li>
+                        <li><a href="#">Shipping</a></li>
+                        <li><a href="#">Returns</a></li>
+                        <li><a href="#">Order tracking</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-3">
+                    <h6 class="footer-title">Store</h6>
+                    <p class="text-muted mb-3">8592 Fairground St.<br>Tallahassee, FL 32303</p>
+                    <p class="text-muted mb-2">+775 378-6348</p>
+                    <p class="text-muted">rgarton@outlook.com</p>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-4 border-top">
+                <p class="text-muted mb-0 small">© Copyright Pet Shop 2024. Design by Figma. guru</p>
+                <img src="https://www.figma.com/api/mcp/asset/18393afd-f520-49d8-997f-6adcc3101a94" alt="Payment Methods" height="25">
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Initialize Feather Icons -->
+    <script>
+        feather.replace();
+    </script>
+</body>
+</html>
