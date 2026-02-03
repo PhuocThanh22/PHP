@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Catchy Pet</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --primary-color: #F87537;
+            --secondary-orange: #FBA81F;
+            --dark-color: #090706;
+            --light-gray: #F8F9FA;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            cursor: url('images/shark-cursor.png') 16 16, auto;
+        }
+
+        /* Decorative Background Elements */
+        .bg-decoration {
+            position: absolute;
+            border-radius: 50%;
+            z-index: 0;
+        }
+
+        .bg-decoration-1 {
+            width: 400px;
+            height: 400px;
+            top: -100px;
+            left: -100px;
+            background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%);
+            opacity: 0.5;
+            border-radius: 60% 40% 55% 45% / 50% 55% 45% 50%;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .bg-decoration-2 {
+            width: 300px;
+            height: 300px;
+            bottom: -80px;
+            right: -80px;
+            background: linear-gradient(135deg, #FBA81F 0%, #F87537 100%);
+            opacity: 0.5;
+            border-radius: 55% 45% 48% 52% / 62% 51% 49% 38%;
+            animation: float 10s ease-in-out infinite reverse;
+        }
+
+        .bg-decoration-3 {
+            width: 200px;
+            height: 200px;
+            top: 40%;
+            right: 10%;
+            background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%);
+            opacity: 0.5;
+            border-radius: 48% 52% 65% 35% / 58% 45% 55% 42%;
+            animation: float 12s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-30px) rotate(5deg);
+            }
+        }
+
+        /* Pet Image Decorations */
+        .pet-decoration {
+            position: absolute;
+            z-index: 1;
+            opacity: 0.8;
+            animation: float-gentle 6s ease-in-out infinite;
+        }
+
+        .pet-left {
+            left: 5%;
+            bottom: 10%;
+            width: 150px;
+            height: 150px;
+        }
+
+        .pet-right {
+            right: 5%;
+            top: 15%;
+            width: 120px;
+            height: 120px;
+        }
+
+        .pet-decoration img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            box-shadow: 0 10px 30px rgba(248, 117, 55, 0.3);
+            border: 4px solid white;
+        }
+
+        @keyframes float-gentle {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        /* Login Container */
+        .login-container {
+            position: relative;
+            z-index: 10;
+            max-width: 480px;
+            width: 100%;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 30px;
+            padding: 50px 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            transform-style: preserve-3d;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo-image {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+        }
+
+        .logo-text {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-orange) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-text {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .welcome-text h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 8px;
+        }
+
+        .welcome-text p {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--dark-color);
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            height: 50px;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            padding: 12px 20px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(248, 117, 55, 0.15);
+        }
+
+        .input-icon {
+            position: relative;
+        }
+
+        .input-icon i {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 18px;
+        }
+
+        .input-icon .form-control {
+            padding-left: 50px;
+        }
+
+        .btn-login {
+            width: 100%;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-orange) 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(248, 117, 55, 0.3);
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(248, 117, 55, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 30px 0;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e9ecef;
+        }
+
+        .divider span {
+            padding: 0 15px;
+        }
+
+        /* Social Login Buttons */
+        .social-login {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .btn-social {
+            flex: 1;
+            height: 50px;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .btn-social:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-social.facebook {
+            color: #1877f2;
+        }
+
+        .btn-social.google {
+            color: #db4437;
+        }
+
+        .btn-social.phone {
+            color: #25d366;
+        }
+
+        .forgot-password {
+            text-align: right;
+            margin-top: -10px;
+            margin-bottom: 25px;
+        }
+
+        .forgot-password a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+
+        .signup-link {
+            text-align: center;
+            margin-top: 25px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .signup-link a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .login-card {
+                padding: 40px 30px;
+            }
+
+            .pet-decoration {
+                display: none;
+            }
+
+            .bg-decoration-3 {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 35px 25px;
+                border-radius: 20px;
+            }
+
+            .welcome-text h2 {
+                font-size: 20px;
+            }
+
+            .social-login {
+                flex-direction: column;
+            }
+
+            .btn-social {
+                width: 100%;
+            }
+        }
+
+        /* Checkbox Custom Style */
+        .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .form-check-label {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        /* Cursor Trail Effect - Water Bubbles */
+        .cursor-trail {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(0, 206, 209, 0.6), rgba(30, 144, 255, 0.4));
+            box-shadow: 0 0 10px rgba(0, 206, 209, 0.5), inset -2px -2px 5px rgba(255, 255, 255, 0.3);
+            animation: trail-fade 1.2s ease-out forwards;
+        }
+
+        @keyframes trail-fade {
+            0% {
+                transform: scale(1) translateY(0);
+                opacity: 0.9;
+            }
+            50% {
+                transform: scale(1.3) translateY(-10px);
+                opacity: 0.6;
+            }
+            100% {
+                transform: scale(0.5) translateY(-30px);
+                opacity: 0;
+            }
+        }
+
+        /* Shark cursor for all interactive elements */
+        a, button, input, .btn-social, .btn-login, .form-control, .form-check-input {
+            cursor: url('images/shark-cursor.png') 16 16, pointer !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Decorations -->
+    <div class="bg-decoration bg-decoration-1"></div>
+    <div class="bg-decoration bg-decoration-2"></div>
+    <div class="bg-decoration bg-decoration-3"></div>
+
+    <!-- Pet Decorations -->
+    <div class="pet-decoration pet-left">
+        <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150&h=150&fit=crop" alt="Cat">
+    </div>
+    <div class="pet-decoration pet-right">
+        <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=120&h=120&fit=crop" alt="Dog">
+    </div>
+
+    <!-- Login Container -->
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Logo -->
+            <div class="logo-container">
+                <svg class="logo-image" viewBox="0 0 30 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M7.5 8C8.88071 8 10 6.88071 10 5.5C10 4.11929 8.88071 3 7.5 3C6.11929 3 5 4.11929 5 5.5C5 6.88071 6.11929 8 7.5 8Z" fill="#F87537"/>
+                    <path d="M22.5 8C23.8807 8 25 6.88071 25 5.5C25 4.11929 23.8807 3 22.5 3C21.1193 3 20 4.11929 20 5.5C20 6.88071 21.1193 8 22.5 8Z" fill="#F87537"/>
+                    <path d="M3.5 15C4.88071 15 6 13.8807 6 12.5C6 11.1193 4.88071 10 3.5 10C2.11929 10 1 11.1193 1 12.5C1 13.8807 2.11929 15 3.5 15Z" fill="#F87537"/>
+                    <path d="M26.5 15C27.8807 15 29 13.8807 29 12.5C29 11.1193 27.8807 10 26.5 10C25.1193 10 24 11.1193 24 12.5C24 13.8807 25.1193 15 26.5 15Z" fill="#F87537"/>
+                    <path d="M15 21C19.4183 21 23 17.4183 23 13C23 8.58172 19.4183 5 15 5C10.5817 5 7 8.58172 7 13C7 17.4183 10.5817 21 15 21Z" fill="#000"/>
+                </svg>
+                <div class="logo-text">Catchy Pet</div>
+            </div>
+
+            <!-- Welcome Text -->
+            <div class="welcome-text">
+                <h2>Chào mừng trở lại!</h2>
+                <p>Đăng nhập để tiếp tục mua sắm cho thú cưng của bạn</p>
+            </div>
+
+            <!-- Social Login -->
+            <div class="social-login">
+                <button class="btn-social facebook" title="Đăng nhập bằng Facebook">
+                    <i class="bi bi-facebook"></i>
+                </button>
+                <button class="btn-social google" title="Đăng nhập bằng Google">
+                    <i class="bi bi-google"></i>
+                </button>
+                <button class="btn-social phone" title="Đăng nhập bằng số điện thoại">
+                    <i class="bi bi-telephone-fill"></i>
+                </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="divider">
+                <span>Hoặc đăng nhập bằng email</span>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label">Email hoặc Số điện thoại</label>
+                    <div class="input-icon">
+                        <i class="bi bi-person-fill"></i>
+                        <input type="text" class="form-control" placeholder="Nhập email hoặc số điện thoại" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mật khẩu</label>
+                    <div class="input-icon">
+                        <i class="bi bi-lock-fill"></i>
+                        <input type="password" class="form-control" placeholder="Nhập mật khẩu" required>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMe">
+                        <label class="form-check-label" for="rememberMe">
+                            Ghi nhớ đăng nhập
+                        </label>
+                    </div>
+                    <div class="forgot-password">
+                        <a href="#">Quên mật khẩu?</a>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login">Đăng nhập</button>
+            </form>
+
+            <!-- Signup Link -->
+            <div class="signup-link">
+                Chưa có tài khoản? <a href="#">Đăng ký ngay</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Cursor Trail Effect - Water Bubbles
+        let lastTrailTime = 0;
+        const trailInterval = 60; // milliseconds between trails
+
+        document.addEventListener('mousemove', function(e) {
+            const currentTime = Date.now();
+            if (currentTime - lastTrailTime < trailInterval) return;
+            lastTrailTime = currentTime;
+
+            // Tạo bọt nước với kích thước ngẫu nhiên
+            const trail = document.createElement('div');
+            trail.className = 'cursor-trail';
+            const size = Math.random() * 20 + 15; // 15-35px
+            trail.style.width = size + 'px';
+            trail.style.height = size + 'px';
+            trail.style.left = (e.pageX - size/2 + Math.random() * 10 - 5) + 'px';
+            trail.style.top = (e.pageY - size/2 + Math.random() * 10 - 5) + 'px';
+            document.body.appendChild(trail);
+
+            setTimeout(() => {
+                trail.remove();
+            }, 1200);
+        });
+
+        // Form submission handler
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Chức năng đăng nhập đang được phát triển!');
+        });
+
+        // Social login handlers
+        document.querySelectorAll('.btn-social').forEach(button => {
+            button.addEventListener('click', function() {
+                const type = this.classList.contains('facebook') ? 'Facebook' : 
+                            this.classList.contains('google') ? 'Google' : 'Số điện thoại';
+                alert(`Đăng nhập bằng ${type} đang được phát triển!`);
+            });
+        });
+    </script>
+</body>
+</html>

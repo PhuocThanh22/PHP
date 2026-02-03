@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Catchy Pet</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Floating Menu Button (shows when sidebar is collapsed on desktop) -->
+    <button class="floating-menu-btn" onclick="toggleSidebar()">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <img src="logo.png" alt="Catchy Pet Logo" class="sidebar-logo">
+        
+        <button class="menu-toggle" onclick="toggleSidebar()">
+            <i class="bi bi-list"></i>
+        </button>
+
+        <ul class="sidebar-menu">
+            <li>
+                <a href="#" class="active">
+                    <i class="bi bi-house-door-fill"></i>
+                    <span>Dịch Vụ</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Sản Phẩm</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Trang Người Dùng</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Khách Hàng</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="bi bi-graph-up"></i>
+                    <span>Doanh Thu</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="bi bi-heart-fill"></i>
+                    <span>Thú Cưng</span>
+                </a>
+            </li>
+            <li>
+                <a href="#">
+                    <i class="bi bi-cart-fill"></i>
+                    <span>Đơn Hàng</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Header -->
+        <div class="top-header">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" placeholder="Tìm Kiếm">
+            </div>
+
+            <div class="header-right">
+                <div class="tasks-icon">
+                    <i class="bi bi-calendar-check"></i>
+                    <span class="badge-count">25</span>
+                </div>
+                
+                <div class="notification-icon">
+                    <i class="bi bi-bell-fill"></i>
+                    <span class="badge-count">12</span>
+                </div>
+
+                <span class="admin-name">Admin, Phước Thành</span>
+                
+                <div class="dropdown">
+                    <img src="https://www.figma.com/api/mcp/asset/99d2ce01-9906-418d-9b58-9666bf3d2d94" alt="Admin Avatar" class="admin-avatar dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Hồ Sơ</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Cài Đặt</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-box-arrow-right"></i> Đăng Xuất</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-container">
+            <div class="stat-card green">
+                <div class="icon">
+                    <i class="bi bi-receipt"></i>
+                </div>
+                <div class="label">Hóa Đơn</div>
+                <div>
+                    <span class="value">70</span>
+                    <span class="unit">đơn</span>
+                </div>
+            </div>
+
+            <div class="stat-card orange">
+                <div class="icon">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div class="label">Sản Phẩm</div>
+                <div>
+                    <span class="value">159</span>
+                    <span class="unit">món</span>
+                </div>
+            </div>
+
+            <div class="stat-card lime">
+                <div class="icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="label">Khách Hàng</div>
+                <div>
+                    <span class="value">35</span>
+                    <span class="unit">khách</span>
+                </div>
+            </div>
+
+            <div class="stat-card blue">
+                <div class="icon">
+                    <i class="bi bi-heart"></i>
+                </div>
+                <div class="label">Thú Cưng</div>
+                <div>
+                    <span class="value">50</span>
+                    <span class="unit">con</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-card">
+            <h3>Biểu Đồ Doanh Thu</h3>
+            <canvas id="revenueChart"></canvas>
+        </div>
+
+        <!-- Alert Section -->
+        <div class="alert-card">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>Các sản phẩm sắp hết hàng</span>
+        </div>
+
+        <!-- Low Stock Products Section -->
+        <div class="content-section mt-4">
+            <div class="section-header">
+                <h3><i class="bi bi-exclamation-circle text-warning me-2"></i>Sản Phẩm Sắp Hết Hàng</h3>
+                <button class="btn btn-sm btn-outline-primary">Xem Tất Cả</button>
+            </div>
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Hình Ảnh</th>
+                            <th>Tên Sản Phẩm</th>
+                            <th>Danh Mục</th>
+                            <th>Số Lượng</th>
+                            <th>Giá</th>
+                            <th>Trạng Thái</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><img src="https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=100" alt="Product" class="product-img"></td>
+                            <td>Thức Ăn Cho Chó Royal Canin</td>
+                            <td>Thức Ăn</td>
+                            <td><span class="text-danger fw-bold">5 kg</span></td>
+                            <td>450,000 đ</td>
+                            <td><span class="status-badge danger">Sắp hết</span></td>
+                            <td>
+                                <button class="action-btn" title="Chỉnh sửa"><i class="bi bi-pencil"></i></button>
+                                <button class="action-btn" title="Nhập hàng"><i class="bi bi-plus-circle"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><img src="https://images.unsplash.com/photo-1611003228941-98852ba62227?w=100" alt="Product" class="product-img"></td>
+                            <td>Sữa Tắm Cho Mèo Petto</td>
+                            <td>Vệ Sinh</td>
+                            <td><span class="text-warning fw-bold">12 chai</span></td>
+                            <td>85,000 đ</td>
+                            <td><span class="status-badge warning">Tồn kho thấp</span></td>
+                            <td>
+                                <button class="action-btn" title="Chỉnh sửa"><i class="bi bi-pencil"></i></button>
+                                <button class="action-btn" title="Nhập hàng"><i class="bi bi-plus-circle"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><img src="https://images.unsplash.com/photo-1591769225440-811ad7d6eab3?w=100" alt="Product" class="product-img"></td>
+                            <td>Đồ Chơi Banh Cao Su</td>
+                            <td>Đồ Chơi</td>
+                            <td><span class="text-warning fw-bold">8 cái</span></td>
+                            <td>35,000 đ</td>
+                            <td><span class="status-badge warning">Tồn kho thấp</span></td>
+                            <td>
+                                <button class="action-btn" title="Chỉnh sửa"><i class="bi bi-pencil"></i></button>
+                                <button class="action-btn" title="Nhập hàng"><i class="bi bi-plus-circle"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><img src="https://images.unsplash.com/photo-1548247416-ec66f4900b2e?w=100" alt="Product" class="product-img"></td>
+                            <td>Vitamin Cho Thú Cưng</td>
+                            <td>Y Tế</td>
+                            <td><span class="text-danger fw-bold">3 hộp</span></td>
+                            <td>120,000 đ</td>
+                            <td><span class="status-badge danger">Sắp hết</span></td>
+                            <td>
+                                <button class="action-btn" title="Chỉnh sửa"><i class="bi bi-pencil"></i></button>
+                                <button class="action-btn" title="Nhập hàng"><i class="bi bi-plus-circle"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Orders Section -->
+        <div class="content-section">
+            <div class="section-header">
+                <h3><i class="bi bi-cart-check text-success me-2"></i>Đơn Hàng Gần Đây</h3>
+                <button class="btn btn-sm btn-outline-primary">Xem Tất Cả</button>
+            </div>
+            <div class="quick-stats">
+                <div class="quick-stat-item">
+                    <span class="number">23</span>
+                    <span class="label">Đang xử lý</span>
+                </div>
+                <div class="quick-stat-item">
+                    <span class="number">45</span>
+                    <span class="label">Đã giao</span>
+                </div>
+                <div class="quick-stat-item">
+                    <span class="number">2</span>
+                    <span class="label">Đã hủy</span>
+                </div>
+            </div>
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã ĐH</th>
+                            <th>Khách Hàng</th>
+                            <th>Ngày Đặt</th>
+                            <th>Tổng Tiền</th>
+                            <th>Trạng Thái</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>#DH001</strong></td>
+                            <td>Nguyễn Văn A</td>
+                            <td>03/02/2026</td>
+                            <td>1,250,000 đ</td>
+                            <td><span class="status-badge info">Đang xử lý</span></td>
+                            <td>
+                                <button class="action-btn" title="Xem"><i class="bi bi-eye"></i></button>
+                                <button class="action-btn" title="Chỉnh sửa"><i class="bi bi-pencil"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>#DH002</strong></td>
+                            <td>Trần Thị B</td>
+                            <td>03/02/2026</td>
+                            <td>850,000 đ</td>
+                            <td><span class="status-badge success">Đã giao</span></td>
+                            <td>
+                                <button class="action-btn" title="Xem"><i class="bi bi-eye"></i></button>
+                                <button class="action-btn" title="In hóa đơn"><i class="bi bi-printer"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>#DH003</strong></td>
+                            <td>Lê Văn C</td>
+                            <td>02/02/2026</td>
+                            <td>2,100,000 đ</td>
+                            <td><span class="status-badge warning">Đang giao</span></td>
+                            <td>
+                                <button class="action-btn" title="Xem"><i class="bi bi-eye"></i></button>
+                                <button class="action-btn" title="Theo dõi"><i class="bi bi-truck"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>#DH004</strong></td>
+                            <td>Phạm Thị D</td>
+                            <td>02/02/2026</td>
+                            <td>450,000 đ</td>
+                            <td><span class="status-badge success">Đã giao</span></td>
+                            <td>
+                                <button class="action-btn" title="Xem"><i class="bi bi-eye"></i></button>
+                                <button class="action-btn" title="In hóa đơn"><i class="bi bi-printer"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>#DH005</strong></td>
+                            <td>Hoàng Văn E</td>
+                            <td>01/02/2026</td>
+                            <td>675,000 đ</td>
+                            <td><span class="status-badge danger">Đã hủy</span></td>
+                            <td>
+                                <button class="action-btn" title="Xem"><i class="bi bi-eye"></i></button>
+                                <button class="action-btn" title="Chi tiết"><i class="bi bi-info-circle"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Customer Activity Section -->
+        <div class="content-section">
+            <div class="section-header">
+                <h3><i class="bi bi-activity text-primary me-2"></i>Hoạt Động Khách Hàng</h3>
+                <button class="btn btn-sm btn-outline-primary">Xem Tất Cả</button>
+            </div>
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Khách Hàng</th>
+                            <th>Hoạt Động</th>
+                            <th>Thời Gian</th>
+                            <th>Chi Tiết</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Nguyễn Văn A</td>
+                            <td><i class="bi bi-cart-plus text-success me-2"></i>Đặt đơn hàng mới</td>
+                            <td>5 phút trước</td>
+                            <td>Đơn hàng #DH001 - 1,250,000 đ</td>
+                        </tr>
+                        <tr>
+                            <td>Trần Thị B</td>
+                            <td><i class="bi bi-star-fill text-warning me-2"></i>Đánh giá sản phẩm</td>
+                            <td>15 phút trước</td>
+                            <td>5 sao cho Thức ăn Royal Canin</td>
+                        </tr>
+                        <tr>
+                            <td>Lê Văn C</td>
+                            <td><i class="bi bi-heart-fill text-danger me-2"></i>Thêm vào yêu thích</td>
+                            <td>30 phút trước</td>
+                            <td>3 sản phẩm mới</td>
+                        </tr>
+                        <tr>
+                            <td>Phạm Thị D</td>
+                            <td><i class="bi bi-person-plus text-info me-2"></i>Đăng ký tài khoản</td>
+                            <td>1 giờ trước</td>
+                            <td>Khách hàng mới</td>
+                        </tr>
+                        <tr>
+                            <td>Hoàng Văn E</td>
+                            <td><i class="bi bi-chat-dots text-primary me-2"></i>Gửi tin nhắn hỗ trợ</td>
+                            <td>2 giờ trước</td>
+                            <td>Hỏi về chính sách đổi trả</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script>
+        // Toggle Sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+            const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+            const floatingBtn = document.querySelector('.floating-menu-btn');
+            
+            // Toggle sidebar
+            if (window.innerWidth <= 768) {
+                // Mobile behavior
+                sidebar.classList.toggle('show');
+                
+                if (mobileMenuBtn) {
+                    const mobileMenuIcon = mobileMenuBtn.querySelector('i');
+                    if (sidebar.classList.contains('show')) {
+                        mobileMenuBtn.classList.add('active');
+                        mobileMenuIcon.classList.remove('bi-list');
+                        mobileMenuIcon.classList.add('bi-x-lg');
+                        
+                        // Add overlay
+                        const overlay = document.createElement('div');
+                        overlay.id = 'sidebar-overlay';
+                        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;transition:opacity 0.3s ease;';
+                        overlay.onclick = toggleSidebar;
+                        document.body.appendChild(overlay);
+                        setTimeout(() => overlay.style.opacity = '1', 10);
+                    } else {
+                        mobileMenuBtn.classList.remove('active');
+                        mobileMenuIcon.classList.remove('bi-x-lg');
+                        mobileMenuIcon.classList.add('bi-list');
+                        
+                        // Remove overlay
+                        const overlay = document.getElementById('sidebar-overlay');
+                        if (overlay) {
+                            overlay.style.opacity = '0';
+                            setTimeout(() => overlay.remove(), 300);
+                        }
+                    }
+                }
+            } else {
+                // Desktop behavior
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+                
+                // Show/hide floating button
+                if (floatingBtn) {
+                    if (sidebar.classList.contains('collapsed')) {
+                        floatingBtn.classList.add('show');
+                    } else {
+                        floatingBtn.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('sidebar');
+            const menuBtn = document.querySelector('.mobile-menu-btn');
+            
+            if (window.innerWidth <= 768 && 
+                sidebar.classList.contains('show') && 
+                !sidebar.contains(e.target) && 
+                !menuBtn.contains(e.target)) {
+                toggleSidebar();
+            }
+        });
+
+        // Chart.js Configuration
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        const revenueChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+                datasets: [
+                    {
+                        label: 'Doanh Thu Cao',
+                        data: [300, 350, 420, 480, 550, 200, 680, 750, 820, 850],
+                        backgroundColor: 'rgba(159, 168, 218, 0.4)',
+                        borderColor: 'rgba(159, 168, 218, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgba(159, 168, 218, 1)',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
+                    },
+                    {
+                        label: 'Doanh Thu Thấp',
+                        data: [200, 250, 320, 380, 450, 150, 520, 600, 680, 700],
+                        backgroundColor: 'rgba(123, 138, 216, 0.5)',
+                        borderColor: 'rgba(123, 138, 216, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgba(123, 138, 216, 1)',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                family: 'Quicksand',
+                                size: 14
+                            },
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            family: 'Quicksand',
+                            size: 14
+                        },
+                        bodyFont: {
+                            family: 'Quicksand',
+                            size: 13
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1000,
+                        ticks: {
+                            stepSize: 250,
+                            font: {
+                                family: 'Quicksand',
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            drawBorder: false
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                family: 'Quicksand',
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            drawBorder: false
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+
+        // Add active state to menu items
+        document.querySelectorAll('.sidebar-menu a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.sidebar-menu a').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Animate statistics on scroll
+        const observerOptions = {
+            threshold: 0.5,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animation = 'fadeInUp 0.6s ease-out';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.stat-card').forEach(card => {
+            observer.observe(card);
+        });
+
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Cursor Trail Effect
+        let lastTrailTime = 0;
+        const trailInterval = 60;
+
+        document.addEventListener('mousemove', function(e) {
+            const currentTime = Date.now();
+            if (currentTime - lastTrailTime < trailInterval) return;
+            lastTrailTime = currentTime;
+
+            // Tạo bọt nước với kích thước ngẫu nhiên
+            const trail = document.createElement('div');
+            trail.className = 'cursor-trail';
+            const size = Math.random() * 20 + 15; // 15-35px
+            trail.style.width = size + 'px';
+            trail.style.height = size + 'px';
+            trail.style.left = (e.pageX - size/2 + Math.random() * 10 - 5) + 'px';
+            trail.style.top = (e.pageY - size/2 + Math.random() * 10 - 5) + 'px';
+            document.body.appendChild(trail);
+
+            setTimeout(() => {
+                trail.remove();
+            }, 1200);
+        });
+    </script>
+</body>
+</html>
