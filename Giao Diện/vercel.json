@@ -4,15 +4,23 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/index.html"
+      "destination": "/user/index.html"
+    },
+    {
+      "source": "/user",
+      "destination": "/user/index.html"
     },
     {
       "source": "/home",
-      "destination": "/home.html"
+      "destination": "/user/home.html"
     },
     {
       "source": "/admin",
-      "destination": "/admin.html"
+      "destination": "/admin/admin.html"
+    },
+    {
+      "source": "/staff",
+      "destination": "/staff/index.html"
     }
   ],
   "headers": [

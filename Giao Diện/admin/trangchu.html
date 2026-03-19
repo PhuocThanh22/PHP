@@ -1,0 +1,131 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang Chủ Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="top-header home-topbar">
+            <div class="home-search">
+                <i class="bi bi-search"></i>
+                <input type="text" placeholder="Tìm kiếm hóa đơn, khách hàng, dịch vụ..." aria-label="Tìm kiếm">
+            </div>
+
+            <div class="home-toolbar">
+                <button class="home-icon-btn" type="button" aria-label="Thông báo"><i class="bi bi-bell"></i></button>
+                <button class="home-icon-btn" type="button" aria-label="Lịch"><i class="bi bi-calendar3"></i></button>
+
+                <div class="home-account">
+                    <div class="home-account-info">
+                        <span class="home-account-name">Tài khoản đăng nhập</span>
+                        <select id="homeRoleSelect" class="home-account-role" aria-label="Chọn vai trò">
+                            <option value="admin">Admin</option>
+                            <option value="nhan-vien">Nhân viên</option>
+                        </select>
+                    </div>
+                    <span class="home-avatar" id="homeAvatar">AD</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card green" data-metric="invoices" role="button" tabindex="0"><div class="icon"><i class="bi bi-receipt"></i></div><div class="label">Hóa Đơn</div><div><span class="value">70</span><span class="unit"> đơn</span></div></div>
+            <div class="stat-card orange" data-metric="products" role="button" tabindex="0"><div class="icon"><i class="bi bi-box-seam"></i></div><div class="label">Sản Phẩm</div><div><span class="value">159</span><span class="unit"> món</span></div></div>
+            <div class="stat-card lime" data-metric="customers" role="button" tabindex="0"><div class="icon"><i class="bi bi-people"></i></div><div class="label">Khách Hàng</div><div><span class="value">35</span><span class="unit"> khách</span></div></div>
+            <div class="stat-card blue" data-metric="pets" role="button" tabindex="0"><div class="icon"><i class="bi bi-heart"></i></div><div class="label">Thú Cưng</div><div><span class="value">50</span><span class="unit"> con</span></div></div>
+        </div>
+
+        <div class="chart-card">
+            <h3 id="homeChartTitle">Biểu Đồ Hóa Đơn</h3>
+            <canvas id="homeChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        Chart.defaults.font.family = 'Poppins, sans-serif';
+
+        const metrics = {
+            invoices: { title: 'Biểu Đồ Hóa Đơn', label: 'Hóa Đơn', data: [45, 52, 48, 60, 66, 39, 70], bg: 'rgba(40,167,69,0.2)', border: 'rgba(40,167,69,1)' },
+            products: { title: 'Biểu Đồ Sản Phẩm', label: 'Sản Phẩm', data: [120, 132, 128, 141, 149, 137, 159], bg: 'rgba(255,193,7,0.25)', border: 'rgba(255,152,0,1)' },
+            customers: { title: 'Biểu Đồ Khách Hàng', label: 'Khách Hàng', data: [18, 20, 23, 26, 29, 31, 35], bg: 'rgba(130,221,85,0.25)', border: 'rgba(76,175,80,1)' },
+            pets: { title: 'Biểu Đồ Thú Cưng', label: 'Thú Cưng', data: [22, 27, 31, 36, 41, 45, 50], bg: 'rgba(125,211,252,0.25)', border: 'rgba(59,130,246,1)' }
+        };
+
+        const titleEl = document.getElementById('homeChartTitle');
+        const chart = new Chart(document.getElementById('homeChart'), {
+            type: 'line',
+            data: {
+                labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
+                datasets: [{
+                    label: metrics.invoices.label,
+                    data: metrics.invoices.data,
+                    backgroundColor: metrics.invoices.bg,
+                    borderColor: metrics.invoices.border,
+                    borderWidth: 2,
+                    fill: true,
+                    pointRadius: 3,
+                    tension: 0.35
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { boxWidth: 18, font: { size: 13 } }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { font: { size: 12 } } },
+                    x: { ticks: { font: { size: 12 } } }
+                }
+            }
+        });
+
+        function updateChart(key) {
+            const m = metrics[key];
+            if (!m) return;
+            titleEl.textContent = m.title;
+            chart.data.datasets[0].label = m.label;
+            chart.data.datasets[0].data = m.data;
+            chart.data.datasets[0].backgroundColor = m.bg;
+            chart.data.datasets[0].borderColor = m.border;
+            chart.update();
+            document.querySelectorAll('.stat-card').forEach(card => card.classList.toggle('active', card.dataset.metric === key));
+        }
+
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('click', () => updateChart(card.dataset.metric));
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    updateChart(card.dataset.metric);
+                }
+            });
+        });
+
+        const roleSelect = document.getElementById('homeRoleSelect');
+        const homeAvatar = document.getElementById('homeAvatar');
+
+        function syncHomeRole() {
+            if (!roleSelect || !homeAvatar) return;
+            homeAvatar.textContent = roleSelect.value === 'admin' ? 'AD' : 'NV';
+        }
+
+        if (roleSelect) {
+            roleSelect.addEventListener('change', syncHomeRole);
+            syncHomeRole();
+        }
+
+        updateChart('invoices');
+    </script>
+</body>
+</html>
+

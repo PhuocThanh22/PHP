@@ -1,0 +1,106 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dịch Vụ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="top-header d-flex justify-content-between align-items-center">
+            <h2>Quản Lý Dịch Vụ</h2>
+            <button class="btn btn-warning text-white" onclick="loadServices(true)"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</button>
+        </div>
+
+        <div class="service-grid" id="serviceGrid">
+            <div class="service-card"><div class="service-title">Đang tải dữ liệu dịch vụ...</div></div>
+        </div>
+    </div>
+
+    <script>
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatCurrencyVND(value) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
+        }
+
+        function getServiceVisual(serviceName) {
+            const name = String(serviceName || '').toLowerCase();
+            if (name.includes('cắt') || name.includes('tỉa') || name.includes('groom')) return { typeClass: 'type-grooming', icon: 'bi-scissors' };
+            if (name.includes('khám') || name.includes('tiêm') || name.includes('xét nghiệm') || name.includes('cấp cứu')) return { typeClass: 'type-health', icon: 'bi-heart-pulse' };
+            if (name.includes('tắm') || name.includes('vệ sinh') || name.includes('khử mùi')) return { typeClass: 'type-cleaning', icon: 'bi-droplet-half' };
+            if (name.includes('huấn luyện')) return { typeClass: 'type-training', icon: 'bi-mortarboard' };
+            if (name.includes('lưu chuồng') || name.includes('trông giữ') || name.includes('vận chuyển')) return { typeClass: 'type-boarding', icon: 'bi-house-heart' };
+            return { typeClass: 'type-other', icon: 'bi-stars' };
+        }
+
+        async function loadServices(forceReload = false) {
+            const grid = document.getElementById('serviceGrid');
+            if (!grid) return;
+            if (grid.dataset.loaded === '1' && !forceReload) return;
+
+            grid.innerHTML = '<div class="service-card"><div class="service-title">Đang tải dữ liệu dịch vụ...</div></div>';
+
+            try {
+                const response = await fetch('get_services.php', { cache: 'no-store' });
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const payload = await response.json();
+                if (!payload.ok) throw new Error(payload.message || 'Không lấy được dữ liệu dịch vụ');
+
+                const rows = Array.isArray(payload.data) ? payload.data : [];
+                if (!rows.length) {
+                    grid.innerHTML = '<div class="service-card"><div class="service-title">Chưa có dữ liệu dịch vụ.</div></div>';
+                    return;
+                }
+
+                grid.innerHTML = rows.map((row) => {
+                    const visual = getServiceVisual(row.tendichvu);
+                    const isActive = row.trangthaidichvu === 'hoatdong';
+                    const badgeClass = isActive ? 'service-badge' : 'service-badge inactive';
+                    const badgeText = isActive ? 'Hoạt động' : 'Ngừng hoạt động';
+                    const createdAt = row.ngaytaodichvu ? new Date(row.ngaytaodichvu).toLocaleDateString('vi-VN') : 'N/A';
+
+                    return `
+                        <div class="service-card ${visual.typeClass}">
+                            <div class="service-card-header">
+                                <div class="service-title"><span class="service-title-icon"><i class="bi ${visual.icon}"></i></span>${escapeHtml(row.tendichvu)}</div>
+                                <span class="${badgeClass}">${badgeText}</span>
+                            </div>
+                            <div class="service-meta">
+                                <div><i class="bi bi-hash"></i> Mã dịch vụ: ${row.id}</div>
+                                <div><i class="bi bi-cash-stack"></i> Giá: ${formatCurrencyVND(row.giadichvu)}</div>
+                                <div><i class="bi bi-clock"></i> Thời gian: ${row.thoigiandichvu} phút</div>
+                                <div><i class="bi bi-calendar3"></i> Ngày tạo: ${createdAt}</div>
+                            </div>
+                            <div class="service-actions">
+                                <button class="btn-edit" onclick="editService(${row.id})"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                grid.dataset.loaded = '1';
+            } catch (error) {
+                grid.innerHTML = `<div class="service-card"><div class="service-title text-danger">Không tải được dữ liệu dịch vụ</div><div class="service-meta"><div>${escapeHtml(error.message)}</div></div></div>`;
+            }
+        }
+
+        function editService(serviceId) {
+            alert('Chỉnh sửa dịch vụ ID: ' + serviceId + '. Bạn có thể nối nút này tới form cập nhật.');
+        }
+
+        loadServices();
+    </script>
+</body>
+</html>
+
