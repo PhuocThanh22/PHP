@@ -12,7 +12,17 @@
     <div class="page-wrap">
         <div class="top-header d-flex justify-content-between align-items-center">
             <h2>Quản Lý Dịch Vụ</h2>
-            <button class="btn btn-warning text-white" onclick="loadServices(true)"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</button>
+            <div class="service-toolbar">
+                <div class="service-search">
+                    <i class="bi bi-search"></i>
+                    <input id="serviceSearchInput" type="text" placeholder="Tìm theo tên hoặc mã dịch vụ..." aria-label="Tìm dịch vụ">
+                </div>
+                <div class="service-toolbar-actions">
+                    <button class="btn btn-success" type="button" onclick="openAddServiceModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+                    <button class="btn btn-danger" type="button" onclick="deleteServiceBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
+                    <button class="btn btn-warning text-white" type="button" onclick="loadServices(true)"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</button>
+                </div>
+            </div>
         </div>
 
         <div class="service-grid" id="serviceGrid">
@@ -20,7 +30,55 @@
         </div>
     </div>
 
+    <div class="service-modal" id="serviceEditModal" aria-hidden="true">
+        <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="serviceEditTitle">
+            <div class="service-modal-header">
+                <h3 class="service-modal-title" id="serviceEditTitle">Chỉnh sửa dịch vụ</h3>
+                <button type="button" class="service-modal-close" id="closeServiceModal" aria-label="Đóng">&times;</button>
+            </div>
+
+            <form id="serviceEditForm">
+                <div class="service-modal-body">
+                    <input type="hidden" id="editServiceId">
+
+                    <div class="service-form-group full">
+                        <label for="editServiceName">Tên dịch vụ</label>
+                        <input class="service-form-control" id="editServiceName" type="text" required>
+                    </div>
+
+                    <div class="service-form-group">
+                        <label for="editServicePrice">Giá dịch vụ (VND)</label>
+                        <input class="service-form-control" id="editServicePrice" type="number" min="0" step="1000" required>
+                    </div>
+
+                    <div class="service-form-group">
+                        <label for="editServiceDuration">Thời gian (phút)</label>
+                        <input class="service-form-control" id="editServiceDuration" type="number" min="1" required>
+                    </div>
+
+                    <div class="service-form-group">
+                        <label for="editServiceStatus">Trạng thái</label>
+                        <select class="service-form-control" id="editServiceStatus" required>
+                            <option value="hoatdong">Hoạt động</option>
+                            <option value="khonghoatdong">Ngừng hoạt động</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="service-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="cancelServiceModal">Hủy</button>
+                    <button type="submit" class="btn btn-warning text-white" id="saveServiceBtn">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        const serviceStore = new Map();
+        let allServices = [];
+        let currentFilter = '';
+        let editMode = 'update';
+
         function escapeHtml(value) {
             return String(value)
                 .replace(/&/g, '&amp;')
@@ -44,10 +102,64 @@
             return { typeClass: 'type-other', icon: 'bi-stars' };
         }
 
+        function getFilteredServices(list, keyword) {
+            const key = String(keyword || '').trim().toLowerCase();
+            if (!key) return list;
+            return list.filter((row) => {
+                const name = String(row.tendichvu || '').toLowerCase();
+                const idText = String(row.id || '').toLowerCase();
+                return name.includes(key) || idText.includes(key);
+            });
+        }
+
+        function renderServices(rows) {
+            const grid = document.getElementById('serviceGrid');
+            if (!grid) return;
+
+            if (!rows.length) {
+                grid.innerHTML = '<div class="service-card"><div class="service-title">Không tìm thấy dịch vụ phù hợp.</div></div>';
+                return;
+            }
+
+            grid.innerHTML = rows.map((row) => {
+                const visual = getServiceVisual(row.tendichvu);
+                const isActive = row.trangthaidichvu === 'hoatdong';
+                const statusClass = isActive ? 'service-state-btn' : 'service-state-btn inactive';
+                const statusText = isActive ? 'Hoạt động' : 'Ngừng hoạt động';
+                const activeClass = isActive ? 'is-active' : 'is-inactive';
+                const createdAt = row.ngaytaodichvu ? new Date(row.ngaytaodichvu).toLocaleDateString('vi-VN') : 'N/A';
+
+                return `
+                    <div class="service-card ${visual.typeClass} ${activeClass}" data-service-id="${row.id}">
+                        <div class="service-card-header">
+                            <div class="service-title"><span class="service-title-icon"><i class="bi ${visual.icon}"></i></span><span class="js-service-name">${escapeHtml(row.tendichvu)}</span></div>
+                        </div>
+                        <div class="service-meta">
+                            <div><i class="bi bi-hash"></i> Mã dịch vụ: ${row.id}</div>
+                            <div><i class="bi bi-cash-stack"></i> Giá: <span class="js-service-price">${formatCurrencyVND(row.giadichvu)}</span></div>
+                            <div><i class="bi bi-clock"></i> Thời gian: <span class="js-service-duration">${row.thoigiandichvu}</span> phút</div>
+                            <div><i class="bi bi-calendar3"></i> Ngày tạo: ${createdAt}</div>
+                        </div>
+                        <div class="service-actions">
+                            <span class="${statusClass} js-service-status">${statusText}</span>
+                            <button class="btn-edit" onclick="editService(${row.id})"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderByCurrentFilter() {
+            const filtered = getFilteredServices(allServices, currentFilter);
+            renderServices(filtered);
+        }
+
         async function loadServices(forceReload = false) {
             const grid = document.getElementById('serviceGrid');
             if (!grid) return;
             if (grid.dataset.loaded === '1' && !forceReload) return;
+
+            serviceStore.clear();
 
             grid.innerHTML = '<div class="service-card"><div class="service-title">Đang tải dữ liệu dịch vụ...</div></div>';
 
@@ -63,31 +175,9 @@
                     return;
                 }
 
-                grid.innerHTML = rows.map((row) => {
-                    const visual = getServiceVisual(row.tendichvu);
-                    const isActive = row.trangthaidichvu === 'hoatdong';
-                    const badgeClass = isActive ? 'service-badge' : 'service-badge inactive';
-                    const badgeText = isActive ? 'Hoạt động' : 'Ngừng hoạt động';
-                    const createdAt = row.ngaytaodichvu ? new Date(row.ngaytaodichvu).toLocaleDateString('vi-VN') : 'N/A';
-
-                    return `
-                        <div class="service-card ${visual.typeClass}">
-                            <div class="service-card-header">
-                                <div class="service-title"><span class="service-title-icon"><i class="bi ${visual.icon}"></i></span>${escapeHtml(row.tendichvu)}</div>
-                                <span class="${badgeClass}">${badgeText}</span>
-                            </div>
-                            <div class="service-meta">
-                                <div><i class="bi bi-hash"></i> Mã dịch vụ: ${row.id}</div>
-                                <div><i class="bi bi-cash-stack"></i> Giá: ${formatCurrencyVND(row.giadichvu)}</div>
-                                <div><i class="bi bi-clock"></i> Thời gian: ${row.thoigiandichvu} phút</div>
-                                <div><i class="bi bi-calendar3"></i> Ngày tạo: ${createdAt}</div>
-                            </div>
-                            <div class="service-actions">
-                                <button class="btn-edit" onclick="editService(${row.id})"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
+                allServices = rows.map((row) => ({ ...row }));
+                allServices.forEach((row) => serviceStore.set(String(row.id), row));
+                renderByCurrentFilter();
 
                 grid.dataset.loaded = '1';
             } catch (error) {
@@ -95,9 +185,166 @@
             }
         }
 
-        function editService(serviceId) {
-            alert('Chỉnh sửa dịch vụ ID: ' + serviceId + '. Bạn có thể nối nút này tới form cập nhật.');
+        function openAddServiceModal() {
+            editMode = 'create';
+            document.getElementById('serviceEditTitle').textContent = 'Thêm dịch vụ mới';
+            document.getElementById('saveServiceBtn').textContent = 'Thêm mới';
+            document.getElementById('editServiceId').value = '';
+            document.getElementById('editServiceName').value = '';
+            document.getElementById('editServicePrice').value = 0;
+            document.getElementById('editServiceDuration').value = 30;
+            document.getElementById('editServiceStatus').value = 'hoatdong';
+            openServiceModal();
         }
+
+        function deleteServiceBySearch() {
+            const keyword = String(document.getElementById('serviceSearchInput')?.value || '').trim().toLowerCase();
+            if (!keyword) {
+                alert('Nhập mã hoặc tên dịch vụ cần xóa trong ô tìm kiếm.');
+                return;
+            }
+
+            const target = getFilteredServices(allServices, keyword)[0];
+            if (!target) {
+                alert('Không tìm thấy dịch vụ để xóa.');
+                return;
+            }
+
+            const ok = confirm(`Bạn có chắc muốn xóa dịch vụ "${target.tendichvu}" (ID: ${target.id})?`);
+            if (!ok) return;
+
+            allServices = allServices.filter((item) => String(item.id) !== String(target.id));
+            serviceStore.delete(String(target.id));
+            renderByCurrentFilter();
+        }
+
+        function editService(serviceId) {
+            const key = String(serviceId);
+            const service = serviceStore.get(key);
+            if (!service) return;
+
+            editMode = 'update';
+            document.getElementById('serviceEditTitle').textContent = 'Chỉnh sửa dịch vụ';
+            document.getElementById('saveServiceBtn').textContent = 'Lưu thay đổi';
+
+            document.getElementById('editServiceId').value = service.id;
+            document.getElementById('editServiceName').value = service.tendichvu || '';
+            document.getElementById('editServicePrice').value = Number(service.giadichvu || 0);
+            document.getElementById('editServiceDuration').value = Number(service.thoigiandichvu || 0);
+            document.getElementById('editServiceStatus').value = service.trangthaidichvu === 'hoatdong' ? 'hoatdong' : 'khonghoatdong';
+
+            openServiceModal();
+        }
+
+        function openServiceModal() {
+            const modal = document.getElementById('serviceEditModal');
+            if (!modal) return;
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeServiceModal() {
+            const modal = document.getElementById('serviceEditModal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function applyServiceToCard(service) {
+            const card = document.querySelector(`[data-service-id="${service.id}"]`);
+            if (!card) return;
+
+            const visual = getServiceVisual(service.tendichvu);
+            card.classList.remove('type-grooming', 'type-health', 'type-cleaning', 'type-training', 'type-boarding', 'type-other');
+            card.classList.add(visual.typeClass);
+
+            const iconEl = card.querySelector('.service-title-icon i');
+            if (iconEl) iconEl.className = `bi ${visual.icon}`;
+
+            const nameEl = card.querySelector('.js-service-name');
+            if (nameEl) nameEl.textContent = service.tendichvu;
+
+            const priceEl = card.querySelector('.js-service-price');
+            if (priceEl) priceEl.textContent = formatCurrencyVND(service.giadichvu);
+
+            const durationEl = card.querySelector('.js-service-duration');
+            if (durationEl) durationEl.textContent = service.thoigiandichvu;
+
+            const statusEl = card.querySelector('.js-service-status');
+            if (statusEl) {
+                const active = service.trangthaidichvu === 'hoatdong';
+                statusEl.textContent = active ? 'Hoạt động' : 'Ngừng hoạt động';
+                statusEl.className = active ? 'service-state-btn js-service-status' : 'service-state-btn inactive js-service-status';
+                card.classList.toggle('is-active', active);
+                card.classList.toggle('is-inactive', !active);
+            }
+        }
+
+        document.getElementById('closeServiceModal').addEventListener('click', closeServiceModal);
+        document.getElementById('cancelServiceModal').addEventListener('click', closeServiceModal);
+
+        document.getElementById('serviceEditModal').addEventListener('click', (event) => {
+            if (event.target.id === 'serviceEditModal') closeServiceModal();
+        });
+
+        document.getElementById('serviceEditForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            const rawId = document.getElementById('editServiceId').value;
+            const name = document.getElementById('editServiceName').value.trim();
+            const price = Number(document.getElementById('editServicePrice').value || 0);
+            const duration = Number(document.getElementById('editServiceDuration').value || 0);
+            const status = document.getElementById('editServiceStatus').value;
+
+            if (!name) return;
+
+            if (editMode === 'create') {
+                const newId = allServices.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const created = {
+                    id: newId,
+                    tendichvu: name,
+                    giadichvu: price,
+                    thoigiandichvu: duration,
+                    trangthaidichvu: status,
+                    ngaytaodichvu: todayIso
+                };
+
+                allServices.unshift(created);
+                serviceStore.set(String(created.id), created);
+                renderByCurrentFilter();
+            } else {
+                const id = String(rawId);
+                const current = serviceStore.get(id);
+                if (!current) return;
+
+                const updated = {
+                    ...current,
+                    tendichvu: name,
+                    giadichvu: price,
+                    thoigiandichvu: duration,
+                    trangthaidichvu: status
+                };
+
+                serviceStore.set(id, updated);
+                allServices = allServices.map((item) => String(item.id) === id ? updated : item);
+                applyServiceToCard(updated);
+            }
+
+            closeServiceModal();
+        });
+
+        document.getElementById('serviceSearchInput').addEventListener('input', (event) => {
+            currentFilter = event.target.value || '';
+            renderByCurrentFilter();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeServiceModal();
+        });
+
+        document.documentElement.classList.add('hide-scrollbar');
+        document.body.classList.add('hide-scrollbar');
 
         loadServices();
     </script>
