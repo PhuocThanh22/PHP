@@ -154,6 +154,69 @@
             renderServices(filtered);
         }
 
+        function getServiceApiCandidates() {
+            const candidates = [];
+
+            // Most stable in iframe context: same-folder endpoint.
+            candidates.push('get_services.php?api=get_services');
+
+            // Most reliable candidate: resolve from the current iframe URL.
+            candidates.push(new URL('../../index.php?api=get_services', window.location.href).toString());
+
+            const marker = '/admin/';
+            const pathname = window.location.pathname || '';
+            const markerIndex = pathname.lastIndexOf(marker);
+            if (markerIndex >= 0) {
+                const beforeAdmin = pathname.slice(0, markerIndex);
+                const giaoDienIndex = beforeAdmin.lastIndexOf('/Giao');
+                const detectedBase = giaoDienIndex >= 0 ? beforeAdmin.slice(0, giaoDienIndex) : beforeAdmin;
+                if (detectedBase) candidates.push(`${detectedBase}/index.php?api=get_services`);
+            }
+
+            candidates.push('/phuocthanh/PHPCHINH/index.php?api=get_services');
+            candidates.push('/PHPCHINH/index.php?api=get_services');
+            candidates.push('/index.php?api=get_services');
+
+            return Array.from(new Set(candidates));
+        }
+
+        async function fetchServicesPayload() {
+            const candidates = getServiceApiCandidates();
+            const cacheBuster = `_t=${Date.now()}`;
+            let lastError = new Error('Khong lay duoc du lieu dich vu');
+            const attempts = [];
+
+            for (const candidate of candidates) {
+                const separator = candidate.includes('?') ? '&' : '?';
+                const url = `${candidate}${separator}${cacheBuster}`;
+
+                try {
+                    const response = await fetch(url, { cache: 'no-store' });
+                    if (!response.ok) {
+                        lastError = new Error('HTTP ' + response.status);
+                        attempts.push(`${url} -> HTTP ${response.status}`);
+                        continue;
+                    }
+
+                    const payload = await response.json();
+                    if (!payload.ok) {
+                        lastError = new Error(payload.message || 'Khong lay duoc du lieu dich vu');
+                        attempts.push(`${url} -> API ${payload.message || 'ok=false'}`);
+                        continue;
+                    }
+
+                    payload.__debugApiUrl = url;
+                    return payload;
+                } catch (error) {
+                    lastError = error;
+                    attempts.push(`${url} -> ${error.message}`);
+                }
+            }
+
+            const detail = attempts.length ? attempts.join(' | ') : 'Khong co attempt';
+            throw new Error(`${lastError.message} | Attempts: ${detail}`);
+        }
+
         async function loadServices(forceReload = false) {
             const grid = document.getElementById('serviceGrid');
             if (!grid) return;
@@ -164,10 +227,7 @@
             grid.innerHTML = '<div class="service-card"><div class="service-title">Đang tải dữ liệu dịch vụ...</div></div>';
 
             try {
-                const response = await fetch('get_services.php', { cache: 'no-store' });
-                if (!response.ok) throw new Error('HTTP ' + response.status);
-                const payload = await response.json();
-                if (!payload.ok) throw new Error(payload.message || 'Không lấy được dữ liệu dịch vụ');
+                const payload = await fetchServicesPayload();
 
                 const rows = Array.isArray(payload.data) ? payload.data : [];
                 if (!rows.length) {
