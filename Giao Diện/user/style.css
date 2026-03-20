@@ -18,7 +18,6 @@ body {
     font-family: 'Poppins', sans-serif;
     color: #000;
     overflow-x: hidden;
-    cursor: url('images/shark-cursor.png'), url('./images/shark-cursor.png'), auto;
 }
 
 /* Cursor Trail Effect - Water Bubbles */
@@ -49,9 +48,9 @@ body {
     }
 }
 
-/* Shark cursor for all interactive elements */
+/* Interactive elements */
 a, button, input, textarea, select, .btn, .nav-link, .form-control {
-    cursor: url('images/shark-cursor.png'), url('./images/shark-cursor.png'), pointer !important;
+    cursor: pointer;
 }
 
 .container-fluid {

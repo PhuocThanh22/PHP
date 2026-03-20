@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Hệ thống Load Trang</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .test-header {
+            background: #333;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .test-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        
+        .test-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        
+        .test-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .test-card p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .test-card button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .test-card button:hover {
+            background: #0052a3;
+        }
+        
+        .test-code {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        
+        .test-result {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            color: #2e7d32;
+        }
+        
+        .test-error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            color: #c62828;
+        }
+        
+        .test-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            color: #1565c0;
+        }
+        
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-header">
+        <h1>🧪 Test Hệ thống Load Trang Động</h1>
+        <p>Kiểm tra xem hệ thống hoạt động đúng không</p>
+    </div>
+
+    <div class="test-container">
+        <!-- Hướng dẫn -->
+        <div class="test-info">
+            <strong>ℹ️ Hướng dẫn:</strong> Bấm các nút dưới đây để test hệ thống. Kiểm tra Console (F12) để xem chi tiết.
+        </div>
+
+        <!-- Test 1: Load các trang -->
+        <h2 style="margin: 30px 0 20px; color: #333;">📄 Test 1: Load các trang</h2>
+        <div class="test-grid">
+            <div class="test-card">
+                <h3>🛒 Giỏ hàng</h3>
+                <p>Load trang giỏ hàng từ <code>pages/cart.html</code></p>
+                <div class="test-code">loadPage('cart')</div>
+                <button onclick="testLoadPage('cart')">Test Load Cart</button>
+            </div>
+
+            <div class="test-card">
+                <h3>🏪 Cửa hàng</h3>
+                <p>Load trang cửa hàng từ <code>pages/shop.html</code></p>
+                <div class="test-code">loadPage('shop')</div>
+                <button onclick="testLoadPage('shop')">Test Load Shop</button>
+            </div>
+
+            <div class="test-card">
+                <h3>ℹ️ Về chúng tôi</h3>
+                <p>Load trang về chúng tôi từ <code>pages/about.html</code></p>
+                <div class="test-code">loadPage('about')</div>
+                <button onclick="testLoadPage('about')">Test Load About</button>
+            </div>
+
+            <div class="test-card">
+                <h3>📞 Liên hệ</h3>
+                <p>Load trang liên hệ từ <code>pages/contact.html</code></p>
+                <div class="test-code">loadPage('contact')</div>
+                <button onclick="testLoadPage('contact')">Test Load Contact</button>
+            </div>
+
+            <div class="test-card">
+                <h3>📰 Chi tiết tin tức</h3>
+                <p>Load trang chi tiết tin tức từ <code>pages/news-detail.html</code></p>
+                <div class="test-code">loadPage('news-detail')</div>
+                <button onclick="testLoadPage('news-detail')">Test Load News</button>
+            </div>
+
+            <div class="test-card">
+                <h3>🏠 Trang chủ</h3>
+                <p>Reset về trang chính</p>
+                <div class="test-code">resetToHome()</div>
+                <button onclick="testResetHome()">Test Reset Home</button>
+            </div>
+        </div>
+
+        <!-- Test 2: Kiểm tra Fetch -->
+        <h2 style="margin: 30px 0 20px; color: #333;">🔍 Test 2: Kiểm tra Fetch API</h2>
+        <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <p style="margin-bottom: 15px;">Kiểm tra xem các file HTML có thể được fetch không:</p>
+            <button onclick="testFetchFile('pages/cart.html')" style="background: #0066cc; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px; margin-bottom: 10px;">Test Fetch cart.html</button>
+            <button onclick="testFetchFile('pages/shop.html')" style="background: #0066cc; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px; margin-bottom: 10px;">Test Fetch shop.html</button>
+            <button onclick="testFetchFile('pages/about.html')" style="background: #0066cc; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-bottom: 10px;">Test Fetch about.html</button>
+            <div id="fetch-result"></div>
+        </div>
+
+        <!-- Test 3: Kiểm tra DOM -->
+        <h2 style="margin: 30px 0 20px; color: #333;">🔧 Test 3: Kiểm tra DOM</h2>
+        <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <p style="margin-bottom: 15px;">Kiểm tra xem các phần tử cần thiết có tồn tại không:</p>
+            <button onclick="testDOM()" style="background: #0066cc; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Kiểm tra DOM</button>
+            <div id="dom-result"></div>
+        </div>
+
+        <!-- Test 4: Kiểm tra JavaScript -->
+        <h2 style="margin: 30px 0 20px; color: #333;">⚙️ Test 4: Kiểm tra JavaScript</h2>
+        <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <p style="margin-bottom: 15px;">Kiểm tra xem các hàm JavaScript có tồn tại không:</p>
+            <button onclick="testJS()" style="background: #0066cc; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Kiểm tra JS</button>
+            <div id="js-result"></div>
+        </div>
+
+        <!-- Kết quả -->
+        <h2 style="margin: 30px 0 20px; color: #333;">📋 Kết quả</h2>
+        <div id="test-output" style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <p style="color: #999;">Kết quả sẽ hiển thị ở đây...</p>
+        </div>
+    </div>
+
+    <!-- Script test -->
+    <script>
+        // Lưu thông tin test
+        const testLog = [];
+
+        const log = (message, type = 'info') => {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            testLog.push({ message, type });
+            updateTestOutput();
+        };
+
+        const updateTestOutput = () => {
+            const output = document.getElementById('test-output');
+            let html = '';
+            
+            testLog.forEach((log, i) => {
+                const className = {
+                    'success': 'test-result',
+                    'error': 'test-error',
+                    'info': 'test-info'
+                }[log.type] || 'test-info';
+                
+                html += `<div class="${className}" style="margin-bottom: 10px;">${i + 1}. ${log.message}</div>`;
+            });
+            
+            output.innerHTML = html || '<p style="color: #999;">Chưa có kết quả...</p>';
+        };
+
+        // Test load page
+        const testLoadPage = (pageName) => {
+            log(`🔄 Đang load trang: ${pageName}...`, 'info');
+            
+            // Giả sử loadPage được import từ loader.js
+            if (typeof loadPage === 'function') {
+                loadPage(pageName);
+                log(`✅ Trang ${pageName} đã được load thành công!`, 'success');
+            } else {
+                log(`❌ Hàm loadPage() không tồn tại!`, 'error');
+            }
+        };
+
+        // Test reset home
+        const testResetHome = () => {
+            log(`🔄 Đang reset về trang chủ...`, 'info');
+            
+            if (typeof resetToHome === 'function') {
+                resetToHome();
+                log(`✅ Đã reset về trang chủ!`, 'success');
+            } else {
+                log(`❌ Hàm resetToHome() không tồn tại!`, 'error');
+            }
+        };
+
+        // Test fetch file
+        const testFetchFile = (filePath) => {
+            log(`🔄 Đang fetch: ${filePath}...`, 'info');
+            
+            fetch(filePath)
+                .then(response => {
+                    if (response.ok) {
+                        log(`✅ Fetch thành công: ${filePath}`, 'success');
+                        return response.text();
+                    } else {
+                        log(`❌ Lỗi fetch (${response.status}): ${filePath}`, 'error');
+                    }
+                })
+                .then(html => {
+                    if (html) {
+                        log(`✅ Đã nhận ${html.length} ký tự từ ${filePath}`, 'success');
+                    }
+                })
+                .catch(err => {
+                    log(`❌ Lỗi fetch: ${err.message}`, 'error');
+                });
+        };
+
+        // Test DOM
+        const testDOM = () => {
+            const results = [];
+            
+            // Kiểm tra div#content
+            const contentDiv = document.getElementById('content');
+            if (contentDiv) {
+                log(`✅ Tìm thấy div#content`, 'success');
+            } else {
+                log(`❌ Không tìm thấy div#content`, 'error');
+            }
+            
+            // Kiểm tra loader.js
+            const scriptTag = document.querySelector('script[src*="loader.js"]');
+            if (scriptTag) {
+                log(`✅ Tìm thấy script loader.js`, 'success');
+            } else {
+                log(`⚠️ Không tìm thấy script loader.js (có thể được import trong home.html)`, 'info');
+            }
+        };
+
+        // Test JS
+        const testJS = () => {
+            // Kiểm tra loadPage
+            if (typeof loadPage === 'function') {
+                log(`✅ Hàm loadPage() tồn tại`, 'success');
+            } else {
+                log(`❌ Hàm loadPage() không tồn tại (check console)`, 'error');
+            }
+            
+            // Kiểm tra resetToHome
+            if (typeof resetToHome === 'function') {
+                log(`✅ Hàm resetToHome() tồn tại`, 'success');
+            } else {
+                log(`❌ Hàm resetToHome() không tồn tại (check console)`, 'error');
+            }
+            
+            // Kiểm tra Fetch API
+            if (typeof fetch === 'function') {
+                log(`✅ Fetch API tồn tại`, 'success');
+            } else {
+                log(`❌ Fetch API không tồn tại (cập nhật trình duyệt)`, 'error');
+            }
+        };
+
+        // Thông báo khi load
+        window.addEventListener('load', () => {
+            log('🎉 Trang test đã load xong!', 'info');
+            log('Chú ý: Nếu loadPage() chưa tồn tại, hãy chắc chắn loader.js được import từ home.html', 'info');
+        });
+    </script>
+</body>
+</html>

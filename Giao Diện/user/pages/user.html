@@ -1,0 +1,91 @@
+<section class="featured" style="padding-top: 50px; padding-bottom: 100px;">
+  <div class="container-fluid px-5">
+    <!-- Tiêu đề -->
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 40px;">
+      <i data-feather="user-circle" style="width: 32px; height: 32px;"></i>
+      <h1 style="font-size: 28px; margin: 0; font-weight: 700;">Tài khoản của tôi</h1>
+    </div>
+
+    <!-- Thông tin cá nhân + Lịch sử đơn hàng -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 40px;">
+      <!-- Thông tin cá nhân -->
+      <div style="background: #f8f9fa; padding: 30px; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px;">
+          <i data-feather="user" style="width: 20px; height: 20px;"></i>
+          <h3 style="font-size: 18px; margin: 0; font-weight: 600;">Thông tin cá nhân</h3>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <p style="margin: 0 0 5px 0; color: #888; font-size: 12px; text-transform: uppercase; font-weight: 600;">Tên</p>
+          <p style="margin: 0; font-size: 15px; color: #333;">Khách hàng</p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <p style="margin: 0 0 5px 0; color: #888; font-size: 12px; text-transform: uppercase; font-weight: 600;">Email</p>
+          <p style="margin: 0; font-size: 15px; color: #333;">customer@example.com</p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <p style="margin: 0 0 5px 0; color: #888; font-size: 12px; text-transform: uppercase; font-weight: 600;">Số điện thoại</p>
+          <p style="margin: 0; font-size: 15px; color: #333;">+84 123 456 789</p>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+          <p style="margin: 0 0 5px 0; color: #888; font-size: 12px; text-transform: uppercase; font-weight: 600;">Địa chỉ</p>
+          <p style="margin: 0; font-size: 15px; color: #333;">123 đường chính, Thành phố, Quốc gia</p>
+        </div>
+
+        <button style="background: #000; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+          <i data-feather="edit-2" style="width: 16px; height: 16px;"></i>
+          Chỉnh sửa thông tin
+        </button>
+      </div>
+
+      <!-- Lịch sử đơn hàng -->
+      <div style="background: #f8f9fa; padding: 30px; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px;">
+          <i data-feather="clock" style="width: 20px; height: 20px;"></i>
+          <h3 style="font-size: 18px; margin: 0; font-weight: 600;">Lịch sử đơn hàng</h3>
+        </div>
+
+        <div style="text-align: center; padding: 60px 20px;">
+          <i data-feather="shopping-bag" style="width: 48px; height: 48px; color: #ddd; margin-bottom: 15px;"></i>
+          <p style="color: #999; font-size: 15px; margin: 0;">Chưa có đơn hàng nào</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sản phẩm yêu thích -->
+    <div style="background: #f8f9fa; padding: 30px; border-radius: 12px; margin-bottom: 40px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px;">
+        <i data-feather="heart" style="width: 20px; height: 20px;"></i>
+        <h3 style="font-size: 18px; margin: 0; font-weight: 600;">Sản phẩm yêu thích</h3>
+      </div>
+
+      <div style="text-align: center; padding: 60px 20px;">
+        <i data-feather="heart" style="width: 48px; height: 48px; color: #ddd; margin-bottom: 15px;"></i>
+        <p style="color: #999; font-size: 15px; margin: 0;">Bạn chưa yêu thích sản phẩm nào</p>
+      </div>
+    </div>
+
+    <!-- Giỏ hàng -->
+    <div style="background: #f8f9fa; padding: 30px; border-radius: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px;">
+        <i data-feather="shopping-cart" style="width: 20px; height: 20px;"></i>
+        <h3 style="font-size: 18px; margin: 0; font-weight: 600;">Giỏ hàng</h3>
+      </div>
+
+      <div style="text-align: center; padding: 60px 20px;">
+        <i data-feather="shopping-cart" style="width: 48px; height: 48px; color: #ddd; margin-bottom: 15px;"></i>
+        <p style="color: #999; font-size: 15px; margin: 0;">Giỏ hàng của bạn trống</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Khởi tạo Feather Icons
+  if (typeof feather !== 'undefined') {
+    feather.replace();
+  }
+</script>

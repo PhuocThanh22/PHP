@@ -1,0 +1,54 @@
+<section class="featured" style="padding-top: 50px; padding-bottom: 100px;">
+  <div class="container-fluid px-5">
+    <h1 class="display-4 fw-bold mb-5">Giỏ hàng của bạn</h1>
+
+    <div style="display: grid; grid-template-columns: 1fr 350px; gap: 30px;">
+      <!-- Danh sách sản phẩm -->
+      <div class="cart-items">
+        <div id="empty-cart" style="text-align: center; padding: 60px 20px;">
+          <i data-feather="shopping-cart" style="font-size: 60px; color: #ddd; display: block; margin-bottom: 20px;"></i>
+          <p style="color: #888; font-size: 18px; margin-bottom: 20px;">Giỏ hàng của bạn trống</p>
+          <button class="btn btn-dark" onclick="loadPage('shop')">Tiếp tục mua sắm</button>
+        </div>
+
+        <div id="cart-content" style="display: none;">
+          <!-- Ví dụ item -->
+          <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; display: flex; gap: 20px; border: 1px solid #eee;">
+            <img src="https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=150&h=150&fit=crop" alt="Sản phẩm" style="width: 150px; height: 150px; object-fit: cover; border-radius: 8px;">
+            <div style="flex: 1;">
+              <h5 style="margin-bottom: 10px;">Thức ăn cho chó cao cấp</h5>
+              <p style="color: #666; margin-bottom: 15px;">Thức ăn chất lượng cao cho chó</p>
+              <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 15px;">
+                <span style="font-weight: 600; color: #ff6b6b;">450.000₫</span>
+                <input type="number" value="1" min="1" style="width: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+              <button style="background: none; border: none; color: #ff6b6b; cursor: pointer;">Xóa khỏi giỏ</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tóm tắt đơn hàng -->
+      <div style="background: #f9f9f9; padding: 25px; border-radius: 8px; height: fit-content;">
+        <h4 style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ddd;">Tóm tắt đơn hàng</h4>
+        
+        <div style="margin-bottom: 12px; display: flex; justify-content: space-between;">
+          <span>Tạm tính:</span>
+          <span id="subtotal" style="font-weight: 600;">0₫</span>
+        </div>
+        <div style="margin-bottom: 12px; display: flex; justify-content: space-between;">
+          <span>Vận chuyển:</span>
+          <span id="shipping" style="font-weight: 600;">0₫</span>
+        </div>
+        
+        <div style="padding: 15px 0; margin: 15px 0; border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; display: flex; justify-content: space-between; font-weight: 700; font-size: 18px;">
+          <span>Tổng cộng:</span>
+          <span id="total" style="color: #ff6b6b;">0₫</span>
+        </div>
+
+        <button class="btn btn-dark" style="width: 100%; padding: 12px; margin-bottom: 10px; border: none; cursor: pointer;">Thanh toán</button>
+        <button class="btn btn-outline-dark" style="width: 100%; padding: 12px; cursor: pointer;" onclick="loadPage('shop')">Tiếp tục mua sắm</button>
+      </div>
+    </div>
+  </div>
+</section>
