@@ -10,26 +10,398 @@
 </head>
 <body>
 <div class="page-wrap">
-    <div class="top-header"><h2>Quản Lý Sản Phẩm</h2></div>
+    <div class="top-header d-flex justify-content-between align-items-center">
+        <h2>Quản Lý Sản Phẩm</h2>
+        <div class="service-toolbar">
+            <div class="service-search">
+                <i class="bi bi-search"></i>
+                <input id="productSearchInput" type="text" placeholder="Tìm theo tên hoặc mã sản phẩm..." aria-label="Tìm sản phẩm">
+            </div>
+            <div class="service-toolbar-actions">
+                <button class="btn btn-success" type="button" onclick="openAddProductModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+                <button class="btn btn-danger" type="button" onclick="deleteProductBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
+                <button class="btn btn-warning text-white" type="button" onclick="loadProducts(true)"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</button>
+            </div>
+        </div>
+    </div>
     <div class="module-grid">
-        <div class="module-card"><div class="module-title"><i class="bi bi-box"></i><span>Tổng Sản Phẩm</span></div><div class="module-value">159</div><div class="module-desc">Sản phẩm đang kinh doanh</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-exclamation-circle"></i><span>Tồn Kho Thấp</span></div><div class="module-value">12</div><div class="module-desc">Cần nhập thêm hôm nay</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-tags"></i><span>Danh Mục</span></div><div class="module-value">9</div><div class="module-desc">Nhóm sản phẩm chính</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-box"></i><span>Tổng Sản Phẩm</span></div><div class="module-value" id="spTotal">0</div><div class="module-desc">Sản phẩm đang kinh doanh</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-exclamation-circle"></i><span>Tồn Kho Thấp</span></div><div class="module-value" id="spLowStock">0</div><div class="module-desc">Cần nhập thêm hôm nay</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-tags"></i><span>Danh Mục</span></div><div class="module-value" id="spCategoryCount">0</div><div class="module-desc">Nhóm sản phẩm chính</div></div>
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-exclamation-circle text-warning me-2"></i>Sản Phẩm Sắp Hết Hàng</h3></div>
+        <div class="section-header"><h3><i class="bi bi-box-seam text-warning me-2"></i>Danh Sách Sản Phẩm</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Hình Ảnh</th><th>Tên Sản Phẩm</th><th>Danh Mục</th><th>Số Lượng</th><th>Giá</th><th>Trạng Thái</th></tr></thead>
-                <tbody>
-                    <tr><td><img src="https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=100" class="product-img" alt="Product"></td><td>Thức Ăn Cho Chó Royal Canin</td><td>Thức Ăn</td><td>5 kg</td><td>450,000 đ</td><td><span class="status-badge danger">Sắp hết</span></td></tr>
-                    <tr><td><img src="https://images.unsplash.com/photo-1611003228941-98852ba62227?w=100" class="product-img" alt="Product"></td><td>Sữa Tắm Cho Mèo Petto</td><td>Vệ Sinh</td><td>12 chai</td><td>85,000 đ</td><td><span class="status-badge warning">Tồn kho thấp</span></td></tr>
-                </tbody>
+                <thead><tr><th>Hình Ảnh</th><th>Tên Sản Phẩm</th><th>Danh Mục</th><th>Số Lượng</th><th>Giá</th><th>Trạng Thái</th><th>Thao Tác</th></tr></thead>
+                <tbody id="spTableBody"></tbody>
             </table>
         </div>
     </div>
 </div>
+
+<div class="service-modal" id="productEditModal" aria-hidden="true">
+    <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="productEditTitle">
+        <div class="service-modal-header">
+            <h3 class="service-modal-title" id="productEditTitle">Chỉnh sửa sản phẩm</h3>
+            <button type="button" class="service-modal-close" id="closeProductModal" aria-label="Đóng">&times;</button>
+        </div>
+
+        <form id="productEditForm">
+            <div class="service-modal-body">
+                <input type="hidden" id="editProductId">
+                <input type="hidden" id="editProductCode">
+
+                <div class="service-form-group full">
+                    <label for="editProductName">Tên sản phẩm</label>
+                    <input class="service-form-control" id="editProductName" type="text" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editProductCategory">Danh mục</label>
+                    <input class="service-form-control" id="editProductCategory" type="text" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editProductPrice">Giá (VND)</label>
+                    <input class="service-form-control" id="editProductPrice" type="number" min="0" step="1000" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editProductQty">Số lượng</label>
+                    <input class="service-form-control" id="editProductQty" type="number" min="0" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editProductStatus">Trạng thái</label>
+                    <select class="service-form-control" id="editProductStatus" required>
+                        <option value="conhang">Còn hàng</option>
+                        <option value="saphet">Sắp hết</option>
+                        <option value="hethang">Hết hàng</option>
+                    </select>
+                </div>
+
+                <div class="service-form-group full">
+                    <label for="editProductImage">Hình ảnh</label>
+                    <input class="service-form-control" id="editProductImage" type="text" placeholder="images/sanpham/sp001.jpg hoặc URL ảnh">
+                </div>
+            </div>
+
+            <div class="service-modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="cancelProductModal">Hủy</button>
+                <button type="submit" class="btn btn-warning text-white" id="saveProductBtn">Lưu thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const productStore = new Map();
+    let allProducts = [];
+    let currentFilter = '';
+    let productEditMode = 'update';
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatVnd(value) {
+        return new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' đ';
+    }
+
+    function statusBadgeClass(status) {
+        if (status === 'hethang') return 'danger';
+        if (status === 'saphet') return 'warning';
+        return 'success';
+    }
+
+    function statusText(status) {
+        if (status === 'hethang') return 'Hết hàng';
+        if (status === 'saphet') return 'Sắp hết';
+        return 'Còn hàng';
+    }
+
+    function normalizeImage(src) {
+        const value = String(src || '').trim();
+        if (!value) return 'https://via.placeholder.com/100?text=No+Image';
+        if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/')) return value;
+        return '../../' + value.replace(/^\/+/, '');
+    }
+
+    function refreshSummary() {
+        const totalEl = document.getElementById('spTotal');
+        const lowStockEl = document.getElementById('spLowStock');
+        const categoryCountEl = document.getElementById('spCategoryCount');
+
+        if (!totalEl || !lowStockEl || !categoryCountEl) return;
+
+        const lowStock = allProducts.filter((item) => Number(item.soluongsanpham || 0) > 0 && Number(item.soluongsanpham || 0) <= 5).length;
+        const categorySet = new Set(allProducts.map((item) => String(item.tendanhmuc || 'Chua phan loai')));
+
+        totalEl.textContent = String(allProducts.length);
+        lowStockEl.textContent = String(lowStock);
+        categoryCountEl.textContent = String(categorySet.size);
+    }
+
+    function filterProducts(list, keyword) {
+        const key = String(keyword || '').trim().toLowerCase();
+        if (!key) return list;
+        return list.filter((item) => {
+            const name = String(item.tensanpham || '').toLowerCase();
+            const code = String(item.masanpham || '').toLowerCase();
+            return name.includes(key) || code.includes(key);
+        });
+    }
+
+    function renderProducts(rows) {
+        const tbody = document.getElementById('spTableBody');
+        if (!tbody) return;
+
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="7">Không tìm thấy sản phẩm phù hợp.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map((item) => `
+            <tr data-product-id="${item.id}">
+                <td><img src="${escapeHtml(normalizeImage(item.hinhanhsanpham))}" class="product-img" alt="Product"></td>
+                <td>${escapeHtml(item.tensanpham)}</td>
+                <td>${escapeHtml(item.tendanhmuc)}</td>
+                <td>${escapeHtml(item.soluongsanpham)}</td>
+                <td>${escapeHtml(formatVnd(item.giasanpham))}</td>
+                <td><span class="status-badge ${statusBadgeClass(item.trangthaisanpham)}">${statusText(item.trangthaisanpham)}</span></td>
+                <td><button class="btn-edit" type="button" onclick="editProduct(${item.id})"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function renderByCurrentFilter() {
+        const rows = filterProducts(allProducts, currentFilter);
+        renderProducts(rows);
+    }
+
+    function getProductApiCandidates() {
+        const candidates = [];
+        candidates.push(new URL('../../index.php?api=get_products', window.location.href).toString());
+        candidates.push('/phuocthanh/PHPCHINH/index.php?api=get_products');
+        candidates.push('/PHPCHINH/index.php?api=get_products');
+        return Array.from(new Set(candidates));
+    }
+
+    async function fetchProductsPayload() {
+        const candidates = getProductApiCandidates();
+        const cacheBuster = `_t=${Date.now()}`;
+        let lastError = new Error('Khong lay duoc du lieu san pham');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}${cacheBuster}`;
+
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) {
+                    lastError = new Error('HTTP ' + response.status);
+                    continue;
+                }
+
+                const payload = await response.json();
+                if (!payload.ok) {
+                    lastError = new Error(payload.message || 'Khong lay duoc du lieu san pham');
+                    continue;
+                }
+
+                return payload;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    async function loadProducts(forceReload = false) {
+        const tbody = document.getElementById('spTableBody');
+        if (!tbody) return;
+        if (tbody.dataset.loaded === '1' && !forceReload) return;
+
+        productStore.clear();
+        allProducts = [];
+        currentFilter = '';
+        const searchEl = document.getElementById('productSearchInput');
+        if (searchEl) searchEl.value = '';
+
+        tbody.innerHTML = '<tr><td colspan="7">Đang tải dữ liệu sản phẩm...</td></tr>';
+
+        try {
+            const payload = await fetchProductsPayload();
+            const rows = Array.isArray(payload.data) ? payload.data : [];
+            allProducts = rows.map((item) => ({ ...item }));
+            allProducts.forEach((item) => productStore.set(String(item.id), item));
+            refreshSummary();
+
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="7">Chưa có dữ liệu sản phẩm.</td></tr>';
+                tbody.dataset.loaded = '1';
+                return;
+            }
+
+            renderByCurrentFilter();
+            tbody.dataset.loaded = '1';
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="7">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+        }
+    }
+
+    function openAddProductModal() {
+        productEditMode = 'create';
+        document.getElementById('productEditTitle').textContent = 'Thêm sản phẩm mới';
+        document.getElementById('saveProductBtn').textContent = 'Thêm mới';
+        document.getElementById('editProductId').value = '';
+        document.getElementById('editProductCode').value = '';
+        document.getElementById('editProductName').value = '';
+        document.getElementById('editProductCategory').value = '';
+        document.getElementById('editProductPrice').value = 0;
+        document.getElementById('editProductQty').value = 0;
+        document.getElementById('editProductStatus').value = 'conhang';
+        document.getElementById('editProductImage').value = '';
+        openProductModal();
+    }
+
+    function editProduct(productId) {
+        const product = productStore.get(String(productId));
+        if (!product) return;
+
+        productEditMode = 'update';
+        document.getElementById('productEditTitle').textContent = 'Chỉnh sửa sản phẩm';
+        document.getElementById('saveProductBtn').textContent = 'Lưu thay đổi';
+        document.getElementById('editProductId').value = String(product.id || '');
+        document.getElementById('editProductCode').value = String(product.masanpham || '');
+        document.getElementById('editProductName').value = String(product.tensanpham || '');
+        document.getElementById('editProductCategory').value = String(product.tendanhmuc || '');
+        document.getElementById('editProductPrice').value = Number(product.giasanpham || 0);
+        document.getElementById('editProductQty').value = Number(product.soluongsanpham || 0);
+        document.getElementById('editProductStatus').value = String(product.trangthaisanpham || 'conhang');
+        document.getElementById('editProductImage').value = String(product.hinhanhsanpham || '');
+        openProductModal();
+    }
+
+    function openProductModal() {
+        const modal = document.getElementById('productEditModal');
+        if (!modal) return;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeProductModal() {
+        const modal = document.getElementById('productEditModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function deleteProductBySearch() {
+        const keyword = String(document.getElementById('productSearchInput')?.value || '').trim().toLowerCase();
+        if (!keyword) {
+            alert('Nhập tên hoặc mã sản phẩm trong ô tìm kiếm để xóa.');
+            return;
+        }
+
+        const target = filterProducts(allProducts, keyword)[0];
+        if (!target) {
+            alert('Không tìm thấy sản phẩm để xóa.');
+            return;
+        }
+
+        const ok = confirm(`Bạn có chắc muốn xóa sản phẩm "${target.tensanpham}" (${target.masanpham || 'N/A'})?`);
+        if (!ok) return;
+
+        allProducts = allProducts.filter((item) => String(item.id) !== String(target.id));
+        productStore.delete(String(target.id));
+        refreshSummary();
+        renderByCurrentFilter();
+    }
+
+    document.getElementById('closeProductModal').addEventListener('click', closeProductModal);
+    document.getElementById('cancelProductModal').addEventListener('click', closeProductModal);
+
+    document.getElementById('productEditModal').addEventListener('click', (event) => {
+        if (event.target.id === 'productEditModal') {
+            closeProductModal();
+        }
+    });
+
+    document.getElementById('productEditForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        const rawId = document.getElementById('editProductId').value;
+        const code = document.getElementById('editProductCode').value.trim();
+        const name = document.getElementById('editProductName').value.trim();
+        const category = document.getElementById('editProductCategory').value.trim();
+        const price = Number(document.getElementById('editProductPrice').value || 0);
+        const qty = Number(document.getElementById('editProductQty').value || 0);
+        const status = document.getElementById('editProductStatus').value;
+        const image = document.getElementById('editProductImage').value.trim();
+
+        if (!name || !category) return;
+
+        if (productEditMode === 'create') {
+            const newId = allProducts.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+            const newProduct = {
+                id: newId,
+                masanpham: code || `SP${String(newId).padStart(3, '0')}`,
+                tensanpham: name,
+                tendanhmuc: category,
+                danhmuc_id: 0,
+                giasanpham: price,
+                soluongsanpham: qty,
+                trangthaisanpham: status,
+                hinhanhsanpham: image
+            };
+
+            allProducts.unshift(newProduct);
+            productStore.set(String(newProduct.id), newProduct);
+        } else {
+            const id = String(rawId);
+            const current = productStore.get(id);
+            if (!current) return;
+
+            const updated = {
+                ...current,
+                masanpham: code || current.masanpham,
+                tensanpham: name,
+                tendanhmuc: category,
+                giasanpham: price,
+                soluongsanpham: qty,
+                trangthaisanpham: status,
+                hinhanhsanpham: image
+            };
+
+            allProducts = allProducts.map((item) => String(item.id) === id ? updated : item);
+            productStore.set(id, updated);
+        }
+
+        refreshSummary();
+        renderByCurrentFilter();
+        closeProductModal();
+    });
+
+    document.getElementById('productSearchInput').addEventListener('input', (event) => {
+        currentFilter = event.target.value || '';
+        renderByCurrentFilter();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeProductModal();
+    });
+
+    loadProducts();
+</script>
 </body>
 </html>
 
