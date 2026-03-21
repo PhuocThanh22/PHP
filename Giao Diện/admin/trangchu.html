@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Trang Chủ Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20260321-5">
 </head>
-<body>
+<body class="home-no-scroll">
     <div class="page-wrap">
         <div class="top-header home-topbar">
             <div class="home-search">
@@ -41,32 +44,185 @@
             <div class="stat-card blue" data-metric="pets" role="button" tabindex="0"><div class="icon"><i class="bi bi-heart"></i></div><div class="label">Thú Cưng</div><div><span class="value">50</span><span class="unit"> con</span></div></div>
         </div>
 
-        <div class="chart-card">
-            <h3 id="homeChartTitle">Biểu Đồ Hóa Đơn</h3>
-            <canvas id="homeChart"></canvas>
+        <div class="home-main-grid">
+            <div class="chart-card home-chart-card">
+                <div class="home-chart-head">
+                    <h3 id="homeChartTitle">Biểu Đồ Hóa Đơn Theo Tuần</h3>
+                    <div class="home-chart-controls">
+                        <div id="homePeriodSwitch" class="home-period-switch" role="group" aria-label="Chọn kỳ dữ liệu biểu đồ">
+                            <button type="button" class="home-period-btn" data-period="day">Ngày</button>
+                            <button type="button" class="home-period-btn active" data-period="week">Tuần</button>
+                            <button type="button" class="home-period-btn" data-period="month">Tháng</button>
+                        </div>
+                        <div id="homeTypeSwitch" class="home-type-switch" role="group" aria-label="Chọn kiểu biểu đồ">
+                            <button type="button" class="home-type-btn active" data-chart-type="auto">Tự động</button>
+                            <button type="button" class="home-type-btn" data-chart-type="bar">Cột</button>
+                            <button type="button" class="home-type-btn" data-chart-type="line">Đường</button>
+                            <button type="button" class="home-type-btn" data-chart-type="pie">Tròn</button>
+                            <button type="button" class="home-type-btn" data-chart-type="doughnut">Doughnut</button>
+                        </div>
+                        <div id="homeCategoryFilter" class="home-category-filter" hidden>
+                            <label for="productCategorySelect">Danh mục:</label>
+                            <select id="productCategorySelect" aria-label="Chọn danh mục sản phẩm">
+                                <option value="food-dog">Thức ăn chó</option>
+                                <option value="food-cat">Thức ăn mèo</option>
+                                <option value="accessories">Phụ kiện</option>
+                                <option value="hygiene">Vệ sinh</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <p id="homeChartSummary" class="home-chart-summary">Biểu đồ thể hiện số hóa đơn theo từng ngày trong tuần hiện tại.</p>
+                <div class="home-axis-note" aria-live="polite">
+                    <span id="homeAxisX">Trục ngang (X): Ngày trong tuần</span>
+                    <span id="homeAxisY">Trục dọc (Y): Số hóa đơn</span>
+                </div>
+                <canvas id="homeChart"></canvas>
+            </div>
+
+            <aside class="home-side-panel" aria-label="Thông tin nhanh">
+                <section class="home-side-card">
+                    <div class="home-side-header">
+                        <h4>Việc Cần Làm Hôm Nay</h4>
+                        <span class="home-side-badge warning">3 mục</span>
+                    </div>
+                    <ul class="home-task-list">
+                        <li><i class="bi bi-cart-check"></i><span>12 đơn hàng chờ xác nhận</span></li>
+                        <li><i class="bi bi-scissors"></i><span>8 lịch grooming buổi chiều</span></li>
+                        <li><i class="bi bi-telephone"></i><span>4 khách cần gọi lại</span></li>
+                    </ul>
+                    <div class="home-quick-actions">
+                        <button type="button">Xác Nhận Đơn</button>
+                        <button type="button">Tạo Lịch Hẹn</button>
+                    </div>
+                </section>
+
+                <section class="home-side-card">
+                    <div class="home-side-header">
+                        <h4>Top Dịch Vụ Tuần</h4>
+                        <span class="home-side-badge success">Ổn định</span>
+                    </div>
+                    <ol class="home-top-service">
+                        <li><span>Tắm & Sấy</span><b>42 lịch</b></li>
+                        <li><span>Vệ sinh tai</span><b>31 lịch</b></li>
+                        <li><span>Cắt móng</span><b>28 lịch</b></li>
+                    </ol>
+                </section>
+            </aside>
         </div>
     </div>
 
     <script>
         Chart.defaults.font.family = 'Poppins, sans-serif';
 
-        const metrics = {
-            invoices: { title: 'Biểu Đồ Hóa Đơn', label: 'Hóa Đơn', data: [45, 52, 48, 60, 66, 39, 70], bg: 'rgba(40,167,69,0.2)', border: 'rgba(40,167,69,1)' },
-            products: { title: 'Biểu Đồ Sản Phẩm', label: 'Sản Phẩm', data: [120, 132, 128, 141, 149, 137, 159], bg: 'rgba(255,193,7,0.25)', border: 'rgba(255,152,0,1)' },
-            customers: { title: 'Biểu Đồ Khách Hàng', label: 'Khách Hàng', data: [18, 20, 23, 26, 29, 31, 35], bg: 'rgba(130,221,85,0.25)', border: 'rgba(76,175,80,1)' },
-            pets: { title: 'Biểu Đồ Thú Cưng', label: 'Thú Cưng', data: [22, 27, 31, 36, 41, 45, 50], bg: 'rgba(125,211,252,0.25)', border: 'rgba(59,130,246,1)' }
+        const metricConfigs = {
+            invoices: {
+                label: 'Hóa Đơn',
+                type: 'line',
+                title: 'Biểu Đồ Hóa Đơn',
+                summary: 'Theo dõi số hóa đơn phát sinh theo từng mốc thời gian.',
+                border: 'rgba(40,167,69,1)',
+                bg: 'rgba(40,167,69,0.2)',
+                controls: { period: true, category: false },
+                byPeriod: {
+                    day: { labels: ['8h', '10h', '12h', '14h', '16h', '18h', '20h', '22h'], data: [4, 6, 7, 5, 8, 9, 6, 10], axisX: 'Khung giờ trong ngày', axisY: 'Số hóa đơn' },
+                    week: { labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'], data: [45, 52, 48, 60, 66, 39, 70], axisX: 'Ngày trong tuần', axisY: 'Số hóa đơn' },
+                    month: { labels: ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'], data: [170, 186, 192, 205], axisX: 'Tuần trong tháng', axisY: 'Số hóa đơn' }
+                }
+            },
+            products: {
+                label: 'Sản Phẩm',
+                type: 'bar',
+                title: 'Biểu Đồ Sản Phẩm',
+                summary: 'Thống kê số lượng bán ra theo từng sản phẩm trong danh mục đã chọn.',
+                border: 'rgba(255,152,0,1)',
+                bg: 'rgba(255,193,7,0.35)',
+                controls: { period: false, category: true },
+                categories: {
+                    'food-dog': { labels: ['Hạt chó nhỏ', 'Hạt chó lớn', 'Pate chó', 'Snack thưởng'], data: [38, 24, 31, 27], axisX: 'Tên sản phẩm (Thức ăn chó)', axisY: 'Số lượng bán ra' },
+                    'food-cat': { labels: ['Hạt mèo con', 'Hạt mèo lớn', 'Pate cá ngừ', 'Snack mèo'], data: [42, 35, 29, 25], axisX: 'Tên sản phẩm (Thức ăn mèo)', axisY: 'Số lượng bán ra' },
+                    accessories: { labels: ['Vòng cổ', 'Dây dắt', 'Áo thú cưng', 'Lược chải'], data: [18, 16, 11, 14], axisX: 'Tên sản phẩm (Phụ kiện)', axisY: 'Số lượng bán ra' },
+                    hygiene: { labels: ['Cát mèo', 'Sữa tắm', 'Khăn ướt', 'Khử mùi'], data: [30, 22, 19, 17], axisX: 'Tên sản phẩm (Vệ sinh)', axisY: 'Số lượng bán ra' }
+                }
+            },
+            customers: {
+                label: 'Khách Hàng',
+                type: 'bar',
+                title: 'Biểu Đồ Khách Hàng',
+                summary: 'Tỷ trọng số lượng khách theo nhóm để nhận biết tệp khách chính.',
+                border: 'rgba(76,175,80,1)',
+                bg: 'rgba(130,221,85,0.3)',
+                controls: { period: false, category: false },
+                staticData: {
+                    labels: ['Khách mới', 'Khách quay lại', 'Khách VIP', 'Khách ngủ đông'],
+                    data: [14, 12, 6, 3],
+                    axisX: 'Nhóm khách hàng',
+                    axisY: 'Số lượng khách'
+                }
+            },
+            pets: {
+                label: 'Thú Cưng',
+                type: 'bar',
+                title: 'Biểu Đồ Thú Cưng',
+                summary: 'Thống kê số lượt phục vụ theo loại thú cưng trong kỳ hiện tại.',
+                border: 'rgba(59,130,246,1)',
+                bg: 'rgba(125,211,252,0.35)',
+                controls: { period: false, category: false },
+                staticData: {
+                    labels: ['Chó nhỏ', 'Chó lớn', 'Mèo', 'Loại khác'],
+                    data: [21, 12, 14, 3],
+                    axisX: 'Loại thú cưng',
+                    axisY: 'Số lượt phục vụ'
+                }
+            }
         };
 
         const titleEl = document.getElementById('homeChartTitle');
+        const summaryEl = document.getElementById('homeChartSummary');
+        const axisXEl = document.getElementById('homeAxisX');
+        const axisYEl = document.getElementById('homeAxisY');
+        const periodSwitch = document.getElementById('homePeriodSwitch');
+        const typeSwitch = document.getElementById('homeTypeSwitch');
+        const categoryFilter = document.getElementById('homeCategoryFilter');
+        const categorySelect = document.getElementById('productCategorySelect');
+
+        let currentMetric = 'invoices';
+        let currentPeriod = 'week';
+        let currentChartType = 'auto';
+
+        function buildSegmentColors(metricKey, length) {
+            const palettes = {
+                invoices: ['#22c55e', '#16a34a', '#4ade80', '#86efac', '#15803d', '#34d399'],
+                products: ['#f59e0b', '#f97316', '#fb923c', '#fdba74', '#facc15', '#ea580c'],
+                customers: ['#84cc16', '#22c55e', '#65a30d', '#a3e635', '#4d7c0f', '#bef264'],
+                pets: ['#3b82f6', '#60a5fa', '#2563eb', '#93c5fd', '#1d4ed8', '#7dd3fc']
+            };
+
+            const src = palettes[metricKey] || ['#94a3b8', '#64748b', '#475569', '#cbd5e1'];
+            const arr = [];
+            for (let i = 0; i < length; i++) arr.push(src[i % src.length]);
+            return arr;
+        }
+
+        function withAlpha(hex, alpha) {
+            const clean = hex.replace('#', '');
+            const size = clean.length === 3 ? 1 : 2;
+            const expand = size === 1
+                ? clean.split('').map((c) => c + c)
+                : [clean.slice(0, 2), clean.slice(2, 4), clean.slice(4, 6)];
+            const [r, g, b] = expand.map((v) => parseInt(v, 16));
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
         const chart = new Chart(document.getElementById('homeChart'), {
             type: 'line',
             data: {
-                labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
+                labels: metricConfigs.invoices.byPeriod.week.labels,
                 datasets: [{
-                    label: metrics.invoices.label,
-                    data: metrics.invoices.data,
-                    backgroundColor: metrics.invoices.bg,
-                    borderColor: metrics.invoices.border,
+                    label: metricConfigs.invoices.label,
+                    data: metricConfigs.invoices.byPeriod.week.data,
+                    backgroundColor: metricConfigs.invoices.bg,
+                    borderColor: metricConfigs.invoices.border,
                     borderWidth: 2,
                     fill: true,
                     pointRadius: 3,
@@ -76,6 +232,9 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: { left: 0, right: 0 }
+                },
                 plugins: {
                     legend: {
                         position: 'top',
@@ -83,22 +242,105 @@
                     }
                 },
                 scales: {
-                    y: { beginAtZero: true, ticks: { font: { size: 12 } } },
-                    x: { ticks: { font: { size: 12 } } }
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Số hóa đơn', font: { size: 12, weight: '600' } },
+                        ticks: { font: { size: 12 } }
+                    },
+                    x: {
+                        offset: false,
+                        title: { display: true, text: 'Ngày trong tuần', font: { size: 12, weight: '600' } },
+                        ticks: { font: { size: 12 } }
+                    }
                 }
             }
         });
 
-        function updateChart(key) {
-            const m = metrics[key];
-            if (!m) return;
-            titleEl.textContent = m.title;
-            chart.data.datasets[0].label = m.label;
-            chart.data.datasets[0].data = m.data;
-            chart.data.datasets[0].backgroundColor = m.bg;
-            chart.data.datasets[0].borderColor = m.border;
+        function getMetricDataset(metricKey) {
+            const metric = metricConfigs[metricKey];
+            if (!metric) return null;
+
+            if (metric.byPeriod) {
+                return metric.byPeriod[currentPeriod];
+            }
+
+            if (metric.categories) {
+                return metric.categories[categorySelect.value];
+            }
+
+            return metric.staticData;
+        }
+
+        function applyControlVisibility(metricKey) {
+            const controls = metricConfigs[metricKey].controls;
+            periodSwitch.hidden = !controls.period;
+            categoryFilter.hidden = !controls.category;
+        }
+
+        function updateChart(metricKey = currentMetric) {
+            const metric = metricConfigs[metricKey];
+            const dataset = getMetricDataset(metricKey);
+            if (!metric || !dataset) return;
+
+            currentMetric = metricKey;
+            applyControlVisibility(metricKey);
+
+            const chartType = currentChartType === 'auto' ? metric.type : currentChartType;
+            const isCircleChart = chartType === 'pie' || chartType === 'doughnut';
+
+            titleEl.textContent = metric.title;
+            summaryEl.textContent = metric.summary;
+            axisXEl.textContent = isCircleChart ? 'Biểu đồ tròn không dùng trục X.' : `Trục ngang (X): ${dataset.axisX}`;
+            axisYEl.textContent = isCircleChart ? 'Biểu đồ tròn không dùng trục Y.' : `Trục dọc (Y): ${dataset.axisY}`;
+
+            chart.config.type = chartType;
+            chart.data.labels = dataset.labels;
+            chart.data.datasets[0].label = metric.label;
+            chart.data.datasets[0].data = dataset.data;
+            if (isCircleChart) {
+                const colors = buildSegmentColors(metricKey, dataset.data.length);
+                chart.data.datasets[0].backgroundColor = colors.map((color) => withAlpha(color, 0.4));
+                chart.data.datasets[0].borderColor = colors;
+                chart.data.datasets[0].borderWidth = 2;
+                chart.data.datasets[0].fill = false;
+                chart.data.datasets[0].tension = 0;
+                chart.data.datasets[0].pointBackgroundColor = colors;
+                chart.data.datasets[0].pointBorderColor = colors;
+            } else {
+                chart.data.datasets[0].backgroundColor = metric.bg;
+                chart.data.datasets[0].borderColor = metric.border;
+                chart.data.datasets[0].borderWidth = 2;
+                chart.data.datasets[0].fill = chartType === 'line';
+                chart.data.datasets[0].tension = chartType === 'line' ? 0.35 : 0.1;
+
+                if (chartType === 'line') {
+                    const colors = buildSegmentColors(metricKey, dataset.data.length);
+                    chart.data.datasets[0].pointBackgroundColor = colors;
+                    chart.data.datasets[0].pointBorderColor = colors;
+                    chart.data.datasets[0].pointRadius = 4;
+                    chart.data.datasets[0].pointHoverRadius = 5;
+                } else {
+                    chart.data.datasets[0].pointBackgroundColor = metric.border;
+                    chart.data.datasets[0].pointBorderColor = metric.border;
+                    chart.data.datasets[0].pointRadius = 3;
+                    chart.data.datasets[0].pointHoverRadius = 4;
+                }
+            }
+
+            chart.options.scales.x.display = !isCircleChart;
+            chart.options.scales.y.display = !isCircleChart;
+            chart.options.scales.x.title.display = !isCircleChart;
+            chart.options.scales.y.title.display = !isCircleChart;
+            chart.options.scales.x.offset = chartType === 'bar';
+            chart.options.scales.x.title.text = dataset.axisX;
+            chart.options.scales.y.title.text = dataset.axisY;
+            chart.options.layout.padding.left = chartType === 'bar' ? 14 : 0;
+            chart.options.layout.padding.right = chartType === 'bar' ? 14 : 0;
             chart.update();
-            document.querySelectorAll('.stat-card').forEach(card => card.classList.toggle('active', card.dataset.metric === key));
+
+            document.querySelectorAll('.stat-card').forEach(card => card.classList.toggle('active', card.dataset.metric === metricKey));
+            document.querySelectorAll('.home-period-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.period === currentPeriod));
+            document.querySelectorAll('.home-type-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.chartType === currentChartType));
         }
 
         document.querySelectorAll('.stat-card').forEach(card => {
@@ -110,6 +352,28 @@
                 }
             });
         });
+
+        document.querySelectorAll('.home-period-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentPeriod = btn.dataset.period;
+                updateChart('invoices');
+            });
+        });
+
+        document.querySelectorAll('.home-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentChartType = btn.dataset.chartType;
+                updateChart(currentMetric);
+            });
+        });
+
+        if (categorySelect) {
+            categorySelect.addEventListener('change', () => {
+                if (currentMetric === 'products') {
+                    updateChart('products');
+                }
+            });
+        }
 
         const roleSelect = document.getElementById('homeRoleSelect');
         const homeAvatar = document.getElementById('homeAvatar');

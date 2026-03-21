@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Admin Dashboard - Catchy Pet</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,11 +74,12 @@
 
         const links = document.querySelectorAll('.sidebar-menu a');
         const frame = document.getElementById('contentFrame');
-        const PAGE_VERSION = '20260320-2';
+        const PAGE_VERSION = '20260321-4';
+        const CACHE_BUSTER = Date.now().toString();
 
         function buildFrameUrl(page) {
             const separator = page.includes('?') ? '&' : '?';
-            return `${page}${separator}v=${PAGE_VERSION}`;
+            return `${page}${separator}v=${PAGE_VERSION}&_=${CACHE_BUSTER}`;
         }
 
         links.forEach((link) => {

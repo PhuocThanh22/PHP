@@ -35,6 +35,15 @@ body.hide-scrollbar::-webkit-scrollbar {
     display: none;
 }
 
+body.home-no-scroll {
+    overflow: hidden;
+}
+
+body.home-no-scroll .page-wrap {
+    height: 100vh;
+    overflow: hidden;
+}
+
 .shell {
     display: flex;
     min-height: 100vh;
@@ -273,10 +282,11 @@ body.hide-scrollbar::-webkit-scrollbar {
 .stat-card .unit { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 4px; }
 
 .chart-card {
-    background: var(--card);
+    background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
     border-radius: 14px;
     padding: 18px;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    border: 1px solid #eef2f7;
 }
 
 .chart-card.small {
@@ -345,6 +355,129 @@ body.hide-scrollbar::-webkit-scrollbar {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+}
+
+.home-chart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.home-chart-head h3 {
+    margin: 0;
+}
+
+.home-chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.home-period-switch {
+    display: inline-flex;
+    gap: 6px;
+    background: #f8fafc;
+    border: 1px solid #d8e0ea;
+    border-radius: 999px;
+    padding: 4px;
+}
+
+.home-type-switch {
+    display: inline-flex;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #d8e0ea;
+    border-radius: 12px;
+    padding: 4px;
+}
+
+.home-period-btn {
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.home-period-btn.active {
+    background: #f87537;
+    color: #fff;
+}
+
+.home-type-btn {
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 9px;
+    cursor: pointer;
+}
+
+.home-type-btn.active {
+    background: #0f172a;
+    color: #fff;
+}
+
+.home-chart-summary {
+    margin: 8px 0 10px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.home-category-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 6px 8px;
+    background: #fff;
+}
+
+.home-category-filter label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.home-category-filter select {
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #334155;
+    background: #fff;
+    outline: none;
+}
+
+.home-category-filter select:focus {
+    border-color: #f4a067;
+    box-shadow: 0 0 0 3px rgba(248, 117, 55, 0.12);
+}
+
+.home-axis-note {
+    margin: 0 0 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+}
+
+.home-axis-note span {
+    font-size: 12px;
+    color: #4b5563;
+    background: #f8fafc;
+    border: 1px solid #dde5ef;
+    border-radius: 8px;
+    padding: 4px 8px;
 }
 
 .home-search {
@@ -444,6 +577,163 @@ body.hide-scrollbar::-webkit-scrollbar {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+}
+
+.home-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2.3fr) minmax(300px, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.home-chart-card {
+    min-height: 0;
+}
+
+.home-chart-card #homeChart {
+    height: 250px !important;
+}
+
+.home-side-panel {
+    display: grid;
+    gap: 12px;
+}
+
+.home-side-card {
+    background: var(--card);
+    border: 1px solid #e9edf3;
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.home-side-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.home-side-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.home-side-badge {
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 4px 9px;
+}
+
+.home-side-badge.warning { background: #fef3c7; color: #92400e; }
+.home-side-badge.danger { background: #fee2e2; color: #991b1b; }
+.home-side-badge.success { background: #dcfce7; color: #166534; }
+
+.home-task-list,
+.home-alert-list,
+.home-top-service {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+}
+
+.home-task-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.home-task-list li i {
+    color: #f87537;
+    font-size: 15px;
+}
+
+.home-quick-actions {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.home-quick-actions button {
+    height: 34px;
+    border: 1px solid #f5c7a8;
+    border-radius: 9px;
+    background: #fff7f2;
+    color: #b45309;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.home-quick-actions button:hover {
+    background: #ffeada;
+}
+
+.home-alert-list li {
+    display: grid;
+    grid-template-columns: 10px 1fr;
+    gap: 10px;
+    align-items: start;
+}
+
+.home-alert-dot {
+    width: 10px;
+    height: 10px;
+    margin-top: 4px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+}
+
+.home-alert-list strong {
+    display: block;
+    color: #0f172a;
+    font-size: 13px;
+}
+
+.home-alert-list p {
+    margin: 2px 0 0;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.home-top-service {
+    counter-reset: homeTop;
+}
+
+.home-top-service li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    color: #334155;
+    border: 1px solid #edf2f7;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+.home-top-service li span::before {
+    counter-increment: homeTop;
+    content: counter(homeTop) ". ";
+    color: #f87537;
+    font-weight: 700;
+}
+
+.home-top-service li b {
+    color: #0f172a;
+    font-size: 12px;
 }
 
 .data-table {
@@ -825,6 +1115,29 @@ body.hide-scrollbar::-webkit-scrollbar {
     .sidebar-menu a i {
         width: auto;
         font-size: 20px;
+    }
+
+    .home-main-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .home-chart-head {
+        align-items: flex-start;
+    }
+
+    .home-chart-controls {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .home-type-switch {
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+    }
+
+    .home-chart-card #homeChart {
+        height: 210px !important;
     }
 }
 
