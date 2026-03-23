@@ -7,29 +7,724 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        #customerTableBody tr {
+            cursor: pointer;
+        }
+
+        #customerTableBody tr.is-selected {
+            background: #fff7ed;
+        }
+
+        .customer-view-dialog {
+            width: min(760px, 100%);
+        }
+
+        .customer-view-body {
+            padding: 16px;
+        }
+
+        .customer-detail-grid {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .customer-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #f87537, #fba81f);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .customer-detail-meta {
+            display: grid;
+            gap: 8px;
+            color: #334155;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .customer-detail-meta b {
+            color: #0f172a;
+            min-width: 150px;
+            display: inline-block;
+        }
+
+        .customer-view-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 0 16px 16px;
+        }
+
+        @media (max-width: 768px) {
+            .customer-detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="page-wrap">
-    <div class="top-header"><h2>Quản Lý Khách Hàng</h2></div>
-    <div class="module-grid">
-        <div class="module-card"><div class="module-title"><i class="bi bi-people"></i><span>Tổng Khách Hàng</span></div><div class="module-value">1,250</div><div class="module-desc">Đã đăng ký tài khoản</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-person-plus"></i><span>Khách Mới</span></div><div class="module-value">45</div><div class="module-desc">Trong 7 ngày gần đây</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-gem"></i><span>Khách VIP</span></div><div class="module-value">89</div><div class="module-desc">Mua hàng thường xuyên</div></div>
+    <div class="top-header d-flex justify-content-between align-items-center">
+        <h2>Quản Lý Khách Hàng</h2>
+        <div class="service-toolbar">
+            <div class="service-search">
+                <i class="bi bi-search"></i>
+                <input id="customerSearchInput" type="text" placeholder="Tìm theo tên, SĐT, email hoặc mã khách..." aria-label="Tìm khách hàng">
+            </div>
+            <div class="service-toolbar-actions">
+                <button class="btn btn-success" type="button" onclick="openAddCustomerModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+                <button class="btn btn-danger" type="button" onclick="deleteCustomerBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="module-grid mb-3">
+        <div class="module-card">
+            <div class="module-title"><i class="bi bi-people"></i><span>Tổng Khách Hàng</span></div>
+            <div class="module-value" id="customerTotal">0</div>
+            <div class="module-desc">Đã có hồ sơ trong hệ thống</div>
+        </div>
+        <div class="module-card">
+            <div class="module-title"><i class="bi bi-gem"></i><span>Khách VIP</span></div>
+            <div class="module-value" id="customerVip">0</div>
+            <div class="module-desc">Tệp khách hàng ưu tiên</div>
+        </div>
+        <div class="module-card">
+            <div class="module-title"><i class="bi bi-heart"></i><span>Tổng Thú Cưng</span></div>
+            <div class="module-value" id="customerPetCount">0</div>
+            <div class="module-desc">Số thú cưng đã liên kết chủ</div>
+        </div>
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-activity text-primary me-2"></i>Hoạt Động Khách Hàng</h3></div>
+        <div class="section-header"><h3><i class="bi bi-people text-warning me-2"></i>Danh Sách Khách Hàng</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Khách Hàng</th><th>Hoạt Động</th><th>Thời Gian</th><th>Chi Tiết</th></tr></thead>
-                <tbody>
-                    <tr><td>Nguyễn Văn A</td><td><i class="bi bi-cart-plus text-success me-2"></i>Đặt đơn hàng mới</td><td>5 phút trước</td><td>Đơn hàng #DH001 - 1,250,000 đ</td></tr>
-                    <tr><td>Trần Thị B</td><td><i class="bi bi-star-fill text-warning me-2"></i>Đánh giá sản phẩm</td><td>15 phút trước</td><td>5 sao cho Thức ăn Royal Canin</td></tr>
-                </tbody>
+                <thead><tr><th>Khách Hàng</th><th>SĐT</th><th>Loại</th><th>Số Thú Cưng</th></tr></thead>
+                <tbody id="customerTableBody"></tbody>
             </table>
         </div>
     </div>
 </div>
+
+<div class="service-modal" id="customerViewModal" aria-hidden="true">
+    <div class="service-modal-dialog customer-view-dialog" role="dialog" aria-modal="true" aria-labelledby="customerViewTitle">
+        <div class="service-modal-header">
+            <h3 class="service-modal-title" id="customerViewTitle">Chi Tiết Khách Hàng</h3>
+            <button type="button" class="service-modal-close" id="closeCustomerViewModal" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="customer-view-body">
+            <div class="customer-detail-grid">
+                <div class="customer-avatar" id="customerDetailAvatar">KH</div>
+                <div class="customer-detail-meta">
+                    <div><b>Mã khách:</b> <span id="customerDetailId">-</span></div>
+                    <div><b>Tên khách hàng:</b> <span id="customerDetailName">-</span></div>
+                    <div><b>Số điện thoại:</b> <span id="customerDetailPhone">-</span></div>
+                    <div><b>Email:</b> <span id="customerDetailEmail">-</span></div>
+                    <div><b>Loại khách:</b> <span id="customerDetailType">-</span></div>
+                    <div><b>Tổng chi tiêu:</b> <span id="customerDetailSpending">-</span></div>
+                    <div><b>Số thú cưng:</b> <span id="customerDetailPetCount">-</span></div>
+                    <div><b>Ngày tạo:</b> <span id="customerDetailCreated">-</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="customer-view-actions">
+            <button type="button" class="btn btn-warning text-white" id="editCustomerFromDetailBtn"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button>
+        </div>
+    </div>
+</div>
+
+<div class="service-modal" id="customerModal" aria-hidden="true">
+    <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="customerModalTitle">
+        <div class="service-modal-header">
+            <h3 class="service-modal-title" id="customerModalTitle">Chỉnh sửa khách hàng</h3>
+            <button type="button" class="service-modal-close" id="closeCustomerModal" aria-label="Đóng">&times;</button>
+        </div>
+
+        <form id="customerForm">
+            <div class="service-modal-body">
+                <input type="hidden" id="editCustomerId">
+
+                <div class="service-form-group full">
+                    <label for="editCustomerName">Tên khách hàng</label>
+                    <input class="service-form-control" id="editCustomerName" type="text" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editCustomerPhone">Số điện thoại</label>
+                    <input class="service-form-control" id="editCustomerPhone" type="text" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editCustomerType">Loại khách</label>
+                    <select class="service-form-control" id="editCustomerType" required>
+                        <option value="thuong">Thường</option>
+                        <option value="vip">VIP</option>
+                    </select>
+                </div>
+
+                <div class="service-form-group full">
+                    <label for="editCustomerEmail">Email</label>
+                    <input class="service-form-control" id="editCustomerEmail" type="email" required>
+                </div>
+
+                <div class="service-form-group full">
+                    <label for="editCustomerSpending">Tổng chi tiêu (VND)</label>
+                    <input class="service-form-control" id="editCustomerSpending" type="number" min="0" step="1000" required>
+                </div>
+            </div>
+
+            <div class="service-modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="cancelCustomerModal">Hủy</button>
+                <button type="submit" class="btn btn-warning text-white" id="saveCustomerBtn">Lưu thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const customerStore = new Map();
+    let allCustomers = [];
+    let customerFilter = '';
+    let customerMode = 'update';
+    let selectedCustomerId = '';
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatCurrencyVND(value) {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
+    }
+
+    function formatDateTime(value) {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString('vi-VN');
+    }
+
+    function getErrorMessage(error) {
+        if (!error) return 'Lỗi không xác định';
+        if (typeof error === 'string') return error;
+        if (error.message) return error.message;
+        return 'Lỗi không xác định';
+    }
+
+    let noticeTimer = null;
+
+    function getNoticeTitle(type) {
+        if (type === 'error') return 'Thông báo lỗi';
+        if (type === 'warning') return 'Thông báo';
+        return 'Chúc mừng';
+    }
+
+    function getNoticeRestoreModalId() {
+        const detailModal = document.getElementById('customerViewModal');
+        if (detailModal && detailModal.classList.contains('show')) return 'customerViewModal';
+        return '';
+    }
+
+    function ensureNoticeModal() {
+        let modal = document.getElementById('globalNoticeModal');
+        if (modal) return modal;
+
+        modal = document.createElement('div');
+        modal.id = 'globalNoticeModal';
+        modal.className = 'service-modal';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
+                <div class="service-modal-header">
+                    <h3 class="service-modal-title" id="noticeModalTitle">Thông báo</h3>
+                    <button type="button" class="service-modal-close" id="noticeModalCloseBtn" aria-label="Dong">&times;</button>
+                </div>
+                <div class="service-modal-body">
+                    <div id="noticeModalMessage" style="text-align:center; font-size:16px; font-weight:500;"></div>
+                </div>
+                <div class="service-modal-footer">
+                    <button type="button" class="btn btn-warning text-white" id="noticeModalOkBtn">Đóng</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (event) => {
+            if (event.target.id === 'globalNoticeModal') closeNotice();
+        });
+        modal.querySelector('#noticeModalCloseBtn')?.addEventListener('click', closeNotice);
+        modal.querySelector('#noticeModalOkBtn')?.addEventListener('click', closeNotice);
+
+        return modal;
+    }
+
+    function isNoticeVisible() {
+        const modal = document.getElementById('globalNoticeModal');
+        return Boolean(modal && modal.classList.contains('show'));
+    }
+
+    function closeNotice() {
+        const modal = document.getElementById('globalNoticeModal');
+        if (!modal) return;
+
+        if (noticeTimer) {
+            window.clearTimeout(noticeTimer);
+            noticeTimer = null;
+        }
+
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+
+        const restoreId = modal.dataset.restoreModalId || '';
+        if (restoreId) {
+            const restoreModal = document.getElementById(restoreId);
+            if (restoreModal && !restoreModal.classList.contains('show')) {
+                restoreModal.classList.add('show');
+                restoreModal.setAttribute('aria-hidden', 'false');
+            }
+        }
+        modal.dataset.restoreModalId = '';
+    }
+
+    function showNotice(message, type = 'success') {
+        const modal = ensureNoticeModal();
+        const titleEl = modal.querySelector('#noticeModalTitle');
+        const messageEl = modal.querySelector('#noticeModalMessage');
+
+        const restoreId = getNoticeRestoreModalId();
+        if (restoreId) {
+            const restoreModal = document.getElementById(restoreId);
+            restoreModal?.classList.remove('show');
+            restoreModal?.setAttribute('aria-hidden', 'true');
+        }
+        modal.dataset.restoreModalId = restoreId;
+
+        if (titleEl) titleEl.textContent = getNoticeTitle(type);
+        if (messageEl) messageEl.textContent = String(message || '');
+
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+
+        if (noticeTimer) window.clearTimeout(noticeTimer);
+        noticeTimer = window.setTimeout(closeNotice, 2500);
+    }
+
+    async function parseFailedResponse(response, fallbackMessage) {
+        let errorMessage = fallbackMessage || ('HTTP ' + response.status);
+        try {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const body = await response.json();
+                errorMessage = body.message || body.error || errorMessage;
+            } else {
+                const raw = (await response.text() || '').trim();
+                if (raw) errorMessage = raw;
+            }
+        } catch (_) {
+            // Keep fallback message when body parsing fails.
+        }
+        return new Error(errorMessage);
+    }
+
+    function customerTypeText(type) {
+        return String(type) === 'vip' ? 'VIP' : 'Thường';
+    }
+
+    function getApiCandidates(path) {
+        const candidates = [];
+        candidates.push(new URL(`../../index.php?api=${path}`, window.location.href).toString());
+
+        const marker = '/admin/';
+        const pathname = window.location.pathname || '';
+        const markerIndex = pathname.lastIndexOf(marker);
+        if (markerIndex >= 0) {
+            const beforeAdmin = pathname.slice(0, markerIndex);
+            const giaoDienIndex = beforeAdmin.lastIndexOf('/Giao');
+            const detectedBase = giaoDienIndex >= 0 ? beforeAdmin.slice(0, giaoDienIndex) : beforeAdmin;
+            if (detectedBase) candidates.push(`${detectedBase}/index.php?api=${path}`);
+        }
+
+        candidates.push(`/phuocthanh/PHPCHINH/index.php?api=${path}`);
+        candidates.push(`/PHPCHINH/index.php?api=${path}`);
+        candidates.push(`/index.php?api=${path}`);
+
+        return Array.from(new Set(candidates));
+    }
+
+    async function fetchPayload(apiName) {
+        const candidates = getApiCandidates(apiName);
+        const cacheBuster = `_t=${Date.now()}`;
+        let lastError = new Error('Khong the tai du lieu');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}${cacheBuster}`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) {
+                    lastError = new Error('HTTP ' + response.status);
+                    continue;
+                }
+
+                const payload = await response.json();
+                if (!payload.ok) {
+                    lastError = new Error(payload.message || 'API ok=false');
+                    continue;
+                }
+                return payload;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    async function mutateCustomer(action, payload = {}) {
+        const candidates = [
+            'get_services.php?api=get_customers',
+            new URL('get_services.php?api=get_customers', window.location.href).toString(),
+        ];
+        let lastError = new Error('Khong the xu ly khach hang');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}_t=${Date.now()}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entity: 'customers', action, ...payload }),
+                });
+
+                if (!response.ok) {
+                    lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                    continue;
+                }
+
+                const data = await response.json();
+                if (!data.ok) {
+                    lastError = new Error(data.message || 'API ok=false');
+                    continue;
+                }
+
+                return data;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    function updateCustomerSummary() {
+        const total = allCustomers.length;
+        const vip = allCustomers.filter((item) => String(item.loaikhachhang) === 'vip').length;
+        const petCount = allCustomers.reduce((sum, item) => sum + Number(item.so_thu_cung || 0), 0);
+
+        document.getElementById('customerTotal').textContent = total;
+        document.getElementById('customerVip').textContent = vip;
+        document.getElementById('customerPetCount').textContent = petCount;
+    }
+
+    function getFilteredCustomers() {
+        const key = String(customerFilter || '').trim().toLowerCase();
+        if (!key) return allCustomers;
+
+        return allCustomers.filter((item) => {
+            const idText = String(item.id || '').toLowerCase();
+            const name = String(item.tenkhachhang || '').toLowerCase();
+            const phone = String(item.sodienthoaikhachhang || '').toLowerCase();
+            const email = String(item.emailkhachhang || '').toLowerCase();
+            return idText.includes(key) || name.includes(key) || phone.includes(key) || email.includes(key);
+        });
+    }
+
+    function renderCustomers() {
+        const tbody = document.getElementById('customerTableBody');
+        if (!tbody) return;
+
+        const rows = getFilteredCustomers();
+        const hasSelected = rows.some((item) => String(item.id) === String(selectedCustomerId));
+        if (!hasSelected) selectedCustomerId = '';
+
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="4">Không tìm thấy khách hàng phù hợp.</td></tr>';
+            hideCustomerDetail();
+            return;
+        }
+
+        tbody.innerHTML = rows.map((row) => `
+            <tr data-customer-id="${row.id}" class="${String(selectedCustomerId) === String(row.id) ? 'is-selected' : ''}" onclick="showCustomerDetail(${row.id})">
+                <td>${escapeHtml(row.tenkhachhang || '-')}</td>
+                <td>${escapeHtml(row.sodienthoaikhachhang || '-')}</td>
+                <td><span class="status-badge ${String(row.loaikhachhang) === 'vip' ? 'success' : 'warning'}">${customerTypeText(row.loaikhachhang)}</span></td>
+                <td>${Number(row.so_thu_cung || 0)}</td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadCustomers(forceReload = false) {
+        const tbody = document.getElementById('customerTableBody');
+        if (!tbody) return;
+        if (tbody.dataset.loaded === '1' && !forceReload) return;
+
+        tbody.innerHTML = '<tr><td colspan="4">Đang tải dữ liệu khách hàng...</td></tr>';
+
+        try {
+            const payload = await fetchPayload('get_customers');
+            allCustomers = Array.isArray(payload.data) ? payload.data : [];
+            customerStore.clear();
+            allCustomers.forEach((item) => customerStore.set(String(item.id), item));
+
+            updateCustomerSummary();
+            renderCustomers();
+            tbody.dataset.loaded = '1';
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="4">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+        }
+    }
+
+    function openCustomerDetailModal() {
+        const modal = document.getElementById('customerViewModal');
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideCustomerDetail() {
+        const modal = document.getElementById('customerViewModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function showCustomerDetail(customerId) {
+        selectedCustomerId = String(customerId);
+        if (fillCustomerDetailById(customerId)) {
+            openCustomerDetailModal();
+        }
+        renderCustomers();
+    }
+
+    function fillCustomerDetailById(customerId) {
+        const row = customerStore.get(String(customerId));
+        if (!row) return false;
+
+        const avatar = document.getElementById('customerDetailAvatar');
+        const id = document.getElementById('customerDetailId');
+        const name = document.getElementById('customerDetailName');
+        const phone = document.getElementById('customerDetailPhone');
+        const email = document.getElementById('customerDetailEmail');
+        const type = document.getElementById('customerDetailType');
+        const spending = document.getElementById('customerDetailSpending');
+        const petCount = document.getElementById('customerDetailPetCount');
+        const created = document.getElementById('customerDetailCreated');
+        if (!avatar || !id || !name || !phone || !email || !type || !spending || !petCount || !created) return false;
+
+        const displayName = String(row.tenkhachhang || '-');
+        const initials = displayName
+            .split(' ')
+            .filter(Boolean)
+            .slice(-2)
+            .map((part) => part.charAt(0).toUpperCase())
+            .join('') || 'KH';
+
+        avatar.textContent = initials;
+        id.textContent = String(row.id || '-');
+        name.textContent = displayName;
+        phone.textContent = String(row.sodienthoaikhachhang || '-');
+        email.textContent = String(row.emailkhachhang || '-');
+        type.textContent = customerTypeText(row.loaikhachhang);
+        spending.textContent = formatCurrencyVND(row.tongchitieukhachhang);
+        petCount.textContent = String(Number(row.so_thu_cung || 0));
+        created.textContent = formatDateTime(row.ngaytaokhachhang);
+        return true;
+    }
+
+    function openCustomerModal() {
+        const modal = document.getElementById('customerModal');
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCustomerModal() {
+        const modal = document.getElementById('customerModal');
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openAddCustomerModal() {
+        customerMode = 'create';
+        document.getElementById('customerModalTitle').textContent = 'Thêm khách hàng mới';
+        document.getElementById('saveCustomerBtn').textContent = 'Thêm mới';
+        document.getElementById('editCustomerId').value = '';
+        document.getElementById('editCustomerName').value = '';
+        document.getElementById('editCustomerPhone').value = '';
+        document.getElementById('editCustomerEmail').value = '';
+        document.getElementById('editCustomerSpending').value = 0;
+        document.getElementById('editCustomerType').value = 'thuong';
+        openCustomerModal();
+    }
+
+    function editCustomer(customerId) {
+        const row = customerStore.get(String(customerId));
+        if (!row) return;
+
+        customerMode = 'update';
+        document.getElementById('customerModalTitle').textContent = 'Chỉnh sửa khách hàng';
+        document.getElementById('saveCustomerBtn').textContent = 'Lưu thay đổi';
+        document.getElementById('editCustomerId').value = row.id;
+        document.getElementById('editCustomerName').value = row.tenkhachhang || '';
+        document.getElementById('editCustomerPhone').value = row.sodienthoaikhachhang || '';
+        document.getElementById('editCustomerEmail').value = row.emailkhachhang || '';
+        document.getElementById('editCustomerSpending').value = Number(row.tongchitieukhachhang || 0);
+        document.getElementById('editCustomerType').value = String(row.loaikhachhang) === 'vip' ? 'vip' : 'thuong';
+        openCustomerModal();
+    }
+
+    async function deleteCustomerBySearch() {
+        const keyword = String(document.getElementById('customerSearchInput')?.value || '').trim().toLowerCase();
+        if (!keyword) {
+            showNotice('Nhập mã, tên, email hoặc số điện thoại khách hàng cần xóa.', 'warning');
+            return;
+        }
+
+        const target = getFilteredCustomers()[0];
+        if (!target) {
+            showNotice('Không tìm thấy khách hàng để xóa.', 'warning');
+            return;
+        }
+
+        if (!confirm(`Bạn có chắc muốn xóa khách hàng "${target.tenkhachhang}" (ID: ${target.id})?`)) return;
+
+        try {
+            await mutateCustomer('delete', { id: target.id });
+            allCustomers = allCustomers.filter((item) => String(item.id) !== String(target.id));
+            customerStore.delete(String(target.id));
+
+            if (String(selectedCustomerId) === String(target.id)) {
+                selectedCustomerId = '';
+                hideCustomerDetail();
+            }
+
+            updateCustomerSummary();
+            renderCustomers();
+            showNotice(`Xóa khách hàng "${target.tenkhachhang}" thành công.`, 'success');
+        } catch (error) {
+            showNotice('Xóa khách hàng thất bại: ' + getErrorMessage(error), 'error');
+        }
+    }
+
+    document.getElementById('customerSearchInput').addEventListener('input', (event) => {
+        customerFilter = event.target.value || '';
+        renderCustomers();
+    });
+
+    document.getElementById('closeCustomerModal').addEventListener('click', closeCustomerModal);
+    document.getElementById('cancelCustomerModal').addEventListener('click', closeCustomerModal);
+    document.getElementById('closeCustomerViewModal').addEventListener('click', hideCustomerDetail);
+    document.getElementById('customerViewModal').addEventListener('click', (event) => {
+        if (event.target.id === 'customerViewModal') hideCustomerDetail();
+    });
+    document.getElementById('editCustomerFromDetailBtn').addEventListener('click', () => {
+        if (!selectedCustomerId) return;
+        hideCustomerDetail();
+        editCustomer(selectedCustomerId);
+    });
+
+    document.getElementById('customerModal').addEventListener('click', (event) => {
+        if (event.target.id === 'customerModal') closeCustomerModal();
+    });
+
+    document.getElementById('customerForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const idRaw = document.getElementById('editCustomerId').value;
+        const name = document.getElementById('editCustomerName').value.trim();
+        const phone = document.getElementById('editCustomerPhone').value.trim();
+        const email = document.getElementById('editCustomerEmail').value.trim();
+        const spending = Number(document.getElementById('editCustomerSpending').value || 0);
+        const type = document.getElementById('editCustomerType').value;
+
+        if (!name || !phone || !email) return;
+
+        try {
+            if (customerMode === 'create') {
+                const res = await mutateCustomer('create', {
+                    tenkhachhang: name,
+                    sodienthoaikhachhang: phone,
+                    emailkhachhang: email,
+                    tongchitieukhachhang: spending,
+                    loaikhachhang: type,
+                });
+
+                const created = res.data || {};
+                allCustomers.unshift(created);
+                customerStore.set(String(created.id), created);
+                showNotice(`Thêm khách hàng "${created.tenkhachhang || name}" thành công.`, 'success');
+            } else {
+                const id = String(idRaw);
+                const res = await mutateCustomer('update', {
+                    id: Number(idRaw),
+                    tenkhachhang: name,
+                    sodienthoaikhachhang: phone,
+                    emailkhachhang: email,
+                    tongchitieukhachhang: spending,
+                    loaikhachhang: type,
+                });
+
+                const updated = res.data || {};
+                customerStore.set(id, updated);
+                allCustomers = allCustomers.map((item) => String(item.id) === id ? updated : item);
+                showNotice(`Cập nhật khách hàng "${updated.tenkhachhang || name}" thành công.`, 'success');
+            }
+
+            updateCustomerSummary();
+            renderCustomers();
+            if (customerMode === 'update' && idRaw) {
+                selectedCustomerId = String(idRaw);
+                fillCustomerDetailById(idRaw);
+                openCustomerDetailModal();
+            }
+            closeCustomerModal();
+        } catch (error) {
+            showNotice('Lưu khách hàng thất bại: ' + getErrorMessage(error), 'error');
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            if (isNoticeVisible()) {
+                closeNotice();
+                return;
+            }
+            closeCustomerModal();
+            hideCustomerDetail();
+        }
+    });
+
+    document.documentElement.classList.add('hide-scrollbar');
+    document.body.classList.add('hide-scrollbar');
+    loadCustomers();
+</script>
 </body>
 </html>
 
