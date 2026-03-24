@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI/UX Examples - Pet Shop</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link rel="stylesheet" href="user-style.css">
+    <link rel="stylesheet" href="style-enhancements.css">
+    <link rel="stylesheet" href="style-components.css">
+    <style>
+        body { padding: 20px; }
+        .example-section { margin-bottom: 40px; padding: 20px; background: var(--light-gray); border-radius: 12px; }
+        .example-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; color: var(--primary-color); }
+        .example-item { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="mb-5">🎨 UI/UX Enhancements - Examples</h1>
+
+        <!-- 1. BUTTONS -->
+        <div class="example-section">
+            <div class="example-title">1️⃣ Buttons</div>
+            <div class="example-item">
+                <button class="btn btn-dark">Dark Button</button>
+                <button class="btn btn-orange">Orange Button</button>
+                <button class="btn btn-primary">Primary Button</button>
+                <button class="btn btn-success">Success Button</button>
+                <small class="d-block mt-2">Hover, Click & Active states - ripple effect included!</small>
+            </div>
+        </div>
+
+        <!-- 2. CARDS -->
+        <div class="example-section">
+            <div class="example-title">2️⃣ Cards with Hover</div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card product-item">
+                        <div style="height: 200px; background: linear-gradient(135deg, #F87537, #FBA81F); display: flex; align-items: center; justify-content: center; border-radius: 12px 12px 0 0;">
+                            <i data-feather="shopping-bag" style="width: 60px; height: 60px; color: white;"></i>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">Product Card</h5>
+                            <p class="card-text">Hover to see the lift effect</p>
+                            <button class="btn btn-dark">Buy Now</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="service-card">
+                        <div style="height: 200px; background: linear-gradient(135deg, #FBA81F, #F87537); display: flex; align-items: center; justify-content: center; border-radius: 12px 12px 0 0;">
+                            <i data-feather="heart" style="width: 60px; height: 60px; color: white;"></i>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">Service Card</h5>
+                            <p class="card-text">Smooth hover animation</p>
+                            <button class="btn btn-orange">Learn More</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card product-item">
+                        <div style="height: 200px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; border-radius: 12px 12px 0 0;">
+                            <i data-feather="star" style="width: 60px; height: 60px; color: white;"></i>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">Featured Card</h5>
+                            <p class="card-text">Try hovering over me!</p>
+                            <button class="btn btn-primary">Explore</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. FORM ELEMENTS -->
+        <div class="example-section">
+            <div class="example-title">3️⃣ Form Inputs</div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-control" placeholder="your@email.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" rows="3" placeholder="Type your message..."></textarea>
+                    </div>
+                    <button class="btn btn-dark" onclick="showToast('Form submitted!', 'success')">Submit</button>
+                </div>
+                <div class="col-md-6">
+                    <small><strong>Features:</strong></small>
+                    <ul>
+                        <li>Focus: Border color → Orange</li>
+                        <li>Glow effect on focus</li>
+                        <li>Smooth transitions</li>
+                        <li>Accessibility support</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. BADGES -->
+        <div class="example-section">
+            <div class="example-title">4️⃣ Badges</div>
+            <div>
+                <span class="badge badge-primary">Primary</span>
+                <span class="badge badge-success">Success</span>
+                <span class="badge badge-danger">Danger</span>
+                <span class="badge badge-warning">Warning</span>
+                <small class="d-block mt-2">Hover to scale effect</small>
+            </div>
+        </div>
+
+        <!-- 5. ALERTS -->
+        <div class="example-section">
+            <div class="example-title">5️⃣ Alerts</div>
+            <div class="alert alert-success">
+                <strong>Success!</strong> Your order has been placed successfully.
+            </div>
+            <div class="alert alert-danger">
+                <strong>Error!</strong> Something went wrong. Please try again.
+            </div>
+            <div class="alert alert-warning">
+                <strong>Warning!</strong> This product is almost out of stock.
+            </div>
+            <div class="alert alert-info">
+                <strong>Info!</strong> We have a new collection available.
+            </div>
+        </div>
+
+        <!-- 6. PROGRESS -->
+        <div class="example-section">
+            <div class="example-title">6️⃣ Progress Bars</div>
+            <div>
+                <p>Loading Progress:</p>
+                <div class="progress mb-3">
+                    <div class="progress-bar" style="width: 25%"></div>
+                </div>
+                <div class="progress mb-3">
+                    <div class="progress-bar" style="width: 50%"></div>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. NOTIFICATIONS -->
+        <div class="example-section">
+            <div class="example-title">7️⃣ Notifications (Toast)</div>
+            <button class="btn btn-success" onclick="showToast('✓ Success!', 'success')">Success Toast</button>
+            <button class="btn btn-danger" onclick="showToast('✗ Error occurred!', 'error')">Error Toast</button>
+            <button class="btn btn-info" onclick="showToast('ℹ Information', 'info')">Info Toast</button>
+        </div>
+
+        <!-- 8. DROPDOWN MENU -->
+        <div class="example-section">
+            <div class="example-title">8️⃣ Dropdown Menu</div>
+            <div class="dropdown">
+                <button class="btn btn-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    Menu <i data-feather="chevron-down" style="width: 16px; height: 16px; margin-left: 4px;"></i>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">Profile</a></li>
+                    <li><a class="dropdown-item" href="#">Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#">Logout</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 9. PAGINATION -->
+        <div class="example-section">
+            <div class="example-title">9️⃣ Pagination</div>
+            <nav>
+                <ul class="pagination">
+                    <li class="page-item"><a class="page-link" href="#">← Previous</a></li>
+                    <li class="page-item"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item active"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item"><a class="page-link" href="#">Next →</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- 10. ANIMATION DEMO -->
+        <div class="example-section">
+            <div class="example-title">🔟 Scroll Animations</div>
+            <p>Scroll down to see fade-in animations on the cards below:</p>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="card product-item">
+                        <div style="height: 150px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px 12px 0 0;"></div>
+                        <div class="card-body">
+                            <h5 class="card-title">Item 1</h5>
+                            <p class="card-text">Fade-in up</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card product-item">
+                        <div style="height: 150px; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 12px 12px 0 0;"></div>
+                        <div class="card-body">
+                            <h5 class="card-title">Item 2</h5>
+                            <p class="card-text">Staggered</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card product-item">
+                        <div style="height: 150px; background: linear-gradient(135deg, #4facfe, #00f2fe); border-radius: 12px 12px 0 0;"></div>
+                        <div class="card-body">
+                            <h5 class="card-title">Item 3</h5>
+                            <p class="card-text">Smooth</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card product-item">
+                        <div style="height: 150px; background: linear-gradient(135deg, #fa709a, #fee140); border-radius: 12px 12px 0 0;"></div>
+                        <div class="card-body">
+                            <h5 class="card-title">Item 4</h5>
+                            <p class="card-text">Effects</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BACK TO HOME -->
+        <div class="example-section text-center">
+            <a href="home.html" class="btn btn-dark btn-lg">← Back to Home</a>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/enhancements.js"></script>
+    <script>
+        feather.replace();
+    </script>
+</body>
+</html>

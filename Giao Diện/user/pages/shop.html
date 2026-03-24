@@ -1,0 +1,561 @@
+<!-- Professional Pet Shop Page -->
+<section class="shop-section" style="padding: 50px 0 100px; background: #f8f9fa;">
+    <div class="container-fluid px-5">
+        <!-- Header -->
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 50px;">
+            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                <i data-feather="shopping-bag" style="width: 28px; height: 28px; color: white;"></i>
+            </div>
+            <div>
+                <h1 style="font-size: 32px; margin: 0; font-weight: 700;">Cửa Hàng</h1>
+                <p style="color: #999; margin: 5px 0 0 0; font-size: 14px;" id="productCount">Đang tải sản phẩm...</p>
+            </div>
+        </div>
+
+        <!-- Filters & Search -->
+        <div style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <!-- Search -->
+                <div>
+                    <input type="text" id="searchInput" placeholder="Tìm kiếm sản phẩm..." style="width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;" onkeyup="filterAndRenderProducts()">
+                </div>
+
+                <!-- Category Filter -->
+                <select id="categoryFilter" style="padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer;" onchange="filterAndRenderProducts()">
+                    <option value="">Tất cả danh mục</option>
+                    <option value="Thức ăn">Thức ăn</option>
+                    <option value="Phụ kiện">Phụ kiện</option>
+                    <option value="Nội thất">Nội thất</option>
+                    <option value="Túi xách">Túi xách</option>
+                    <option value="Thú cưng">Thú cưng</option>
+                </select>
+
+                <!-- Price Filter -->
+                <select id="priceFilter" style="padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer;" onchange="filterAndRenderProducts()">
+                    <option value="">Tất cả giá</option>
+                    <option value="0-300">Dưới 300k</option>
+                    <option value="300-500">300k - 500k</option>
+                    <option value="500-1000">500k - 1M</option>
+                    <option value="1000+">Trên 1M</option>
+                </select>
+
+                <!-- Sort -->
+                <select id="sortFilter" style="padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer;" onchange="filterAndRenderProducts()">
+                    <option value="">Sắp xếp</option>
+                    <option value="price-asc">Giá: Thấp → Cao</option>
+                    <option value="price-desc">Giá: Cao → Thấp</option>
+                    <option value="newest">Mới nhất</option>
+                </select>
+            </div>
+
+            <!-- Active Filters Display -->
+            <div id="activeFilters" style="display: none; padding-top: 15px; border-top: 1px solid #f0f0f0; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+
+        <!-- Products Grid -->
+        <div id="productsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px;"></div>
+
+        <!-- No Products Found -->
+        <div id="emptyState" style="display: none; text-align: center; padding: 80px 20px;">
+            <i data-feather="inbox" style="width: 80px; height: 80px; color: #ddd; margin-bottom: 20px;"></i>
+            <h2 style="font-size: 24px; color: #333; margin-bottom: 15px; font-weight: 600;">Không tìm thấy sản phẩm</h2>
+            <p style="color: #999; font-size: 15px; margin-bottom: 30px;">Hãy thử thay đổi tiêu chí tìm kiếm hoặc lọc</p>
+            <button onclick="clearFilters()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: 600; cursor: pointer;">Xóa bộ lọc</button>
+        </div>
+    </div>
+</section>
+
+<!-- Quick View Modal -->
+<div id="quickViewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; padding: 40px; max-width: 600px; width: 90%; position: relative; animation: slideIn 0.3s ease;">
+        <button onclick="closeQuickView()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 28px; cursor: pointer; color: #999;">×</button>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+            <img id="qvImage" src="" alt="" style="width: 100%; border-radius: 8px; object-fit: cover;">
+            <div>
+                <h2 id="qvName" style="font-size: 24px; font-weight: 700; margin: 0 0 15px 0;"></h2>
+                <p id="qvCategory" style="color: #667eea; font-size: 14px; font-weight: 600; margin: 0 0 10px 0;"></p>
+                <p id="qvDescription" style="color: #666; line-height: 1.6; margin-bottom: 20px;"></p>
+                <p id="qvPrice" style="font-size: 28px; font-weight: 700; color: #ff6b6b; margin: 20px 0;"></p>
+                <button onclick="addToCartFromQV()" style="width: 100%; background: #000; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
+                    <i data-feather="shopping-cart" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
+                    Thêm vào giỏ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes slideIn {
+        from {
+            transform: scale(0.9);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .product-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border: 1px solid #f0f0f0;
+    }
+
+    .product-card:hover {
+        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        transform: translateY(-8px);
+    }
+
+    .product-image {
+        position: relative;
+        width: 100%;
+        height: 280px;
+        background: #f5f5f5;
+        overflow: hidden;
+    }
+
+    .product-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .product-card:hover .product-image img {
+        transform: scale(1.1);
+    }
+
+    .product-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        z-index: 1;
+    }
+
+    .product-badge.new {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .product-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .product-card:hover .product-overlay {
+        opacity: 1;
+    }
+
+    .overlay-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        font-size: 20px;
+    }
+
+    .overlay-btn.add-cart {
+        background: #000;
+        color: white;
+    }
+
+    .overlay-btn.add-cart:hover {
+        background: #333;
+        transform: scale(1.1);
+    }
+
+    .overlay-btn.wishlist {
+        background: white;
+        color: #ff6b6b;
+    }
+
+    .overlay-btn.wishlist:hover {
+        background: #ff6b6b;
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .overlay-btn.quick-view {
+        background: white;
+        color: #667eea;
+    }
+
+    .overlay-btn.quick-view:hover {
+        background: #667eea;
+        color: white;
+        transform: scale(1.1);
+    }
+</style>
+
+<script>
+    // Product Database
+    const products = [
+        {
+            id: 1,
+            name: "Thức ăn cho chó cao cấp",
+            category: "Thức ăn",
+            price: "450.000",
+            image: "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&h=400&fit=crop",
+            description: "Thức ăn chất lượng cao, giàu dinh dưỡng, an toàn cho chó",
+            badge: "sale"
+        },
+        {
+            id: 2,
+            name: "Thức ăn cho mèo cao cấp",
+            category: "Thức ăn",
+            price: "420.000",
+            image: "https://images.unsplash.com/photo-1611003228941-98852ba62227?w=400&h=400&fit=crop",
+            description: "Dinh dưỡng cân bằng cho mèo khỏe mạnh",
+            badge: "new"
+        },
+        {
+            id: 3,
+            name: "Bát ăn cho mèo",
+            category: "Phụ kiện",
+            price: "250.000",
+            image: "https://images.unsplash.com/photo-1585664811087-47f65abbad64?w=400&h=400&fit=crop",
+            description: "Bát ăn nhôm inox cao cấp, bền bỉ",
+            badge: null
+        },
+        {
+            id: 4,
+            name: "Thức ăn cho chó siêu cấp",
+            category: "Thức ăn",
+            price: "520.000",
+            image: "https://images.unsplash.com/photo-1600804340584-c7db2eacf0bf?w=400&h=400&fit=crop",
+            description: "Dành cho chó chuyên nghiệp, dinh dưỡng tối ưu",
+            badge: "sale"
+        },
+        {
+            id: 5,
+            name: "Nệm cho chó",
+            category: "Nội thất",
+            price: "680.000",
+            image: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop",
+            description: "Nệm lót êm ái cho chó ngủ thoải mái",
+            badge: "new"
+        },
+        {
+            id: 6,
+            name: "Dây dắn chó cao cấp",
+            category: "Phụ kiện",
+            price: "320.000",
+            image: "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=400&h=400&fit=crop",
+            description: "Dây dắn bền chắc, thoải mái cho chó",
+            badge: null
+        },
+        {
+            id: 7,
+            name: "Túi xách cho thú cưng",
+            category: "Túi xách",
+            price: "850.000",
+            image: "https://images.unsplash.com/photo-1553688738-a278b9f063e0?w=400&h=400&fit=crop",
+            description: "Túi xách tiện dụng, thoáng khí cho thú cưng",
+            badge: "sale"
+        },
+        {
+            id: 8,
+            name: "Đồ chơi cho mèo",
+            category: "Phụ kiện",
+            price: "180.000",
+            image: "https://images.unsplash.com/photo-1570129477492-45ea003588af?w=400&h=400&fit=crop",
+            description: "Bộ đồ chơi an toàn cho mèo vui chơi",
+            badge: "new"
+        },
+        {
+            id: 9,
+            name: "Ghế ngồi cho chó",
+            category: "Nội thất",
+            price: "750.000",
+            image: "https://images.unsplash.com/photo-1587470081699-89f6719aa4e3?w=400&h=400&fit=crop",
+            description: "Ghế ngồi thoải mái cho chó hoặc mèo",
+            badge: null
+        },
+        {
+            id: 10,
+            name: "Chó Golden Retriever",
+            category: "Thú cưng",
+            price: "8.500.000",
+            image: "https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=400&h=400&fit=crop",
+            description: "Chó Golden Retriever thuần chủng, khỏe mạnh, thân thiện",
+            badge: "new"
+        },
+        {
+            id: 11,
+            name: "Mèo Ba Tư",
+            category: "Thú cưng",
+            price: "5.200.000",
+            image: "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=400&h=400&fit=crop",
+            description: "Mèo Ba Tư cao cấp, lông dài đẹp, tính tình hiền lành",
+            badge: "sale"
+        },
+        {
+            id: 12,
+            name: "Thỏ mini Holland Lop",
+            category: "Thú cưng",
+            price: "2.800.000",
+            image: "https://images.unsplash.com/photo-1585110396000-c9ffd4d4b35c?w=400&h=400&fit=crop",
+            description: "Thỏ mini cute, dễ chăm sóc, tính tình yên tĩnh",
+            badge: null
+        }
+    ];
+
+    let currentQVProduct = null;
+
+    // Render products
+    const renderProducts = (productsToRender) => {
+        const grid = document.getElementById('productsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const countElement = document.getElementById('productCount');
+
+        if (productsToRender.length === 0) {
+            grid.style.display = 'none';
+            emptyState.style.display = 'block';
+            countElement.textContent = '0 sản phẩm';
+            return;
+        }
+
+        grid.style.display = 'grid';
+        emptyState.style.display = 'none';
+        countElement.textContent = `${productsToRender.length} sản phẩm`;
+
+        grid.innerHTML = productsToRender.map(product => `
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="${product.image}" alt="${product.name}">
+                    ${product.badge ? `<div class="product-badge ${product.badge === 'new' ? 'new' : ''}">${product.badge === 'sale' ? '🔥 Sale' : '✨ Mới'}</div>` : ''}
+                    <div class="product-overlay">
+                        <button class="overlay-btn add-cart" onclick="addToCart('${product.name.replace(/'/g, "\\'")}', '${product.price}', '${product.image.replace(/'/g, "\\'")}')" title="Thêm vào giỏ">
+                            <i data-feather="shopping-cart" style="width: 20px; height: 20px;"></i>
+                        </button>
+                        <button class="overlay-btn wishlist" onclick="toggleWishlist('${product.name.replace(/'/g, "\\'")}', '${product.image.replace(/'/g, "\\'")}', '${product.price}')" title="Yêu thích">
+                            <i data-feather="heart" style="width: 20px; height: 20px;"></i>
+                        </button>
+                        <button class="overlay-btn quick-view" onclick="openQuickView(${product.id})" title="Xem nhanh">
+                            <i data-feather="eye" style="width: 20px; height: 20px;"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="padding: 20px;">
+                    <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #333;">${product.name}</h3>
+                    <p style="color: #667eea; font-size: 12px; font-weight: 600; margin: 0 0 12px 0;">${product.category}</p>
+                    <p style="color: #ff6b6b; font-size: 20px; font-weight: 700; margin: 0;">${product.price}₫</p>
+                </div>
+            </div>
+        `).join('');
+
+        if (typeof feather !== 'undefined') feather.replace();
+    };
+
+    // Filter and render
+    const filterAndRenderProducts = () => {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+        const categoryValue = document.getElementById('categoryFilter').value.trim().toLowerCase();
+        const priceRange = document.getElementById('priceFilter').value;
+        const sort = document.getElementById('sortFilter').value;
+
+        console.log('Filter values:', {
+            search: searchTerm,
+            category: categoryValue,
+            price: priceRange,
+            sort: sort
+        });
+
+        let filtered = products.filter(product => {
+            // Search filter
+            if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) {
+                return false;
+            }
+
+            // Category filter - case insensitive
+            if (categoryValue) {
+                const productCategoryLower = product.category.trim().toLowerCase();
+                if (productCategoryLower !== categoryValue) {
+                    console.log('Filter out:', product.name, '- product category:', productCategoryLower, '!== filter:', categoryValue);
+                    return false;
+                }
+            }
+
+            // Price filter
+            if (priceRange) {
+                const price = parseInt(product.price.replace(/[^0-9]/g, ''));
+                const [min, max] = priceRange.split('-').map(p => parseInt(p) * 1000 || Infinity);
+                if (price < min || price > max) return false;
+            }
+
+            return true;
+        });
+
+        // Sort
+        if (sort === 'price-asc') {
+            filtered.sort((a, b) => parseInt(a.price.replace(/[^0-9]/g, '')) - parseInt(b.price.replace(/[^0-9]/g, '')));
+        } else if (sort === 'price-desc') {
+            filtered.sort((a, b) => parseInt(b.price.replace(/[^0-9]/g, '')) - parseInt(a.price.replace(/[^0-9]/g, '')));
+        } else if (sort === 'newest') {
+            filtered.sort((a, b) => b.id - a.id);
+        }
+
+        console.log('Filtered result:', filtered.length, 'products');
+        renderProducts(filtered);
+        updateActiveFilters();
+    };
+
+    // Update active filters display
+    const updateActiveFilters = () => {
+        const container = document.getElementById('activeFilters');
+        const filters = [];
+
+        const search = document.getElementById('searchInput').value;
+        const category = document.getElementById('categoryFilter').value;
+        const price = document.getElementById('priceFilter').value;
+        const sort = document.getElementById('sortFilter').value;
+
+        if (search) filters.push(`Tìm: "${search}"`);
+        if (category) filters.push(`Danh mục: ${category}`);
+        if (price) filters.push(`Giá: ${price}`);
+        if (sort) filters.push(`Sắp xếp: ${sort}`);
+
+        if (filters.length > 0) {
+            container.style.display = 'flex';
+            container.innerHTML = filters.map(f => `<span style="background: #667eea; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px;">${f}</span>`).join('');
+        } else {
+            container.style.display = 'none';
+        }
+    };
+
+    // Clear filters
+    const clearFilters = () => {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('categoryFilter').value = '';
+        document.getElementById('priceFilter').value = '';
+        document.getElementById('sortFilter').value = '';
+        filterAndRenderProducts();
+    };
+
+    // Quick view
+    const openQuickView = (productId) => {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+            currentQVProduct = product;
+            document.getElementById('qvImage').src = product.image;
+            document.getElementById('qvName').textContent = product.name;
+            document.getElementById('qvCategory').textContent = product.category;
+            document.getElementById('qvDescription').textContent = product.description;
+            document.getElementById('qvPrice').textContent = product.price + '₫';
+            document.getElementById('quickViewModal').style.display = 'flex';
+        }
+    };
+
+    const closeQuickView = () => {
+        document.getElementById('quickViewModal').style.display = 'none';
+    };
+
+    const addToCartFromQV = () => {
+        if (currentQVProduct) {
+            addToCart(currentQVProduct.name, currentQVProduct.price, currentQVProduct.image);
+            closeQuickView();
+        }
+    };
+
+    // Add to cart
+    const addToCart = (name, price, image) => {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const existing = cart.find(p => p.name === name);
+
+        if (existing) {
+            existing.quantity += 1;
+        } else {
+            cart.push({ name, price, image, quantity: 1 });
+        }
+
+        localStorage.setItem('cart', JSON.stringify(cart));
+        if (typeof updateCartBadge === 'function') updateCartBadge();
+        alert(`Đã thêm "${name}" vào giỏ hàng!`);
+    };
+
+    // Add to wishlist
+    const toggleWishlist = (name, image, price) => {
+        const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+        const index = wishlist.findIndex(p => p.name === name);
+
+        if (index > -1) {
+            wishlist.splice(index, 1);
+            alert(`Đã xóa "${name}" khỏi yêu thích`);
+        } else {
+            wishlist.push({ name, image, price });
+            alert(`Đã thêm "${name}" vào yêu thích!`);
+        }
+
+        localStorage.setItem('wishlist', JSON.stringify(wishlist));
+        if (typeof updateWishlistIcons === 'function') updateWishlistIcons();
+    };
+
+    // Close modal on outside click
+    window.onclick = (event) => {
+        const modal = document.getElementById('quickViewModal');
+        if (event.target === modal) {
+            closeQuickView();
+        }
+    };
+
+    // Initialize - render products on page load
+    const initShopPage = () => {
+        console.log('Shop page initialized');
+        console.log('Total products:', products.length);
+        
+        // Log all categories
+        const categories = [...new Set(products.map(p => p.category))];
+        console.log('Available categories:', categories);
+        
+        // Render all products initially
+        renderProducts(products);
+        
+        // Add event listeners
+        document.getElementById('categoryFilter').addEventListener('change', (e) => {
+            console.log('Category changed to:', e.target.value);
+            filterAndRenderProducts();
+        });
+
+        document.getElementById('searchInput').addEventListener('keyup', filterAndRenderProducts);
+        document.getElementById('priceFilter').addEventListener('change', filterAndRenderProducts);
+        document.getElementById('sortFilter').addEventListener('change', filterAndRenderProducts);
+    };
+
+    // Call on page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initShopPage);
+    } else {
+        initShopPage();
+    }
+
+    // Initialize
+    renderProducts(products);
+    if (typeof feather !== 'undefined') feather.replace();
+</script>
