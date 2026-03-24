@@ -90,11 +90,23 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     min-height: auto;
     padding: 20px 0;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .hero-section .container-fluid {
     max-width: 1600px;
+}
+
+/* Content Container */
+#content {
+    min-height: auto;
+    position: relative;
+    z-index: 1;
+}
+
+#content .container-fluid {
+    padding-left: 80px;
+    padding-right: 80px;
 }
 
 /* Decorative Circles */
@@ -199,6 +211,49 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 
 .nav-menu .nav-link:hover {
     color: var(--primary-color);
+}
+
+/* Dropdown Menu */
+.nav-menu li.dropdown {
+    position: relative;
+}
+
+.nav-menu li.dropdown .dropdown-menu {
+    display: none;
+    position: absolute;
+    background-color: white;
+    list-style: none;
+    padding: 10px 0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    top: 100%;
+    left: 0;
+    min-width: 250px;
+    z-index: 1000;
+}
+
+.nav-menu li.dropdown:hover .dropdown-menu {
+    display: block;
+}
+
+.nav-menu li.dropdown .dropdown-menu li {
+    padding: 0;
+}
+
+.nav-menu li.dropdown .dropdown-menu li a {
+    display: block;
+    padding: 12px 20px;
+    color: #000;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.nav-menu li.dropdown .dropdown-menu li a:hover {
+    background-color: var(--light-gray);
+    color: var(--primary-color);
+    padding-left: 25px;
 }
 
 /* Search Box */
