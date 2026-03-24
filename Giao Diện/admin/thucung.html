@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -6,17 +6,767 @@
     <title>Thú Cưng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-style.css">
+    <style>
+        #petTableBody tr {
+            cursor: pointer;
+        }
+
+        #petTableBody tr.is-selected {
+            background: #fff7ed;
+        }
+
+        .pet-view-dialog {
+            width: min(760px, 100%);
+        }
+
+        .pet-view-body {
+            padding: 16px;
+        }
+
+        .pet-detail-grid {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .pet-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #f87537, #fba81f);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            font-weight: 700;
+        }
+
+        .pet-detail-meta {
+            display: grid;
+            gap: 8px;
+            color: #334155;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .pet-detail-meta b {
+            color: #0f172a;
+            min-width: 150px;
+            display: inline-block;
+        }
+
+        .pet-view-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 0 16px 16px;
+        }
+
+        @media (max-width: 768px) {
+            .pet-detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="page-wrap">
-    <div class="top-header"><h2>Quản Lý Thú Cưng</h2></div>
-    <div class="module-grid">
-        <div class="module-card"><div class="module-title"><i class="bi bi-heart"></i><span>Tổng Hồ Sơ Thú Cưng</span></div><div class="module-value">50</div><div class="module-desc">Hồ sơ đang theo dõi</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-shield-check"></i><span>Đủ Tiêm Chủng</span></div><div class="module-value">42</div><div class="module-desc">Đã hoàn thành vaccine</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-clipboard2-pulse"></i><span>Cần Khám Lại</span></div><div class="module-value">8</div><div class="module-desc">Lịch nhắc trong tuần</div></div>
+    <div class="top-header d-flex justify-content-between align-items-center">
+        <h2>Quản Lý Thú Cưng</h2>
+        <div class="service-toolbar">
+            <div class="service-search">
+                <i class="bi bi-search"></i>
+                <input id="petSearchInput" type="text" placeholder="Tìm theo tên thú cưng, chủ, loại, giống..." aria-label="Tìm thú cưng">
+            </div>
+            <div class="service-toolbar-actions">
+                <button class="btn btn-success" type="button" onclick="openAddPetModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+                <button class="btn btn-danger" type="button" onclick="deletePetBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="module-grid mb-3">
+        <div class="module-card">
+            <div class="module-title"><i class="bi bi-heart"></i><span>Tổng Hồ Sơ Thú Cưng</span></div>
+            <div class="module-value" id="petTotal">0</div>
+            <div class="module-desc">Số hồ sơ thú cưng hiện có</div>
+        </div>
+        <div class="module-card">
+            <div class="module-title"><i class="bi bi-shield-check"></i><span>Ổn Định Sức Khỏe</span></div>
+            <div class="module-value" id="petHealthy">0</div>
+            <div class="module-desc">Trạng thái có chữ khỏe hoặc tiêm</div>
+        </div>
+        <div class="module-card">
+            <div class="module-title"><i class="bi bi-clipboard2-pulse"></i><span>Cần Theo Dõi</span></div>
+            <div class="module-value" id="petFollowUp">0</div>
+            <div class="module-desc">Trường hợp còn lại cần chú ý</div>
+        </div>
+    </div>
+
+    <div class="content-section">
+        <div class="section-header"><h3><i class="bi bi-heart-fill text-warning me-2"></i>Danh Sách Thú Cưng</h3></div>
+        <div class="data-table">
+            <table>
+                <thead><tr><th>Tên Thú Cưng</th><th>Loại</th><th>Chủ Sở Hữu</th><th>Trạng Thái</th></tr></thead>
+                <tbody id="petTableBody"></tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+<div class="service-modal" id="petViewModal" aria-hidden="true">
+    <div class="service-modal-dialog pet-view-dialog" role="dialog" aria-modal="true" aria-labelledby="petViewTitle">
+        <div class="service-modal-header">
+            <h3 class="service-modal-title" id="petViewTitle">Chi Tiết Thú Cưng</h3>
+            <button type="button" class="service-modal-close" id="closePetViewModal" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="pet-view-body">
+            <div class="pet-detail-grid">
+                <div class="pet-avatar" id="petDetailAvatar">TC</div>
+                <div class="pet-detail-meta">
+                    <div><b>Mã thú cưng:</b> <span id="petDetailId">-</span></div>
+                    <div><b>Tên thú cưng:</b> <span id="petDetailName">-</span></div>
+                    <div><b>Loại:</b> <span id="petDetailType">-</span></div>
+                    <div><b>Giống:</b> <span id="petDetailBreed">-</span></div>
+                    <div><b>Chủ sở hữu:</b> <span id="petDetailOwner">-</span></div>
+                    <div><b>Trạng thái:</b> <span id="petDetailStatus">-</span></div>
+                    <div><b>Ngày đăng ký:</b> <span id="petDetailDate">-</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="pet-view-actions">
+            <button type="button" class="btn btn-warning text-white" id="editPetFromDetailBtn"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button>
+        </div>
+    </div>
+</div>
+
+<div class="service-modal" id="petModal" aria-hidden="true">
+    <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="petModalTitle">
+        <div class="service-modal-header">
+            <h3 class="service-modal-title" id="petModalTitle">Chỉnh sửa thú cưng</h3>
+            <button type="button" class="service-modal-close" id="closePetModal" aria-label="Đóng">&times;</button>
+        </div>
+
+        <form id="petForm">
+            <div class="service-modal-body">
+                <input type="hidden" id="editPetId">
+
+                <div class="service-form-group full">
+                    <label for="editPetName">Tên thú cưng</label>
+                    <input class="service-form-control" id="editPetName" type="text" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editPetType">Loại thú cưng</label>
+                    <input class="service-form-control" id="editPetType" type="text" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editPetBreed">Giống</label>
+                    <input class="service-form-control" id="editPetBreed" type="text" required>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editPetOwner">Tên chủ sở hữu</label>
+                    <select class="service-form-control" id="editPetOwner" required>
+                        <option value="">Chọn chủ sở hữu</option>
+                    </select>
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editPetStatus">Trạng thái</label>
+                    <input class="service-form-control" id="editPetStatus" type="text" required>
+                </div>
+
+                <div class="service-form-group full">
+                    <label for="editPetDate">Ngày đăng ký</label>
+                    <input class="service-form-control" id="editPetDate" type="date" required>
+                </div>
+            </div>
+
+            <div class="service-modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="cancelPetModal">Hủy</button>
+                <button type="submit" class="btn btn-warning text-white" id="savePetBtn">Lưu thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const petStore = new Map();
+    let allPets = [];
+    let petFilter = '';
+    let petMode = 'update';
+    let selectedPetId = '';
+    let customerOptions = [];
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function toDateText(value) {
+        if (!value) return '-';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleDateString('vi-VN');
+    }
+
+    function getErrorMessage(error) {
+        if (!error) return 'Lỗi không xác định';
+        if (typeof error === 'string') return error;
+        if (error.message) return error.message;
+        return 'Lỗi không xác định';
+    }
+
+    let noticeTimer = null;
+
+    function getNoticeTitle(type) {
+        if (type === 'error') return 'Thông báo lỗi';
+        if (type === 'warning') return 'Thông báo';
+        return 'Chúc mừng';
+    }
+
+    function getNoticeRestoreModalId() {
+        const detailModal = document.getElementById('petViewModal');
+        if (detailModal && detailModal.classList.contains('show')) return 'petViewModal';
+        return '';
+    }
+
+    function ensureNoticeModal() {
+        let modal = document.getElementById('globalNoticeModal');
+        if (modal) return modal;
+
+        modal = document.createElement('div');
+        modal.id = 'globalNoticeModal';
+        modal.className = 'service-modal';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
+                <div class="service-modal-header">
+                    <h3 class="service-modal-title" id="noticeModalTitle">Thông báo</h3>
+                    <button type="button" class="service-modal-close" id="noticeModalCloseBtn" aria-label="Dong">&times;</button>
+                </div>
+                <div class="service-modal-body">
+                    <div id="noticeModalMessage" style="text-align:center; font-size:16px; font-weight:500;"></div>
+                </div>
+                <div class="service-modal-footer">
+                    <button type="button" class="btn btn-warning text-white" id="noticeModalOkBtn">Đóng</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (event) => {
+            if (event.target.id === 'globalNoticeModal') closeNotice();
+        });
+        modal.querySelector('#noticeModalCloseBtn')?.addEventListener('click', closeNotice);
+        modal.querySelector('#noticeModalOkBtn')?.addEventListener('click', closeNotice);
+
+        return modal;
+    }
+
+    function isNoticeVisible() {
+        const modal = document.getElementById('globalNoticeModal');
+        return Boolean(modal && modal.classList.contains('show'));
+    }
+
+    function closeNotice() {
+        const modal = document.getElementById('globalNoticeModal');
+        if (!modal) return;
+
+        if (noticeTimer) {
+            window.clearTimeout(noticeTimer);
+            noticeTimer = null;
+        }
+
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+
+        const restoreId = modal.dataset.restoreModalId || '';
+        if (restoreId) {
+            const restoreModal = document.getElementById(restoreId);
+            if (restoreModal && !restoreModal.classList.contains('show')) {
+                restoreModal.classList.add('show');
+                restoreModal.setAttribute('aria-hidden', 'false');
+            }
+        }
+        modal.dataset.restoreModalId = '';
+    }
+
+    function showNotice(message, type = 'success') {
+        const modal = ensureNoticeModal();
+        const titleEl = modal.querySelector('#noticeModalTitle');
+        const messageEl = modal.querySelector('#noticeModalMessage');
+
+        const restoreId = getNoticeRestoreModalId();
+        if (restoreId) {
+            const restoreModal = document.getElementById(restoreId);
+            restoreModal?.classList.remove('show');
+            restoreModal?.setAttribute('aria-hidden', 'true');
+        }
+        modal.dataset.restoreModalId = restoreId;
+
+        if (titleEl) titleEl.textContent = getNoticeTitle(type);
+        if (messageEl) messageEl.textContent = String(message || '');
+
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+
+        if (noticeTimer) window.clearTimeout(noticeTimer);
+        noticeTimer = window.setTimeout(closeNotice, 2500);
+    }
+
+    async function parseFailedResponse(response, fallbackMessage) {
+        let errorMessage = fallbackMessage || ('HTTP ' + response.status);
+        try {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const body = await response.json();
+                errorMessage = body.message || body.error || errorMessage;
+            } else {
+                const raw = (await response.text() || '').trim();
+                if (raw) errorMessage = raw;
+            }
+        } catch (_) {
+            // Keep fallback message when body parsing fails.
+        }
+        return new Error(errorMessage);
+    }
+
+    function isHealthyLike(status) {
+        const value = String(status || '').toLowerCase();
+        return value.includes('khoe') || value.includes('khỏe') || value.includes('tiem') || value.includes('tiêm');
+    }
+
+    function getApiCandidates(path) {
+        const candidates = [];
+        candidates.push(new URL(`../../index.php?api=${path}`, window.location.href).toString());
+
+        const marker = '/admin/';
+        const pathname = window.location.pathname || '';
+        const markerIndex = pathname.lastIndexOf(marker);
+        if (markerIndex >= 0) {
+            const beforeAdmin = pathname.slice(0, markerIndex);
+            const giaoDienIndex = beforeAdmin.lastIndexOf('/Giao');
+            const detectedBase = giaoDienIndex >= 0 ? beforeAdmin.slice(0, giaoDienIndex) : beforeAdmin;
+            if (detectedBase) candidates.push(`${detectedBase}/index.php?api=${path}`);
+        }
+
+        candidates.push('/phuocthanh/PHPCHINH/index.php?api=' + path);
+        candidates.push('/PHPCHINH/index.php?api=' + path);
+        candidates.push('/index.php?api=' + path);
+
+        return Array.from(new Set(candidates));
+    }
+
+    async function fetchPayload(apiName) {
+        const candidates = getApiCandidates(apiName);
+        const cacheBuster = `_t=${Date.now()}`;
+        let lastError = new Error('Khong the tai du lieu');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}${cacheBuster}`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) {
+                    lastError = new Error('HTTP ' + response.status);
+                    continue;
+                }
+
+                const payload = await response.json();
+                if (!payload.ok) {
+                    lastError = new Error(payload.message || 'API ok=false');
+                    continue;
+                }
+                return payload;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    async function mutatePet(action, payload = {}) {
+        const candidates = [
+            'get_services.php?api=get_pets',
+            new URL('get_services.php?api=get_pets', window.location.href).toString(),
+        ];
+        let lastError = new Error('Khong the xu ly thu cung');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}_t=${Date.now()}`;
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entity: 'pets', action, ...payload }),
+                });
+
+                if (!response.ok) {
+                    lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                    continue;
+                }
+
+                const data = await response.json();
+                if (!data.ok) {
+                    lastError = new Error(data.message || 'API ok=false');
+                    continue;
+                }
+
+                return data;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    function getOwnerNameById(ownerId) {
+        const owner = customerOptions.find((item) => Number(item.id) === Number(ownerId));
+        return owner ? String(owner.tenkhachhang || '') : '';
+    }
+
+    function renderOwnerSelectOptions(selectedOwnerId = '') {
+        const select = document.getElementById('editPetOwner');
+        if (!select) return;
+
+        const selected = String(selectedOwnerId || '');
+        const options = ['<option value="">Chọn chủ sở hữu</option>'];
+
+        customerOptions.forEach((item) => {
+            const id = String(item.id || '');
+            const selectedAttr = id === selected ? ' selected' : '';
+            options.push(`<option value="${escapeHtml(id)}"${selectedAttr}>${escapeHtml(item.tenkhachhang || 'Khach hang')} (ID: ${escapeHtml(id)})</option>`);
+        });
+
+        select.innerHTML = options.join('');
+    }
+
+    async function loadCustomerOptions(forceReload = false) {
+        if (customerOptions.length && !forceReload) return;
+
+        const payload = await fetchPayload('get_customers');
+        customerOptions = Array.isArray(payload.data)
+            ? payload.data.map((item) => ({
+                id: Number(item.id || 0),
+                tenkhachhang: String(item.tenkhachhang || ''),
+            })).filter((item) => item.id > 0)
+            : [];
+
+        renderOwnerSelectOptions('');
+    }
+
+    function updatePetSummary() {
+        const total = allPets.length;
+        const healthy = allPets.filter((item) => isHealthyLike(item.trangthaithucung)).length;
+        const followUp = total - healthy;
+
+        document.getElementById('petTotal').textContent = total;
+        document.getElementById('petHealthy').textContent = healthy;
+        document.getElementById('petFollowUp').textContent = followUp;
+    }
+
+    function getFilteredPets() {
+        const key = String(petFilter || '').trim().toLowerCase();
+        if (!key) return allPets;
+
+        return allPets.filter((item) => {
+            const idText = String(item.id || '').toLowerCase();
+            const name = String(item.tenthucung || '').toLowerCase();
+            const owner = String(item.tenchusohuu || '').toLowerCase();
+            const type = String(item.loaithucung || '').toLowerCase();
+            const breed = String(item.giongthucung || '').toLowerCase();
+            return idText.includes(key) || name.includes(key) || owner.includes(key) || type.includes(key) || breed.includes(key);
+        });
+    }
+
+    function renderPets() {
+        const tbody = document.getElementById('petTableBody');
+        if (!tbody) return;
+
+        const rows = getFilteredPets();
+        const hasSelected = rows.some((item) => String(item.id) === String(selectedPetId));
+        if (!hasSelected) selectedPetId = '';
+
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="4">Không tìm thấy thú cưng phù hợp.</td></tr>';
+            hidePetDetail();
+            return;
+        }
+
+        tbody.innerHTML = rows.map((row) => {
+            const healthy = isHealthyLike(row.trangthaithucung);
+            const ownerText = row.tenchusohuu
+                ? String(row.tenchusohuu)
+                : (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định');
+            return `
+                <tr data-pet-id="${row.id}" class="${String(selectedPetId) === String(row.id) ? 'is-selected' : ''}" onclick="showPetDetail(${row.id})">
+                    <td>${escapeHtml(row.tenthucung || '-')}</td>
+                    <td>${escapeHtml(row.loaithucung || '-')}</td>
+                    <td>${escapeHtml(ownerText)}</td>
+                    <td><span class="status-badge ${healthy ? 'success' : 'warning'}">${escapeHtml(row.trangthaithucung || 'Chưa cập nhật')}</span></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadPets(forceReload = false) {
+        const tbody = document.getElementById('petTableBody');
+        if (!tbody) return;
+        if (tbody.dataset.loaded === '1' && !forceReload) return;
+
+        tbody.innerHTML = '<tr><td colspan="4">Đang tải dữ liệu thú cưng...</td></tr>';
+
+        try {
+            await loadCustomerOptions(forceReload);
+            const payload = await fetchPayload('get_pets');
+            allPets = Array.isArray(payload.data) ? payload.data : [];
+            petStore.clear();
+            allPets.forEach((item) => petStore.set(String(item.id), item));
+
+            updatePetSummary();
+            renderPets();
+            tbody.dataset.loaded = '1';
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="4">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+        }
+    }
+
+    function openPetDetailModal() {
+        const modal = document.getElementById('petViewModal');
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function hidePetDetail() {
+        const modal = document.getElementById('petViewModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function showPetDetail(petId) {
+        selectedPetId = String(petId);
+        if (fillPetDetailById(petId)) {
+            openPetDetailModal();
+        }
+        renderPets();
+    }
+
+    function fillPetDetailById(petId) {
+        const row = petStore.get(String(petId));
+        if (!row) return false;
+
+        const avatar = document.getElementById('petDetailAvatar');
+        const id = document.getElementById('petDetailId');
+        const name = document.getElementById('petDetailName');
+        const type = document.getElementById('petDetailType');
+        const breed = document.getElementById('petDetailBreed');
+        const owner = document.getElementById('petDetailOwner');
+        const status = document.getElementById('petDetailStatus');
+        const date = document.getElementById('petDetailDate');
+        if (!avatar || !id || !name || !type || !breed || !owner || !status || !date) return false;
+
+        const petName = String(row.tenthucung || '-');
+        avatar.textContent = petName.charAt(0).toUpperCase() || 'T';
+        id.textContent = String(row.id || '-');
+        name.textContent = petName;
+        type.textContent = String(row.loaithucung || '-');
+        breed.textContent = String(row.giongthucung || '-');
+        owner.textContent = String(row.tenchusohuu || (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định'));
+        status.textContent = String(row.trangthaithucung || 'Chưa cập nhật');
+        date.textContent = toDateText(row.ngaydangkythucung);
+        return true;
+    }
+
+    function openPetModal() {
+        const modal = document.getElementById('petModal');
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closePetModal() {
+        const modal = document.getElementById('petModal');
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openAddPetModal() {
+        petMode = 'create';
+        document.getElementById('petModalTitle').textContent = 'Thêm thú cưng mới';
+        document.getElementById('savePetBtn').textContent = 'Thêm mới';
+        document.getElementById('editPetId').value = '';
+        document.getElementById('editPetName').value = '';
+        document.getElementById('editPetType').value = '';
+        document.getElementById('editPetBreed').value = '';
+        renderOwnerSelectOptions('');
+        document.getElementById('editPetStatus').value = 'Khỏe mạnh';
+        document.getElementById('editPetDate').value = new Date().toISOString().slice(0, 10);
+        openPetModal();
+    }
+
+    function editPet(petId) {
+        const row = petStore.get(String(petId));
+        if (!row) return;
+
+        petMode = 'update';
+        document.getElementById('petModalTitle').textContent = 'Chỉnh sửa thú cưng';
+        document.getElementById('savePetBtn').textContent = 'Lưu thay đổi';
+        document.getElementById('editPetId').value = row.id;
+        document.getElementById('editPetName').value = row.tenthucung || '';
+        document.getElementById('editPetType').value = row.loaithucung || '';
+        document.getElementById('editPetBreed').value = row.giongthucung || '';
+        renderOwnerSelectOptions(String(row.chusohuu_id || ''));
+        document.getElementById('editPetStatus').value = row.trangthaithucung || '';
+        document.getElementById('editPetDate').value = String(row.ngaydangkythucung || '').slice(0, 10);
+        openPetModal();
+    }
+
+    async function deletePetBySearch() {
+        const keyword = String(document.getElementById('petSearchInput')?.value || '').trim().toLowerCase();
+        if (!keyword) {
+            showNotice('Nhập từ khóa để xóa thú cưng.', 'warning');
+            return;
+        }
+
+        const target = getFilteredPets()[0];
+        if (!target) {
+            showNotice('Không tìm thấy thú cưng để xóa.', 'warning');
+            return;
+        }
+
+        if (!confirm(`Bạn có chắc muốn xóa hồ sơ thú cưng "${target.tenthucung}" (ID: ${target.id})?`)) return;
+
+        try {
+            await mutatePet('delete', { id: target.id });
+            allPets = allPets.filter((item) => String(item.id) !== String(target.id));
+            petStore.delete(String(target.id));
+
+            if (String(selectedPetId) === String(target.id)) {
+                selectedPetId = '';
+                hidePetDetail();
+            }
+
+            updatePetSummary();
+            renderPets();
+            showNotice(`Xóa thú cưng "${target.tenthucung}" thành công.`, 'success');
+        } catch (error) {
+            showNotice('Xóa thú cưng thất bại: ' + getErrorMessage(error), 'error');
+        }
+    }
+
+    document.getElementById('petSearchInput').addEventListener('input', (event) => {
+        petFilter = event.target.value || '';
+        renderPets();
+    });
+
+    document.getElementById('closePetModal').addEventListener('click', closePetModal);
+    document.getElementById('cancelPetModal').addEventListener('click', closePetModal);
+    document.getElementById('closePetViewModal').addEventListener('click', hidePetDetail);
+    document.getElementById('petViewModal').addEventListener('click', (event) => {
+        if (event.target.id === 'petViewModal') hidePetDetail();
+    });
+    document.getElementById('editPetFromDetailBtn').addEventListener('click', () => {
+        if (!selectedPetId) return;
+        hidePetDetail();
+        editPet(selectedPetId);
+    });
+
+    document.getElementById('petModal').addEventListener('click', (event) => {
+        if (event.target.id === 'petModal') closePetModal();
+    });
+
+    document.getElementById('petForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const idRaw = document.getElementById('editPetId').value;
+        const name = document.getElementById('editPetName').value.trim();
+        const type = document.getElementById('editPetType').value.trim();
+        const breed = document.getElementById('editPetBreed').value.trim();
+        const ownerId = Number(document.getElementById('editPetOwner').value || 0);
+        const ownerName = getOwnerNameById(ownerId);
+        const status = document.getElementById('editPetStatus').value.trim();
+        const regDate = document.getElementById('editPetDate').value;
+
+        if (!name || !type || !breed || !ownerId || !ownerName || !status || !regDate) {
+            showNotice('Vui lòng chọn chủ sở hữu từ danh sách khách hàng.', 'warning');
+            return;
+        }
+
+        try {
+            if (petMode === 'create') {
+                const res = await mutatePet('create', {
+                    tenthucung: name,
+                    loaithucung: type,
+                    giongthucung: breed,
+                    chusohuu_id: ownerId,
+                    trangthaithucung: status,
+                    ngaydangkythucung: regDate,
+                });
+
+                const created = res.data || {};
+                allPets.unshift(created);
+                petStore.set(String(created.id), created);
+                showNotice(`Thêm thú cưng "${created.tenthucung || name}" thành công.`, 'success');
+            } else {
+                const id = String(idRaw);
+                const res = await mutatePet('update', {
+                    id: Number(idRaw),
+                    tenthucung: name,
+                    loaithucung: type,
+                    giongthucung: breed,
+                    chusohuu_id: ownerId,
+                    trangthaithucung: status,
+                    ngaydangkythucung: regDate,
+                });
+
+                const updated = res.data || {};
+                petStore.set(id, updated);
+                allPets = allPets.map((item) => String(item.id) === id ? updated : item);
+                showNotice(`Cập nhật thú cưng "${updated.tenthucung || name}" thành công.`, 'success');
+            }
+
+            updatePetSummary();
+            renderPets();
+            if (petMode === 'update' && idRaw) {
+                selectedPetId = String(idRaw);
+                fillPetDetailById(idRaw);
+                openPetDetailModal();
+            }
+            closePetModal();
+        } catch (error) {
+            showNotice('Lưu thú cưng thất bại: ' + getErrorMessage(error), 'error');
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            if (isNoticeVisible()) {
+                closeNotice();
+                return;
+            }
+            closePetModal();
+            hidePetDetail();
+        }
+    });
+
+    document.documentElement.classList.add('hide-scrollbar');
+    document.body.classList.add('hide-scrollbar');
+    loadPets();
+</script>
 </body>
 </html>
-

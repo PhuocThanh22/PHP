@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Admin Dashboard - Catchy Pet</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-style.css">
 </head>
 <body>
     <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Mở menu"><i class="bi bi-list"></i></button>
@@ -71,11 +74,12 @@
 
         const links = document.querySelectorAll('.sidebar-menu a');
         const frame = document.getElementById('contentFrame');
-        const PAGE_VERSION = '20260320-2';
+        const PAGE_VERSION = '20260321-4';
+        const CACHE_BUSTER = Date.now().toString();
 
         function buildFrameUrl(page) {
             const separator = page.includes('?') ? '&' : '?';
-            return `${page}${separator}v=${PAGE_VERSION}`;
+            return `${page}${separator}v=${PAGE_VERSION}&_=${CACHE_BUSTER}`;
         }
 
         links.forEach((link) => {

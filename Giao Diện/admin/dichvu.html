@@ -6,7 +6,7 @@
     <title>Dịch Vụ</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-style.css">
 </head>
 <body>
     <div class="page-wrap">
@@ -20,7 +20,6 @@
                 <div class="service-toolbar-actions">
                     <button class="btn btn-success" type="button" onclick="openAddServiceModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
                     <button class="btn btn-danger" type="button" onclick="deleteServiceBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
-                    <button class="btn btn-warning text-white" type="button" onclick="loadServices(true)"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</button>
                 </div>
             </div>
         </div>
@@ -90,6 +89,127 @@
 
         function formatCurrencyVND(value) {
             return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
+        }
+
+        function getErrorMessage(error) {
+            if (!error) return 'Lỗi không xác định';
+            if (typeof error === 'string') return error;
+            if (error.message) return error.message;
+            return 'Lỗi không xác định';
+        }
+
+        let noticeTimer = null;
+
+        function getNoticeTitle(type) {
+            if (type === 'error') return 'Thông báo lỗi';
+            if (type === 'warning') return 'Thông báo';
+            return 'Chúc mừng';
+        }
+
+        function getNoticeRestoreModalId() {
+            return '';
+        }
+
+        function ensureNoticeModal() {
+            let modal = document.getElementById('globalNoticeModal');
+            if (modal) return modal;
+
+            modal = document.createElement('div');
+            modal.id = 'globalNoticeModal';
+            modal.className = 'service-modal';
+            modal.setAttribute('aria-hidden', 'true');
+            modal.innerHTML = `
+                <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
+                    <div class="service-modal-header">
+                        <h3 class="service-modal-title" id="noticeModalTitle">Thông báo</h3>
+                        <button type="button" class="service-modal-close" id="noticeModalCloseBtn" aria-label="Dong">&times;</button>
+                    </div>
+                    <div class="service-modal-body">
+                        <div id="noticeModalMessage" style="text-align:center; font-size:16px; font-weight:500;"></div>
+                    </div>
+                    <div class="service-modal-footer">
+                        <button type="button" class="btn btn-warning text-white" id="noticeModalOkBtn">Đóng</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (event) => {
+                if (event.target.id === 'globalNoticeModal') closeNotice();
+            });
+            modal.querySelector('#noticeModalCloseBtn')?.addEventListener('click', closeNotice);
+            modal.querySelector('#noticeModalOkBtn')?.addEventListener('click', closeNotice);
+
+            return modal;
+        }
+
+        function isNoticeVisible() {
+            const modal = document.getElementById('globalNoticeModal');
+            return Boolean(modal && modal.classList.contains('show'));
+        }
+
+        function closeNotice() {
+            const modal = document.getElementById('globalNoticeModal');
+            if (!modal) return;
+
+            if (noticeTimer) {
+                window.clearTimeout(noticeTimer);
+                noticeTimer = null;
+            }
+
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+
+            const restoreId = modal.dataset.restoreModalId || '';
+            if (restoreId) {
+                const restoreModal = document.getElementById(restoreId);
+                if (restoreModal && !restoreModal.classList.contains('show')) {
+                    restoreModal.classList.add('show');
+                    restoreModal.setAttribute('aria-hidden', 'false');
+                }
+            }
+            modal.dataset.restoreModalId = '';
+        }
+
+        function showNotice(message, type = 'success') {
+            const modal = ensureNoticeModal();
+            const titleEl = modal.querySelector('#noticeModalTitle');
+            const messageEl = modal.querySelector('#noticeModalMessage');
+
+            const restoreId = getNoticeRestoreModalId();
+            if (restoreId) {
+                const restoreModal = document.getElementById(restoreId);
+                restoreModal?.classList.remove('show');
+                restoreModal?.setAttribute('aria-hidden', 'true');
+            }
+            modal.dataset.restoreModalId = restoreId;
+
+            if (titleEl) titleEl.textContent = getNoticeTitle(type);
+            if (messageEl) messageEl.textContent = String(message || '');
+
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+
+            if (noticeTimer) window.clearTimeout(noticeTimer);
+            noticeTimer = window.setTimeout(closeNotice, 2500);
+        }
+
+        async function parseFailedResponse(response, fallbackMessage) {
+            let errorMessage = fallbackMessage || ('HTTP ' + response.status);
+            try {
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const body = await response.json();
+                    errorMessage = body.message || body.error || errorMessage;
+                } else {
+                    const raw = (await response.text() || '').trim();
+                    if (raw) errorMessage = raw;
+                }
+            } catch (_) {
+                // Keep fallback message when body parsing fails.
+            }
+            return new Error(errorMessage);
         }
 
         function getServiceVisual(serviceName) {
@@ -217,6 +337,41 @@
             throw new Error(`${lastError.message} | Attempts: ${detail}`);
         }
 
+        async function mutateService(action, payload = {}) {
+            const candidates = getServiceApiCandidates();
+            let lastError = new Error('Khong the xu ly dich vu');
+
+            for (const candidate of candidates) {
+                const separator = candidate.includes('?') ? '&' : '?';
+                const url = `${candidate}${separator}_t=${Date.now()}`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ entity: 'services', action, ...payload }),
+                    });
+
+                    if (!response.ok) {
+                        lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                        continue;
+                    }
+
+                    const data = await response.json();
+                    if (!data.ok) {
+                        lastError = new Error(data.message || 'API ok=false');
+                        continue;
+                    }
+
+                    return data;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            throw lastError;
+        }
+
         async function loadServices(forceReload = false) {
             const grid = document.getElementById('serviceGrid');
             if (!grid) return;
@@ -257,25 +412,31 @@
             openServiceModal();
         }
 
-        function deleteServiceBySearch() {
+        async function deleteServiceBySearch() {
             const keyword = String(document.getElementById('serviceSearchInput')?.value || '').trim().toLowerCase();
             if (!keyword) {
-                alert('Nhập mã hoặc tên dịch vụ cần xóa trong ô tìm kiếm.');
+                showNotice('Nhập mã hoặc tên dịch vụ cần xóa trong ô tìm kiếm.', 'warning');
                 return;
             }
 
             const target = getFilteredServices(allServices, keyword)[0];
             if (!target) {
-                alert('Không tìm thấy dịch vụ để xóa.');
+                showNotice('Không tìm thấy dịch vụ để xóa.', 'warning');
                 return;
             }
 
             const ok = confirm(`Bạn có chắc muốn xóa dịch vụ "${target.tendichvu}" (ID: ${target.id})?`);
             if (!ok) return;
 
-            allServices = allServices.filter((item) => String(item.id) !== String(target.id));
-            serviceStore.delete(String(target.id));
-            renderByCurrentFilter();
+            try {
+                await mutateService('delete', { id: target.id });
+                allServices = allServices.filter((item) => String(item.id) !== String(target.id));
+                serviceStore.delete(String(target.id));
+                renderByCurrentFilter();
+                showNotice(`Xóa dịch vụ "${target.tendichvu}" thành công.`, 'success');
+            } catch (error) {
+                showNotice('Xóa dịch vụ thất bại: ' + getErrorMessage(error), 'error');
+            }
         }
 
         function editService(serviceId) {
@@ -347,7 +508,7 @@
             if (event.target.id === 'serviceEditModal') closeServiceModal();
         });
 
-        document.getElementById('serviceEditForm').addEventListener('submit', (event) => {
+        document.getElementById('serviceEditForm').addEventListener('submit', async (event) => {
             event.preventDefault();
 
             const rawId = document.getElementById('editServiceId').value;
@@ -358,40 +519,41 @@
 
             if (!name) return;
 
-            if (editMode === 'create') {
-                const newId = allServices.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
-                const todayIso = new Date().toISOString().slice(0, 10);
-                const created = {
-                    id: newId,
-                    tendichvu: name,
-                    giadichvu: price,
-                    thoigiandichvu: duration,
-                    trangthaidichvu: status,
-                    ngaytaodichvu: todayIso
-                };
+            try {
+                if (editMode === 'create') {
+                    const res = await mutateService('create', {
+                        tendichvu: name,
+                        giadichvu: price,
+                        thoigiandichvu: duration,
+                        trangthaidichvu: status,
+                    });
 
-                allServices.unshift(created);
-                serviceStore.set(String(created.id), created);
-                renderByCurrentFilter();
-            } else {
-                const id = String(rawId);
-                const current = serviceStore.get(id);
-                if (!current) return;
+                    const created = res.data || {};
+                    allServices.unshift(created);
+                    serviceStore.set(String(created.id), created);
+                    renderByCurrentFilter();
+                    showNotice(`Thêm dịch vụ "${created.tendichvu || name}" thành công.`, 'success');
+                } else {
+                    const id = String(rawId);
+                    const res = await mutateService('update', {
+                        id: Number(rawId),
+                        tendichvu: name,
+                        giadichvu: price,
+                        thoigiandichvu: duration,
+                        trangthaidichvu: status,
+                    });
 
-                const updated = {
-                    ...current,
-                    tendichvu: name,
-                    giadichvu: price,
-                    thoigiandichvu: duration,
-                    trangthaidichvu: status
-                };
+                    const updated = res.data || {};
+                    serviceStore.set(id, updated);
+                    allServices = allServices.map((item) => String(item.id) === id ? updated : item);
+                    applyServiceToCard(updated);
+                    showNotice(`Cập nhật dịch vụ "${updated.tendichvu || name}" thành công.`, 'success');
+                }
 
-                serviceStore.set(id, updated);
-                allServices = allServices.map((item) => String(item.id) === id ? updated : item);
-                applyServiceToCard(updated);
+                closeServiceModal();
+            } catch (error) {
+                showNotice('Lưu dịch vụ thất bại: ' + getErrorMessage(error), 'error');
             }
-
-            closeServiceModal();
         });
 
         document.getElementById('serviceSearchInput').addEventListener('input', (event) => {
@@ -400,7 +562,13 @@
         });
 
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape') closeServiceModal();
+            if (event.key === 'Escape') {
+                if (isNoticeVisible()) {
+                    closeNotice();
+                    return;
+                }
+                closeServiceModal();
+            }
         });
 
         document.documentElement.classList.add('hide-scrollbar');

@@ -6,7 +6,74 @@
     <title>Sản Phẩm</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-style.css">
+    <style>
+        #spTableBody tr {
+            cursor: pointer;
+        }
+
+        #spTableBody tr.is-selected {
+            background: #fff7ed;
+        }
+
+        .product-view-dialog {
+            width: min(760px, 100%);
+        }
+
+        .product-view-body {
+            padding: 16px;
+        }
+
+        .product-view-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 0 16px 16px;
+        }
+
+        .product-detail-grid {
+            display: grid;
+            grid-template-columns: 170px 1fr;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .product-detail-image {
+            width: 170px;
+            height: 170px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            background: #f8fafc;
+        }
+
+        .product-detail-meta {
+            display: grid;
+            gap: 8px;
+            color: #334155;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .product-detail-meta b {
+            color: #0f172a;
+            min-width: 120px;
+            display: inline-block;
+        }
+
+        @media (max-width: 768px) {
+            .product-detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .product-detail-image {
+                width: 100%;
+                max-width: 240px;
+                height: auto;
+                aspect-ratio: 1 / 1;
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="page-wrap">
@@ -20,7 +87,6 @@
             <div class="service-toolbar-actions">
                 <button class="btn btn-success" type="button" onclick="openAddProductModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
                 <button class="btn btn-danger" type="button" onclick="deleteProductBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
-                <button class="btn btn-warning text-white" type="button" onclick="loadProducts(true)"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</button>
             </div>
         </div>
     </div>
@@ -34,9 +100,34 @@
         <div class="section-header"><h3><i class="bi bi-box-seam text-warning me-2"></i>Danh Sách Sản Phẩm</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Hình Ảnh</th><th>Tên Sản Phẩm</th><th>Danh Mục</th><th>Số Lượng</th><th>Giá</th><th>Trạng Thái</th><th>Thao Tác</th></tr></thead>
+                <thead><tr><th>Tên Sản Phẩm</th><th>Danh Mục</th><th>Số Lượng</th><th>Giá</th><th>Trạng Thái</th></tr></thead>
                 <tbody id="spTableBody"></tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<div class="service-modal" id="productViewModal" aria-hidden="true">
+    <div class="service-modal-dialog product-view-dialog" role="dialog" aria-modal="true" aria-labelledby="productViewTitle">
+        <div class="service-modal-header">
+            <h3 class="service-modal-title" id="productViewTitle">Chi Tiết Sản Phẩm</h3>
+            <button type="button" class="service-modal-close" id="closeProductViewModal" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="product-view-body">
+            <div class="product-detail-grid">
+                <img id="productDetailImage" class="product-detail-image" alt="Ảnh sản phẩm">
+                <div class="product-detail-meta">
+                    <div><b>Mã sản phẩm:</b> <span id="productDetailCode">-</span></div>
+                    <div><b>Tên sản phẩm:</b> <span id="productDetailName">-</span></div>
+                    <div><b>Danh mục:</b> <span id="productDetailCategory">-</span></div>
+                    <div><b>Số lượng:</b> <span id="productDetailQty">-</span></div>
+                    <div><b>Giá:</b> <span id="productDetailPrice">-</span></div>
+                    <div><b>Trạng thái:</b> <span id="productDetailStatus">-</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="product-view-actions">
+            <button type="button" class="btn btn-warning text-white" id="editProductFromDetailBtn"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button>
         </div>
     </div>
 </div>
@@ -101,6 +192,7 @@
     let allProducts = [];
     let currentFilter = '';
     let productEditMode = 'update';
+    let selectedProductId = '';
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -113,6 +205,129 @@
 
     function formatVnd(value) {
         return new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' đ';
+    }
+
+    function getErrorMessage(error) {
+        if (!error) return 'Lỗi không xác định';
+        if (typeof error === 'string') return error;
+        if (error.message) return error.message;
+        return 'Lỗi không xác định';
+    }
+
+    let noticeTimer = null;
+
+    function getNoticeTitle(type) {
+        if (type === 'error') return 'Thông báo lỗi';
+        if (type === 'warning') return 'Thông báo';
+        return 'Chúc mừng';
+    }
+
+    function getNoticeRestoreModalId() {
+        const detailModal = document.getElementById('productViewModal');
+        if (detailModal && detailModal.classList.contains('show')) return 'productViewModal';
+        return '';
+    }
+
+    function ensureNoticeModal() {
+        let modal = document.getElementById('globalNoticeModal');
+        if (modal) return modal;
+
+        modal = document.createElement('div');
+        modal.id = 'globalNoticeModal';
+        modal.className = 'service-modal';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
+                <div class="service-modal-header">
+                    <h3 class="service-modal-title" id="noticeModalTitle">Thông báo</h3>
+                    <button type="button" class="service-modal-close" id="noticeModalCloseBtn" aria-label="Dong">&times;</button>
+                </div>
+                <div class="service-modal-body">
+                    <div id="noticeModalMessage" style="text-align:center; font-size:16px; font-weight:500;"></div>
+                </div>
+                <div class="service-modal-footer">
+                    <button type="button" class="btn btn-warning text-white" id="noticeModalOkBtn">Đóng</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (event) => {
+            if (event.target.id === 'globalNoticeModal') closeNotice();
+        });
+        modal.querySelector('#noticeModalCloseBtn')?.addEventListener('click', closeNotice);
+        modal.querySelector('#noticeModalOkBtn')?.addEventListener('click', closeNotice);
+
+        return modal;
+    }
+
+    function isNoticeVisible() {
+        const modal = document.getElementById('globalNoticeModal');
+        return Boolean(modal && modal.classList.contains('show'));
+    }
+
+    function closeNotice() {
+        const modal = document.getElementById('globalNoticeModal');
+        if (!modal) return;
+
+        if (noticeTimer) {
+            window.clearTimeout(noticeTimer);
+            noticeTimer = null;
+        }
+
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+
+        const restoreId = modal.dataset.restoreModalId || '';
+        if (restoreId) {
+            const restoreModal = document.getElementById(restoreId);
+            if (restoreModal && !restoreModal.classList.contains('show')) {
+                restoreModal.classList.add('show');
+                restoreModal.setAttribute('aria-hidden', 'false');
+            }
+        }
+        modal.dataset.restoreModalId = '';
+    }
+
+    function showNotice(message, type = 'success') {
+        const modal = ensureNoticeModal();
+        const titleEl = modal.querySelector('#noticeModalTitle');
+        const messageEl = modal.querySelector('#noticeModalMessage');
+
+        const restoreId = getNoticeRestoreModalId();
+        if (restoreId) {
+            const restoreModal = document.getElementById(restoreId);
+            restoreModal?.classList.remove('show');
+            restoreModal?.setAttribute('aria-hidden', 'true');
+        }
+        modal.dataset.restoreModalId = restoreId;
+
+        if (titleEl) titleEl.textContent = getNoticeTitle(type);
+        if (messageEl) messageEl.textContent = String(message || '');
+
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+
+        if (noticeTimer) window.clearTimeout(noticeTimer);
+        noticeTimer = window.setTimeout(closeNotice, 2500);
+    }
+
+    async function parseFailedResponse(response, fallbackMessage) {
+        let errorMessage = fallbackMessage || ('HTTP ' + response.status);
+        try {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const body = await response.json();
+                errorMessage = body.message || body.error || errorMessage;
+            } else {
+                const raw = (await response.text() || '').trim();
+                if (raw) errorMessage = raw;
+            }
+        } catch (_) {
+            // Keep fallback message when body parsing fails.
+        }
+        return new Error(errorMessage);
     }
 
     function statusBadgeClass(status) {
@@ -164,25 +379,72 @@
         if (!tbody) return;
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="7">Không tìm thấy sản phẩm phù hợp.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5">Không tìm thấy sản phẩm phù hợp.</td></tr>';
+            hideProductDetail();
             return;
         }
 
         tbody.innerHTML = rows.map((item) => `
-            <tr data-product-id="${item.id}">
-                <td><img src="${escapeHtml(normalizeImage(item.hinhanhsanpham))}" class="product-img" alt="Product"></td>
+            <tr data-product-id="${item.id}" class="${String(selectedProductId) === String(item.id) ? 'is-selected' : ''}" onclick="showProductDetail(${item.id})">
                 <td>${escapeHtml(item.tensanpham)}</td>
                 <td>${escapeHtml(item.tendanhmuc)}</td>
                 <td>${escapeHtml(item.soluongsanpham)}</td>
                 <td>${escapeHtml(formatVnd(item.giasanpham))}</td>
                 <td><span class="status-badge ${statusBadgeClass(item.trangthaisanpham)}">${statusText(item.trangthaisanpham)}</span></td>
-                <td><button class="btn-edit" type="button" onclick="editProduct(${item.id})"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button></td>
             </tr>
         `).join('');
     }
 
+    function hideProductDetail() {
+        const modal = document.getElementById('productViewModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openProductViewModal() {
+        const modal = document.getElementById('productViewModal');
+        if (!modal) return;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function showProductDetail(productId) {
+        selectedProductId = String(productId);
+        if (fillProductDetailById(productId)) {
+            openProductViewModal();
+        }
+        renderByCurrentFilter();
+    }
+
+    function fillProductDetailById(productId) {
+        const product = productStore.get(String(productId));
+        if (!product) return false;
+
+        const image = document.getElementById('productDetailImage');
+        const code = document.getElementById('productDetailCode');
+        const name = document.getElementById('productDetailName');
+        const category = document.getElementById('productDetailCategory');
+        const qty = document.getElementById('productDetailQty');
+        const price = document.getElementById('productDetailPrice');
+        const status = document.getElementById('productDetailStatus');
+        if (!image || !code || !name || !category || !qty || !price || !status) return false;
+
+        image.src = normalizeImage(product.hinhanhsanpham);
+        code.textContent = String(product.masanpham || '-');
+        name.textContent = String(product.tensanpham || '-');
+        category.textContent = String(product.tendanhmuc || '-');
+        qty.textContent = String(product.soluongsanpham ?? '-');
+        price.textContent = formatVnd(product.giasanpham);
+        status.textContent = statusText(product.trangthaisanpham);
+
+        return true;
+    }
+
     function renderByCurrentFilter() {
         const rows = filterProducts(allProducts, currentFilter);
+        const hasSelected = rows.some((item) => String(item.id) === String(selectedProductId));
+        if (!hasSelected) selectedProductId = '';
         renderProducts(rows);
     }
 
@@ -225,6 +487,44 @@
         throw lastError;
     }
 
+    async function mutateProduct(action, payload = {}) {
+        const candidates = [
+            'get_services.php?api=get_products',
+            new URL('get_services.php?api=get_products', window.location.href).toString(),
+        ];
+        let lastError = new Error('Khong the xu ly san pham');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}_t=${Date.now()}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entity: 'products', action, ...payload }),
+                });
+
+                if (!response.ok) {
+                    lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                    continue;
+                }
+
+                const data = await response.json();
+                if (!data.ok) {
+                    lastError = new Error(data.message || 'API ok=false');
+                    continue;
+                }
+
+                return data;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
     async function loadProducts(forceReload = false) {
         const tbody = document.getElementById('spTableBody');
         if (!tbody) return;
@@ -236,7 +536,7 @@
         const searchEl = document.getElementById('productSearchInput');
         if (searchEl) searchEl.value = '';
 
-        tbody.innerHTML = '<tr><td colspan="7">Đang tải dữ liệu sản phẩm...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">Đang tải dữ liệu sản phẩm...</td></tr>';
 
         try {
             const payload = await fetchProductsPayload();
@@ -246,15 +546,17 @@
             refreshSummary();
 
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="7">Chưa có dữ liệu sản phẩm.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5">Chưa có dữ liệu sản phẩm.</td></tr>';
                 tbody.dataset.loaded = '1';
+                hideProductDetail();
                 return;
             }
 
             renderByCurrentFilter();
             tbody.dataset.loaded = '1';
         } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="7">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+            hideProductDetail();
         }
     }
 
@@ -305,26 +607,38 @@
         modal.setAttribute('aria-hidden', 'true');
     }
 
-    function deleteProductBySearch() {
+    async function deleteProductBySearch() {
         const keyword = String(document.getElementById('productSearchInput')?.value || '').trim().toLowerCase();
         if (!keyword) {
-            alert('Nhập tên hoặc mã sản phẩm trong ô tìm kiếm để xóa.');
+            showNotice('Nhập tên hoặc mã sản phẩm trong ô tìm kiếm để xóa.', 'warning');
             return;
         }
 
         const target = filterProducts(allProducts, keyword)[0];
         if (!target) {
-            alert('Không tìm thấy sản phẩm để xóa.');
+            showNotice('Không tìm thấy sản phẩm để xóa.', 'warning');
             return;
         }
 
         const ok = confirm(`Bạn có chắc muốn xóa sản phẩm "${target.tensanpham}" (${target.masanpham || 'N/A'})?`);
         if (!ok) return;
 
-        allProducts = allProducts.filter((item) => String(item.id) !== String(target.id));
-        productStore.delete(String(target.id));
-        refreshSummary();
-        renderByCurrentFilter();
+        try {
+            await mutateProduct('delete', { id: target.id });
+            allProducts = allProducts.filter((item) => String(item.id) !== String(target.id));
+            productStore.delete(String(target.id));
+
+            if (String(selectedProductId) === String(target.id)) {
+                hideProductDetail();
+                selectedProductId = '';
+            }
+
+            refreshSummary();
+            renderByCurrentFilter();
+            showNotice(`Xóa sản phẩm "${target.tensanpham}" thành công.`, 'success');
+        } catch (error) {
+            showNotice('Xóa sản phẩm thất bại: ' + getErrorMessage(error), 'error');
+        }
     }
 
     document.getElementById('closeProductModal').addEventListener('click', closeProductModal);
@@ -336,7 +650,19 @@
         }
     });
 
-    document.getElementById('productEditForm').addEventListener('submit', (event) => {
+    document.getElementById('closeProductViewModal').addEventListener('click', hideProductDetail);
+    document.getElementById('productViewModal').addEventListener('click', (event) => {
+        if (event.target.id === 'productViewModal') {
+            hideProductDetail();
+        }
+    });
+    document.getElementById('editProductFromDetailBtn').addEventListener('click', () => {
+        if (!selectedProductId) return;
+        hideProductDetail();
+        editProduct(selectedProductId);
+    });
+
+    document.getElementById('productEditForm').addEventListener('submit', async (event) => {
         event.preventDefault();
 
         const rawId = document.getElementById('editProductId').value;
@@ -350,45 +676,50 @@
 
         if (!name || !category) return;
 
-        if (productEditMode === 'create') {
-            const newId = allProducts.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
-            const newProduct = {
-                id: newId,
-                masanpham: code || `SP${String(newId).padStart(3, '0')}`,
-                tensanpham: name,
-                tendanhmuc: category,
-                danhmuc_id: 0,
-                giasanpham: price,
-                soluongsanpham: qty,
-                trangthaisanpham: status,
-                hinhanhsanpham: image
-            };
+        try {
+            if (productEditMode === 'create') {
+                const res = await mutateProduct('create', {
+                    masanpham: code,
+                    tensanpham: name,
+                    tendanhmuc: category,
+                    giasanpham: price,
+                    soluongsanpham: qty,
+                    trangthaisanpham: status,
+                    hinhanhsanpham: image,
+                });
 
-            allProducts.unshift(newProduct);
-            productStore.set(String(newProduct.id), newProduct);
-        } else {
-            const id = String(rawId);
-            const current = productStore.get(id);
-            if (!current) return;
+                const newProduct = res.data || {};
+                allProducts.unshift(newProduct);
+                productStore.set(String(newProduct.id), newProduct);
+                showNotice(`Thêm sản phẩm "${newProduct.tensanpham || name}" thành công.`, 'success');
+            } else {
+                const id = String(rawId);
+                const res = await mutateProduct('update', {
+                    id: Number(rawId),
+                    masanpham: code,
+                    tensanpham: name,
+                    tendanhmuc: category,
+                    giasanpham: price,
+                    soluongsanpham: qty,
+                    trangthaisanpham: status,
+                    hinhanhsanpham: image,
+                });
 
-            const updated = {
-                ...current,
-                masanpham: code || current.masanpham,
-                tensanpham: name,
-                tendanhmuc: category,
-                giasanpham: price,
-                soluongsanpham: qty,
-                trangthaisanpham: status,
-                hinhanhsanpham: image
-            };
+                const updated = res.data || {};
+                allProducts = allProducts.map((item) => String(item.id) === id ? updated : item);
+                productStore.set(id, updated);
+                showNotice(`Cập nhật sản phẩm "${updated.tensanpham || name}" thành công.`, 'success');
+            }
 
-            allProducts = allProducts.map((item) => String(item.id) === id ? updated : item);
-            productStore.set(id, updated);
+            refreshSummary();
+            renderByCurrentFilter();
+            if (productEditMode === 'update' && rawId) {
+                showProductDetail(rawId);
+            }
+            closeProductModal();
+        } catch (error) {
+            showNotice('Lưu sản phẩm thất bại: ' + getErrorMessage(error), 'error');
         }
-
-        refreshSummary();
-        renderByCurrentFilter();
-        closeProductModal();
     });
 
     document.getElementById('productSearchInput').addEventListener('input', (event) => {
@@ -397,7 +728,14 @@
     });
 
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') closeProductModal();
+        if (event.key === 'Escape') {
+            if (isNoticeVisible()) {
+                closeNotice();
+                return;
+            }
+            closeProductModal();
+            hideProductDetail();
+        }
     });
 
     loadProducts();
