@@ -4,33 +4,35 @@
 
     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 40px;">
       <!-- Form liên hệ -->
-      <form style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+      <form id="contactForm" style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         <h3 style="font-size: 22px; font-weight: 700; margin-bottom: 25px;">Gửi tin nhắn cho chúng tôi</h3>
 
         <div style="margin-bottom: 20px;">
           <label style="display: block; margin-bottom: 8px; font-weight: 600;">Tên của bạn</label>
-          <input type="text" placeholder="Nhập tên của bạn" class="form-control" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+          <input id="contactName" name="name" type="text" placeholder="Nhập tên của bạn" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
         </div>
 
         <div style="margin-bottom: 20px;">
           <label style="display: block; margin-bottom: 8px; font-weight: 600;">Email</label>
-          <input type="email" placeholder="your@email.com" class="form-control" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+          <input id="contactEmail" name="email" type="email" placeholder="your@email.com" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
         </div>
 
         <div style="margin-bottom: 20px;">
           <label style="display: block; margin-bottom: 8px; font-weight: 600;">Số điện thoại</label>
-          <input type="tel" placeholder="0123456789" class="form-control" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+          <input id="contactPhone" name="phone" type="tel" placeholder="0123456789" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
         </div>
 
         <div style="margin-bottom: 20px;">
           <label style="display: block; margin-bottom: 8px; font-weight: 600;">Tiêu đề</label>
-          <input type="text" placeholder="Tiêu đề tin nhắn" class="form-control" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+          <input id="contactSubject" name="subject" type="text" placeholder="Tiêu đề tin nhắn" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
         </div>
 
         <div style="margin-bottom: 25px;">
           <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nội dung</label>
-          <textarea placeholder="Nhập nội dung tin nhắn..." rows="6" class="form-control" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; resize: vertical;"></textarea>
+          <textarea id="contactMessage" name="message" placeholder="Nhập nội dung tin nhắn..." rows="6" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; resize: vertical;"></textarea>
         </div>
+
+        <p id="contactFormStatus" style="display: none; margin: 0 0 14px 0; font-size: 14px; color: #2e7d32; font-weight: 600;"></p>
 
         <button type="submit" class="btn btn-dark" style="width: 100%; padding: 12px; font-weight: 600; cursor: pointer;">Gửi tin nhắn</button>
       </form>
@@ -72,4 +74,46 @@
     </div>
   </div>
 </section>
+
+<script>
+  const contactForm = document.getElementById('contactForm');
+
+  if (contactForm) {
+    contactForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const payload = {
+        name: document.getElementById('contactName').value.trim(),
+        email: document.getElementById('contactEmail').value.trim(),
+        phone: document.getElementById('contactPhone').value.trim(),
+        subject: document.getElementById('contactSubject').value.trim(),
+        message: document.getElementById('contactMessage').value.trim(),
+        createdAt: new Date().toISOString()
+      };
+
+      const storedMessages = JSON.parse(localStorage.getItem('contactMessages')) || [];
+      storedMessages.push(payload);
+      localStorage.setItem('contactMessages', JSON.stringify(storedMessages));
+
+      const status = document.getElementById('contactFormStatus');
+      status.textContent = 'Đã ghi nhận tin nhắn. Đang mở email để bạn xác nhận gửi.';
+      status.style.display = 'block';
+
+      const emailTo = 'rgarton@outlook.com';
+      const emailSubject = encodeURIComponent(`[Liên hệ] ${payload.subject}`);
+      const emailBody = encodeURIComponent(
+`Họ tên: ${payload.name}
+Email: ${payload.email}
+SĐT: ${payload.phone}
+
+Nội dung:
+${payload.message}`
+      );
+
+      window.location.href = `mailto:${emailTo}?subject=${emailSubject}&body=${emailBody}`;
+
+      contactForm.reset();
+    });
+  }
+</script>
 

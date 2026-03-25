@@ -1,37 +1,32 @@
 <!-- Professional Pet Shop Page -->
 <section class="shop-section" style="padding: 50px 0 100px; background: #f8f9fa;">
     <div class="container-fluid px-5">
-        <!-- Header -->
-        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 50px;">
-            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                <i data-feather="shopping-bag" style="width: 28px; height: 28px; color: white;"></i>
-            </div>
-            <div>
-                <h1 style="font-size: 32px; margin: 0; font-weight: 700;">Cửa Hàng</h1>
-                <p style="color: #999; margin: 5px 0 0 0; font-size: 14px;" id="productCount">Đang tải sản phẩm...</p>
-            </div>
-        </div>
+        <p id="productCount" style="display: none;">Đang tải sản phẩm...</p>
 
         <!-- Filters & Search -->
         <div style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div id="shopToolbar" class="shop-toolbar" style="margin-bottom: 15px;">
                 <!-- Search -->
                 <div>
-                    <input type="text" id="searchInput" placeholder="Tìm kiếm sản phẩm..." style="width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;" onkeyup="filterAndRenderProducts()">
+                    <input type="text" id="searchInput" class="shop-input" placeholder="Tìm kiếm sản phẩm...">
                 </div>
 
+                <!-- Result Summary -->
+                <div id="resultsSummary" class="shop-result-summary">Hiển thị 0 của 0 kết quả</div>
+
                 <!-- Category Filter -->
-                <select id="categoryFilter" style="padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer;" onchange="filterAndRenderProducts()">
+                <select id="categoryFilter" class="shop-input">
                     <option value="">Tất cả danh mục</option>
                     <option value="Thức ăn">Thức ăn</option>
                     <option value="Phụ kiện">Phụ kiện</option>
                     <option value="Nội thất">Nội thất</option>
                     <option value="Túi xách">Túi xách</option>
-                    <option value="Thú cưng">Thú cưng</option>
+                    <option value="Giống chó">Giống chó</option>
+                    <option value="Giống mèo">Giống mèo</option>
                 </select>
 
                 <!-- Price Filter -->
-                <select id="priceFilter" style="padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer;" onchange="filterAndRenderProducts()">
+                <select id="priceFilter" class="shop-input">
                     <option value="">Tất cả giá</option>
                     <option value="0-300">Dưới 300k</option>
                     <option value="300-500">300k - 500k</option>
@@ -40,7 +35,7 @@
                 </select>
 
                 <!-- Sort -->
-                <select id="sortFilter" style="padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer;" onchange="filterAndRenderProducts()">
+                <select id="sortFilter" class="shop-input">
                     <option value="">Sắp xếp</option>
                     <option value="price-asc">Giá: Thấp → Cao</option>
                     <option value="price-desc">Giá: Cao → Thấp</option>
@@ -60,7 +55,7 @@
             <i data-feather="inbox" style="width: 80px; height: 80px; color: #ddd; margin-bottom: 20px;"></i>
             <h2 style="font-size: 24px; color: #333; margin-bottom: 15px; font-weight: 600;">Không tìm thấy sản phẩm</h2>
             <p style="color: #999; font-size: 15px; margin-bottom: 30px;">Hãy thử thay đổi tiêu chí tìm kiếm hoặc lọc</p>
-            <button onclick="clearFilters()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: 600; cursor: pointer;">Xóa bộ lọc</button>
+            <button id="clearFiltersBtn" type="button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: 600; cursor: pointer;">Xóa bộ lọc</button>
         </div>
     </div>
 </section>
@@ -107,9 +102,57 @@
         border: 1px solid #f0f0f0;
     }
 
+    .shop-toolbar {
+        display: grid;
+        grid-template-columns: minmax(240px, 1.4fr) minmax(240px, 1fr) minmax(170px, 0.75fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr);
+        gap: 12px;
+        align-items: center;
+    }
+
+    .shop-input {
+        width: 100%;
+        height: 50px;
+        padding: 10px 14px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #fff;
+    }
+
+    .shop-result-summary {
+        height: 50px;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        padding: 0 6px;
+        font-size: 14px;
+        color: #4b5563;
+        white-space: nowrap;
+    }
+
     .product-card:hover {
         box-shadow: 0 12px 24px rgba(0,0,0,0.15);
         transform: translateY(-8px);
+    }
+
+    @media (max-width: 1400px) {
+        .shop-toolbar {
+            grid-template-columns: minmax(240px, 1.5fr) minmax(220px, 1fr) repeat(3, minmax(150px, 0.8fr));
+        }
+    }
+
+    @media (max-width: 1200px) {
+        .shop-toolbar {
+            grid-template-columns: repeat(2, minmax(220px, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .shop-toolbar {
+            grid-template-columns: 1fr;
+        }
     }
 
     .product-image {
@@ -211,6 +254,173 @@
         color: white;
         transform: scale(1.1);
     }
+
+    .breed-card {
+        background: #fff;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+        border: 1px solid #ececec;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .breed-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 14px 28px rgba(0,0,0,0.16);
+    }
+
+    .breed-image {
+        width: 100%;
+        height: 340px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .breed-content {
+        padding: 24px 20px 22px;
+        text-align: center;
+        background: #f7f7f7;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+        z-index: 2;
+    }
+
+    .breed-title {
+        font-size: 42px;
+        line-height: 1.05;
+        margin: 0 0 12px;
+        font-weight: 700;
+        color: #222;
+    }
+
+    .breed-line {
+        display: none;
+    }
+
+    .breed-text {
+        margin: 0;
+        color: #777;
+        font-size: 14px;
+        line-height: 1.45;
+        min-height: 40px;
+        width: 100%;
+        flex: 1;
+    }
+
+    .breed-btn {
+        margin-top: auto;
+        border: none;
+        border-radius: 28px;
+        padding: 11px 34px;
+        background: #0e93b1;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        position: relative;
+        z-index: 3;
+        pointer-events: auto;
+        transition: all 0.2s ease;
+    }
+
+    .breed-btn:hover {
+        background: #0b7d96;
+        transform: translateY(-1px);
+    }
+
+    .puppy-card {
+        background: transparent;
+    }
+
+    .puppy-image-wrap {
+        position: relative;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #f0f0f0;
+        aspect-ratio: 1 / 1.1;
+    }
+
+    .puppy-image-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.35s ease;
+    }
+
+    .puppy-card:hover .puppy-image-wrap img {
+        transform: scale(1.06);
+    }
+
+    .puppy-cart-btn {
+        position: absolute;
+        left: 50%;
+        bottom: 16px;
+        transform: translateX(-50%) translateY(8px);
+        border: none;
+        border-radius: 999px;
+        background: #1f2328;
+        color: #fff;
+        font-size: 17px;
+        font-weight: 600;
+        padding: 12px 28px;
+        white-space: nowrap;
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.25s ease;
+    }
+
+    .puppy-card:hover .puppy-cart-btn {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .puppy-cart-btn:hover {
+        background: #ef4444;
+    }
+
+    .puppy-title {
+        margin: 16px 8px 8px;
+        text-align: center;
+        font-size: 30px;
+        line-height: 1.2;
+        color: #111827;
+        font-weight: 600;
+    }
+
+    .puppy-price {
+        margin: 0;
+        text-align: center;
+        color: #fb923c;
+        font-size: 28px;
+        font-weight: 300;
+    }
+
+    @media (max-width: 1200px) {
+        .breed-title {
+            font-size: 36px;
+        }
+
+        .puppy-title {
+            font-size: 26px;
+        }
+
+        .puppy-price {
+            font-size: 24px;
+        }
+    }
+
+    @media (max-width: 992px) {
+        .breed-image {
+            height: 280px;
+        }
+    }
 </style>
 
 <script>
@@ -300,7 +510,7 @@
         {
             id: 10,
             name: "Chó Golden Retriever",
-            category: "Thú cưng",
+            category: "Giống chó",
             price: "8.500.000",
             image: "https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=400&h=400&fit=crop",
             description: "Chó Golden Retriever thuần chủng, khỏe mạnh, thân thiện",
@@ -309,7 +519,7 @@
         {
             id: 11,
             name: "Mèo Ba Tư",
-            category: "Thú cưng",
+            category: "Giống mèo",
             price: "5.200.000",
             image: "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=400&h=400&fit=crop",
             description: "Mèo Ba Tư cao cấp, lông dài đẹp, tính tình hiền lành",
@@ -317,16 +527,208 @@
         },
         {
             id: 12,
-            name: "Thỏ mini Holland Lop",
-            category: "Thú cưng",
-            price: "2.800.000",
-            image: "https://images.unsplash.com/photo-1585110396000-c9ffd4d4b35c?w=400&h=400&fit=crop",
-            description: "Thỏ mini cute, dễ chăm sóc, tính tình yên tĩnh",
+            name: "Mèo Anh lông ngắn",
+            category: "Giống mèo",
+            price: "4.900.000",
+            image: "https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=400&h=400&fit=crop",
+            description: "Mèo Anh lông ngắn mặt tròn, thân thiện, dễ nuôi",
             badge: null
         }
     ];
 
+    const dogBreeds = [
+        { id: 101, name: 'Poodle', image: 'https://images.unsplash.com/photo-1625316708582-7c38734bead5?w=600&h=700&fit=crop', description: 'Thân thiện, thông minh và nhanh nhẹn' },
+        { id: 102, name: 'Phốc sóc', image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&h=700&fit=crop', description: 'Dòng chó lông xù có kích thước nhỏ' },
+        { id: 103, name: 'Corgi', image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=600&h=700&fit=crop', description: 'Thông minh, dễ chăm sóc và lanh lợi' },
+        { id: 104, name: 'Alaska', image: 'https://images.unsplash.com/photo-1605568427561-40dd23c2acea?w=600&h=700&fit=crop', description: 'Ngoại hình to lớn, dũng mãnh, thân thiện' },
+        { id: 105, name: 'Husky', image: 'https://images.unsplash.com/photo-1591769225440-811ad7d6eab3?w=600&h=700&fit=crop', description: 'Năng động, vui vẻ và rất trung thành' },
+        { id: 106, name: 'Golden', image: 'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=600&h=700&fit=crop', description: 'Hiền lành, thân thiện với trẻ nhỏ' },
+        { id: 107, name: 'Shiba', image: 'https://images.unsplash.com/photo-1626452025134-25716f45ebf6?w=600&h=700&fit=crop', description: 'Nhỏ gọn, sạch sẽ, trung thành' },
+        { id: 108, name: 'Beagle', image: 'https://images.unsplash.com/photo-1505628346881-b72b27e84530?w=600&h=700&fit=crop', description: 'Vui tươi, tinh nghịch và thân thiện' },
+        { id: 109, name: 'Pug', image: 'https://images.unsplash.com/photo-1517423568366-8b83523034fd?w=600&h=700&fit=crop', description: 'Dễ thương, gần gũi và dễ nuôi' },
+        { id: 110, name: 'Chihuahua', image: 'https://images.unsplash.com/photo-1542396601-dca920ea2807?w=600&h=700&fit=crop', description: 'Nhỏ nhắn, lanh lợi, rất quấn chủ' },
+        { id: 111, name: 'Samoyed', image: 'https://images.unsplash.com/photo-1619983081563-430f63602796?w=600&h=700&fit=crop', description: 'Bộ lông trắng dày, hiền và đáng yêu' },
+        { id: 112, name: 'Bulldog', image: 'https://images.unsplash.com/photo-1583512603805-3cc6b41f3edb?w=600&h=700&fit=crop', description: 'Điềm tĩnh, mạnh mẽ và rất trung thành' }
+    ];
+
+    const catBreeds = [
+        { id: 201, name: 'Mèo Ba Tư', image: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=600&h=700&fit=crop', description: 'Lông dài quý phái, hiền và dễ gần' },
+        { id: 202, name: 'Mèo Anh lông ngắn', image: 'https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=600&h=700&fit=crop', description: 'Mặt tròn đáng yêu, thân thiện' },
+        { id: 203, name: 'Scottish Fold', image: 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=600&h=700&fit=crop', description: 'Tai cụp đặc trưng, ngoan và quấn chủ' },
+        { id: 204, name: 'Maine Coon', image: 'https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?w=600&h=700&fit=crop', description: 'Kích thước lớn, thông minh, điềm tĩnh' },
+        { id: 205, name: 'Ragdoll', image: 'https://images.unsplash.com/photo-1596854407944-bf87f6fdd49e?w=600&h=700&fit=crop', description: 'Hiền lành, thích được ôm ấp' },
+        { id: 206, name: 'Munchkin', image: 'https://images.unsplash.com/photo-1548247416-ec66f4900b2e?w=600&h=700&fit=crop', description: 'Chân ngắn đặc trưng, năng động' },
+        { id: 207, name: 'Bengal', image: 'https://images.unsplash.com/photo-1472491235688-bdc81a63246e?w=600&h=700&fit=crop', description: 'Hoa văn đẹp, lanh lợi và mạnh mẽ' },
+        { id: 208, name: 'Russian Blue', image: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=600&h=700&fit=crop', description: 'Lông xám xanh sang trọng, điềm đạm' },
+        { id: 209, name: 'Sphynx', image: 'https://images.unsplash.com/photo-1606214174585-fe31582dc6ee?w=600&h=700&fit=crop', description: 'Không lông độc đáo, thân thiện' },
+        { id: 210, name: 'Norwegian Forest', image: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=600&h=700&fit=crop', description: 'Lông dày đẹp, khỏe mạnh' },
+        { id: 211, name: 'British Longhair', image: 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=600&h=700&fit=crop', description: 'Dịu dàng, ngoại hình bông xù' },
+        { id: 212, name: 'American Shorthair', image: 'https://images.unsplash.com/photo-1494256997604-768d1f608cac?w=600&h=700&fit=crop', description: 'Khỏe mạnh, thông minh, dễ nuôi' }
+    ];
+
+    const dogPuppies = [
+        {
+            id: 300,
+            breed: 'Poodle',
+            name: 'Chó Poodle Size Teacup Màu Bicolor Cái Mã PD513',
+            price: '15.000.000',
+            image: 'https://images.unsplash.com/photo-1617895153857-82fe79adfcd4?w=800&h=900&fit=crop'
+        },
+        {
+            id: 3010,
+            breed: 'Poodle',
+            name: 'Chó Poodle Màu Nâu Socola Đực Mã PD512',
+            price: '9.000.000',
+            image: 'https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?w=800&h=900&fit=crop'
+        },
+        {
+            id: 3011,
+            breed: 'Poodle',
+            name: 'Chó Poodle Tai Gấu Màu Socola Cái Mã PD511',
+            price: '12.000.000',
+            image: 'https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?w=800&h=900&fit=crop'
+        },
+        {
+            id: 3012,
+            breed: 'Poodle',
+            name: 'Chó Poodle Size Toy Màu Nâu Đỏ Lông Dày Cái Mã PD506',
+            price: '15.000.000',
+            image: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=800&h=900&fit=crop'
+        },
+        {
+            id: 3013,
+            breed: 'Poodle',
+            name: 'Chó Poodle Size Tiny Màu Vàng Kem Đực Mã PD505',
+            price: '9.000.000',
+            image: 'https://images.unsplash.com/photo-1596492784531-6e6eb5ea9993?w=800&h=900&fit=crop'
+        },
+        {
+            id: 3014,
+            breed: 'Poodle',
+            name: 'Chó Poodle Size Tiny Chân Lùn Màu Nâu Nhạt Đực Mã PD503',
+            price: '12.000.000',
+            image: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800&h=900&fit=crop'
+        },
+        {
+            id: 301,
+            breed: 'Husky',
+            name: 'Chó Husky Mắt Xanh Màu Nâu Đực Mã HK541',
+            price: '12.000.000',
+            image: 'https://images.unsplash.com/photo-1619983081593-e2ba5b543168?w=800&h=900&fit=crop'
+        },
+        {
+            id: 302,
+            breed: 'Golden',
+            name: 'Chó Golden Màu Trắng Kem Cái Mã GD540',
+            price: '15.000.000',
+            image: 'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=800&h=900&fit=crop'
+        },
+        {
+            id: 303,
+            breed: 'Samoyed',
+            name: 'Chó Samoyed Màu Trắng Kem Cái Mã SM539',
+            price: '15.000.000',
+            image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800&h=900&fit=crop'
+        },
+        {
+            id: 304,
+            breed: 'Chow Chow',
+            name: 'Chó Chow Chow Con Màu Nâu Đực Mã CC413',
+            price: '13.500.000',
+            image: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800&h=900&fit=crop'
+        },
+        {
+            id: 305,
+            breed: 'Golden',
+            name: 'Chó Golden Con Màu Kem Đực Mã GD422',
+            price: '14.200.000',
+            image: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=800&h=900&fit=crop'
+        },
+        {
+            id: 306,
+            breed: 'Beagle',
+            name: 'Chó Beagle Màu Vàng Trắng Cái Mã BG408',
+            price: '11.800.000',
+            image: 'https://images.unsplash.com/photo-1505628346881-b72b27e84530?w=800&h=900&fit=crop'
+        }
+    ];
+
+    const catKittens = [
+        {
+            id: 401,
+            breed: 'Mèo Ba Tư',
+            name: 'Mèo Ba Tư Mặt Tròn Cái Mã BT521',
+            price: '9.200.000',
+            image: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&h=900&fit=crop'
+        },
+        {
+            id: 402,
+            breed: 'Mèo Anh lông ngắn',
+            name: 'Mèo Anh Lông Ngắn Màu Xám Đực Mã ALN503',
+            price: '8.800.000',
+            image: 'https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=800&h=900&fit=crop'
+        },
+        {
+            id: 403,
+            breed: 'Scottish Fold',
+            name: 'Mèo Scottish Fold Tai Cụp Cái Mã SF478',
+            price: '10.500.000',
+            image: 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=800&h=900&fit=crop'
+        },
+        {
+            id: 404,
+            breed: 'Maine Coon',
+            name: 'Mèo Maine Coon Lông Dài Đực Mã MC462',
+            price: '12.300.000',
+            image: 'https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?w=800&h=900&fit=crop'
+        },
+        {
+            id: 405,
+            breed: 'Ragdoll',
+            name: 'Mèo Ragdoll Mắt Xanh Cái Mã RD455',
+            price: '11.700.000',
+            image: 'https://images.unsplash.com/photo-1596854407944-bf87f6fdd49e?w=800&h=900&fit=crop'
+        },
+        {
+            id: 406,
+            breed: 'Bengal',
+            name: 'Mèo Bengal Hoa Văn Đẹp Đực Mã BG438',
+            price: '10.900.000',
+            image: 'https://images.unsplash.com/photo-1472491235688-bdc81a63246e?w=800&h=900&fit=crop'
+        }
+    ];
+
     let currentQVProduct = null;
+
+    const updateShopHeroByCategory = () => {
+        const categorySelect = document.getElementById('categoryFilter');
+        const selectedCategory = (categorySelect?.value || '').trim().toLowerCase();
+
+        const heroTitle = document.getElementById('shopHeroTitle');
+        const heroCurrent = document.getElementById('shopHeroCurrent');
+
+        if (!heroTitle || !heroCurrent) return;
+
+        let titleText = 'Cửa Hàng';
+        let breadcrumbText = 'CỬA HÀNG';
+
+        if (selectedCategory === 'giống chó') {
+            titleText = 'Giống Chó';
+            breadcrumbText = 'GIỐNG CHÓ';
+        } else if (selectedCategory === 'giống mèo') {
+            titleText = 'Giống Mèo';
+            breadcrumbText = 'GIỐNG MÈO';
+        }
+
+        heroTitle.textContent = titleText;
+        heroCurrent.textContent = breadcrumbText;
+    };
+
+    const updateResultsSummary = (displayed, total, unit = 'kết quả') => {
+        const summaryElement = document.getElementById('resultsSummary');
+        if (!summaryElement) return;
+        summaryElement.textContent = `Hiển thị ${displayed} của ${total} ${unit}`;
+    };
 
     // Render products
     const renderProducts = (productsToRender) => {
@@ -334,16 +736,20 @@
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
 
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+
         if (productsToRender.length === 0) {
             grid.style.display = 'none';
             emptyState.style.display = 'block';
             countElement.textContent = '0 sản phẩm';
+            updateResultsSummary(0, products.length);
             return;
         }
 
         grid.style.display = 'grid';
         emptyState.style.display = 'none';
         countElement.textContent = `${productsToRender.length} sản phẩm`;
+        updateResultsSummary(productsToRender.length, products.length);
 
         grid.innerHTML = productsToRender.map(product => `
             <div class="product-card">
@@ -351,13 +757,13 @@
                     <img src="${product.image}" alt="${product.name}">
                     ${product.badge ? `<div class="product-badge ${product.badge === 'new' ? 'new' : ''}">${product.badge === 'sale' ? '🔥 Sale' : '✨ Mới'}</div>` : ''}
                     <div class="product-overlay">
-                        <button class="overlay-btn add-cart" onclick="addToCart('${product.name.replace(/'/g, "\\'")}', '${product.price}', '${product.image.replace(/'/g, "\\'")}')" title="Thêm vào giỏ">
+                        <button class="overlay-btn add-cart" data-action="add-cart" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Thêm vào giỏ">
                             <i data-feather="shopping-cart" style="width: 20px; height: 20px;"></i>
                         </button>
-                        <button class="overlay-btn wishlist" onclick="toggleWishlist('${product.name.replace(/'/g, "\\'")}', '${product.image.replace(/'/g, "\\'")}', '${product.price}')" title="Yêu thích">
+                        <button class="overlay-btn wishlist" data-action="toggle-wishlist" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Yêu thích">
                             <i data-feather="heart" style="width: 20px; height: 20px;"></i>
                         </button>
-                        <button class="overlay-btn quick-view" onclick="openQuickView(${product.id})" title="Xem nhanh">
+                        <button class="overlay-btn quick-view" data-action="quick-view" data-product-id="${product.id}" title="Xem nhanh">
                             <i data-feather="eye" style="width: 20px; height: 20px;"></i>
                         </button>
                     </div>
@@ -374,12 +780,180 @@
         if (typeof feather !== 'undefined') feather.replace();
     };
 
+    const renderDogBreedCards = (breedsToRender) => {
+        const grid = document.getElementById('productsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const countElement = document.getElementById('productCount');
+
+        if (breedsToRender.length === 0) {
+            grid.style.display = 'none';
+            emptyState.style.display = 'block';
+            countElement.textContent = '0 giống chó';
+            updateResultsSummary(0, dogBreeds.length, 'giống chó');
+            return;
+        }
+
+        const columns = window.innerWidth >= 1400 ? 4 : window.innerWidth >= 992 ? 3 : window.innerWidth >= 576 ? 2 : 1;
+
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+        emptyState.style.display = 'none';
+        countElement.textContent = `${breedsToRender.length} giống chó`;
+        updateResultsSummary(breedsToRender.length, dogBreeds.length, 'giống chó');
+
+        grid.innerHTML = breedsToRender.map(breed => `
+            <div class="breed-card">
+                <img src="${breed.image}" alt="${breed.name}" class="breed-image">
+                <div class="breed-content">
+                    <h3 class="breed-title">${breed.name}</h3>
+                    <div class="breed-line"></div>
+                    <p class="breed-text">${breed.description}</p>
+                    <button class="breed-btn" type="button" data-action="breed-more" data-breed-name="${breed.name.replace(/"/g, '&quot;')}">Xem thêm</button>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    const renderDogPuppyCards = (puppiesToRender, totalCount) => {
+        const grid = document.getElementById('productsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const countElement = document.getElementById('productCount');
+
+        if (puppiesToRender.length === 0) {
+            grid.style.display = 'none';
+            emptyState.style.display = 'block';
+            countElement.textContent = '0 giống chó';
+            updateResultsSummary(0, totalCount || 0, 'kết quả');
+            return;
+        }
+
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+        emptyState.style.display = 'none';
+        countElement.textContent = `${puppiesToRender.length} giống chó`;
+        updateResultsSummary(puppiesToRender.length, totalCount || puppiesToRender.length, 'kết quả');
+
+        grid.innerHTML = puppiesToRender.map(puppy => `
+            <article class="puppy-card">
+                <div class="puppy-image-wrap">
+                    <img src="${puppy.image}" alt="${puppy.name}">
+                    <button class="puppy-cart-btn" type="button" data-action="add-cart" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}">Thêm vào giỏ hàng</button>
+                </div>
+                <h3 class="puppy-title">${puppy.name}</h3>
+                <p class="puppy-price">${puppy.price} ₫</p>
+            </article>
+        `).join('');
+    };
+
+    const showDogPuppiesByBreed = (breedName) => {
+        const filtered = dogPuppies.filter(p => p.breed.toLowerCase().includes(breedName.toLowerCase()));
+        renderDogPuppyCards(filtered, filtered.length);
+        if (typeof feather !== 'undefined') feather.replace();
+    };
+
+    const renderCatKittenCards = (kittensToRender, totalCount) => {
+        const grid = document.getElementById('productsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const countElement = document.getElementById('productCount');
+
+        if (kittensToRender.length === 0) {
+            grid.style.display = 'none';
+            emptyState.style.display = 'block';
+            countElement.textContent = '0 giống mèo';
+            updateResultsSummary(0, totalCount || 0, 'kết quả');
+            return;
+        }
+
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+        emptyState.style.display = 'none';
+        countElement.textContent = `${kittensToRender.length} giống mèo`;
+        updateResultsSummary(kittensToRender.length, totalCount || kittensToRender.length, 'kết quả');
+
+        grid.innerHTML = kittensToRender.map(kitten => `
+            <article class="puppy-card">
+                <div class="puppy-image-wrap">
+                    <img src="${kitten.image}" alt="${kitten.name}">
+                    <button class="puppy-cart-btn" type="button" data-action="add-cart" data-name="${kitten.name.replace(/"/g, '&quot;')}" data-price="${kitten.price}" data-image="${kitten.image}">Thêm vào giỏ hàng</button>
+                </div>
+                <h3 class="puppy-title">${kitten.name}</h3>
+                <p class="puppy-price">${kitten.price} ₫</p>
+            </article>
+        `).join('');
+    };
+
+    const showCatKittensByBreed = (breedName) => {
+        const filtered = catKittens.filter(c => c.breed.toLowerCase().includes(breedName.toLowerCase()));
+        renderCatKittenCards(filtered, filtered.length);
+        if (typeof feather !== 'undefined') feather.replace();
+    };
+
+    const renderCatBreedCards = (breedsToRender) => {
+        const grid = document.getElementById('productsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const countElement = document.getElementById('productCount');
+
+        if (breedsToRender.length === 0) {
+            grid.style.display = 'none';
+            emptyState.style.display = 'block';
+            countElement.textContent = '0 giống mèo';
+            updateResultsSummary(0, catBreeds.length, 'giống mèo');
+            return;
+        }
+
+        const columns = window.innerWidth >= 1400 ? 4 : window.innerWidth >= 992 ? 3 : window.innerWidth >= 576 ? 2 : 1;
+
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+        emptyState.style.display = 'none';
+        countElement.textContent = `${breedsToRender.length} giống mèo`;
+        updateResultsSummary(breedsToRender.length, catBreeds.length, 'giống mèo');
+
+        grid.innerHTML = breedsToRender.map(breed => `
+            <div class="breed-card">
+                <img src="${breed.image}" alt="${breed.name}" class="breed-image">
+                <div class="breed-content">
+                    <h3 class="breed-title">${breed.name}</h3>
+                    <div class="breed-line"></div>
+                    <p class="breed-text">${breed.description}</p>
+                    <button class="breed-btn" type="button" data-action="cat-breed-more" data-breed-name="${breed.name.replace(/"/g, '&quot;')}">Xem thêm</button>
+                </div>
+            </div>
+        `).join('');
+    };
+
     // Filter and render
     const filterAndRenderProducts = () => {
         const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
         const categoryValue = document.getElementById('categoryFilter').value.trim().toLowerCase();
         const priceRange = document.getElementById('priceFilter').value;
         const sort = document.getElementById('sortFilter').value;
+
+        updateShopHeroByCategory();
+
+        if (categoryValue === 'giống chó') {
+            let filteredBreeds = dogBreeds;
+
+            if (searchTerm) {
+                filteredBreeds = dogBreeds.filter(breed => breed.name.toLowerCase().includes(searchTerm));
+            }
+
+            renderDogBreedCards(filteredBreeds);
+            updateActiveFilters();
+            return;
+        }
+
+        if (categoryValue === 'giống mèo') {
+            let filteredBreeds = catBreeds;
+
+            if (searchTerm) {
+                filteredBreeds = catBreeds.filter(breed => breed.name.toLowerCase().includes(searchTerm));
+            }
+
+            renderCatBreedCards(filteredBreeds);
+            updateActiveFilters();
+            return;
+        }
 
         console.log('Filter values:', {
             search: searchTerm,
@@ -525,37 +1099,85 @@
         }
     };
 
+    const setupDelegatedEvents = () => {
+        const toolbar = document.getElementById('shopToolbar');
+        const productsGrid = document.getElementById('productsGrid');
+        const clearBtn = document.getElementById('clearFiltersBtn');
+
+        if (toolbar && !toolbar.dataset.bound) {
+            toolbar.addEventListener('input', (event) => {
+                if (event.target.id === 'searchInput') {
+                    filterAndRenderProducts();
+                }
+            });
+
+            toolbar.addEventListener('change', (event) => {
+                if (event.target.id === 'categoryFilter' || event.target.id === 'priceFilter' || event.target.id === 'sortFilter') {
+                    filterAndRenderProducts();
+                }
+            });
+
+            toolbar.dataset.bound = '1';
+        }
+
+        if (productsGrid && !productsGrid.dataset.bound) {
+            productsGrid.addEventListener('click', (event) => {
+                const actionButton = event.target.closest('button[data-action]');
+                if (!actionButton) return;
+
+                const action = actionButton.dataset.action;
+
+                if (action === 'breed-more') {
+                    const breedName = actionButton.dataset.breedName || '';
+                    showDogPuppiesByBreed(breedName);
+                    return;
+                }
+
+                if (action === 'cat-breed-more') {
+                    const breedName = actionButton.dataset.breedName || '';
+                    showCatKittensByBreed(breedName);
+                    return;
+                }
+
+                if (action === 'quick-view') {
+                    const productId = parseInt(actionButton.dataset.productId || '0', 10);
+                    if (productId) openQuickView(productId);
+                    return;
+                }
+
+                if (action === 'add-cart') {
+                    addToCart(actionButton.dataset.name || '', actionButton.dataset.price || '', actionButton.dataset.image || '');
+                    return;
+                }
+
+                if (action === 'toggle-wishlist') {
+                    toggleWishlist(actionButton.dataset.name || '', actionButton.dataset.image || '', actionButton.dataset.price || '');
+                }
+            });
+
+            productsGrid.dataset.bound = '1';
+        }
+
+        if (clearBtn && !clearBtn.dataset.bound) {
+            clearBtn.addEventListener('click', clearFilters);
+            clearBtn.dataset.bound = '1';
+        }
+    };
+
     // Initialize - render products on page load
     const initShopPage = () => {
         console.log('Shop page initialized');
-        console.log('Total products:', products.length);
-        
-        // Log all categories
-        const categories = [...new Set(products.map(p => p.category))];
-        console.log('Available categories:', categories);
-        
         // Render all products initially
         renderProducts(products);
-        
-        // Add event listeners
-        document.getElementById('categoryFilter').addEventListener('change', (e) => {
-            console.log('Category changed to:', e.target.value);
-            filterAndRenderProducts();
-        });
-
-        document.getElementById('searchInput').addEventListener('keyup', filterAndRenderProducts);
-        document.getElementById('priceFilter').addEventListener('change', filterAndRenderProducts);
-        document.getElementById('sortFilter').addEventListener('change', filterAndRenderProducts);
+        updateShopHeroByCategory();
+        setupDelegatedEvents();
+        if (typeof feather !== 'undefined') feather.replace();
     };
 
-    // Call on page load
+    // Run only when DOM is fully ready (works for direct open and dynamic inject)
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initShopPage);
+        document.addEventListener('DOMContentLoaded', initShopPage, { once: true });
     } else {
-        initShopPage();
+        setTimeout(initShopPage, 0);
     }
-
-    // Initialize
-    renderProducts(products);
-    if (typeof feather !== 'undefined') feather.replace();
 </script>
