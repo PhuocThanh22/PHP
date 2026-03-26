@@ -1,10 +1,10 @@
 <!-- Professional Pet Shop Page -->
-<section class="shop-section" style="padding: 50px 0 100px; background: #f8f9fa;">
+<section class="shop-section" style="padding: 28px 0 100px; background: #f8f9fa;">
     <div class="container-fluid px-5">
         <p id="productCount" style="display: none;">Đang tải sản phẩm...</p>
 
         <!-- Filters & Search -->
-        <div style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+        <div id="shopFilterPanel" style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
             <div id="shopToolbar" class="shop-toolbar" style="margin-bottom: 15px;">
                 <!-- Search -->
                 <div>
@@ -361,11 +361,12 @@
     .puppy-cart-btn {
         position: absolute;
         left: 50%;
-        bottom: 16px;
-        transform: translateX(-50%) translateY(8px);
+        top: 50%;
+        transform: translate(-50%, -50%) translateY(14px) scale(0.92);
         border: none;
         border-radius: 999px;
-        background: #1f2328;
+        background: rgba(17, 24, 39, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.22);
         color: #fff;
         font-size: 17px;
         font-weight: 600;
@@ -373,20 +374,25 @@
         white-space: nowrap;
         cursor: pointer;
         opacity: 0;
-        transition: all 0.25s ease;
+        filter: blur(2px);
+        box-shadow: 0 12px 28px rgba(2, 6, 23, 0.28);
+        transition: opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1), transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.26s ease, background-color 0.22s ease, filter 0.32s ease;
     }
 
     .puppy-card:hover .puppy-cart-btn {
         opacity: 1;
-        transform: translateX(-50%) translateY(0);
+        filter: blur(0);
+        transform: translate(-50%, -50%) translateY(0) scale(1);
     }
 
     .puppy-cart-btn:hover {
         background: #ef4444;
+        transform: translate(-50%, -50%) translateY(-1px) scale(1.02);
+        box-shadow: 0 14px 30px rgba(239, 68, 68, 0.45);
     }
 
     .puppy-title {
-        margin: 16px 8px 8px;
+        margin: 24px 8px 8px;
         text-align: center;
         font-size: 30px;
         line-height: 1.2;
@@ -400,6 +406,175 @@
         color: #fb923c;
         font-size: 28px;
         font-weight: 300;
+    }
+
+    .breed-detail-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 22px;
+        align-items: start;
+    }
+
+    .breed-sidebar {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 18px 14px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        position: sticky;
+        top: 16px;
+    }
+
+    .breed-sidebar-title {
+        font-size: 36px;
+        line-height: 1.1;
+        margin: 2px 8px 14px;
+        color: #111827;
+        font-weight: 700;
+    }
+
+    .breed-sidebar-item {
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+        padding: 9px 10px;
+        border-radius: 10px;
+        color: #4b5563;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .breed-sidebar-item:hover {
+        background: #f3f4f6;
+        color: #111827;
+    }
+
+    .breed-sidebar-item.active {
+        color: #111827;
+        font-weight: 700;
+    }
+
+    .breed-right-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 22px;
+    }
+
+    .breed-detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .breed-detail-card {
+        background: #fff;
+        border: 1px solid #eceff3;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.09);
+        transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .breed-detail-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14);
+    }
+
+    .breed-detail-image-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1.1;
+        overflow: hidden;
+        border-radius: 12px;
+        margin: 10px;
+        margin-bottom: 0;
+        background: #f3f4f6;
+    }
+
+    .breed-detail-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .breed-detail-image-wrap[data-action="open-dog-detail"],
+    .breed-detail-name[data-action="open-dog-detail"] {
+        cursor: pointer;
+    }
+
+    .breed-detail-image-wrap[data-action="open-dog-detail"]:hover .breed-detail-image {
+        transform: scale(1.04);
+        transition: transform 0.35s ease;
+    }
+
+    .breed-detail-meta {
+        padding: 14px 10px 6px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .breed-detail-name {
+        margin: 0 0 6px;
+        color: #111827;
+        font-size: 17px;
+        line-height: 1.35;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .breed-detail-price {
+        margin: 0;
+        color: #f4a261;
+        font-size: 18px;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .breed-detail-cart-btn {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) translateY(14px) scale(0.92);
+        border: none;
+        border-radius: 999px;
+        background: rgba(17, 24, 39, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.2;
+        padding: 11px 28px;
+        min-width: 210px;
+        white-space: nowrap;
+        cursor: pointer;
+        opacity: 0;
+        filter: blur(2px);
+        box-shadow: 0 12px 28px rgba(2, 6, 23, 0.28);
+        transition: opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1), transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.26s ease, background-color 0.22s ease, filter 0.32s ease;
+    }
+
+    .breed-detail-card:hover .breed-detail-cart-btn {
+        opacity: 1;
+        filter: blur(0);
+        transform: translate(-50%, -50%) translateY(0) scale(1);
+    }
+
+    .breed-detail-cart-btn:hover {
+        background: #ef4444;
+        transform: translate(-50%, -50%) translateY(-1px) scale(1.02);
+        box-shadow: 0 14px 30px rgba(239, 68, 68, 0.45);
+    }
+
+    @media (max-width: 1200px) {
+        .breed-right-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 
     @media (max-width: 1200px) {
@@ -419,6 +594,643 @@
     @media (max-width: 992px) {
         .breed-image {
             height: 280px;
+        }
+
+        .breed-detail-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .breed-sidebar {
+            position: static;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .breed-right-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .poodle-detail-page {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        max-width: 980px;
+        margin: 0 auto;
+    }
+
+    .poodle-hero {
+        position: relative;
+        width: 100%;
+        min-height: 280px;
+        border-radius: 12px;
+        overflow: hidden;
+        background-image: linear-gradient(rgba(17, 24, 39, 0.5), rgba(17, 24, 39, 0.5)), url('https://images.unsplash.com/photo-1601758174114-e711c0cbaa69?w=1800&h=700&fit=crop');
+        background-size: cover;
+        background-position: center;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        color: #fff;
+        padding: 24px;
+    }
+
+    .poodle-hero h2 {
+        margin: 0 0 10px;
+        font-size: clamp(36px, 5vw, 56px);
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .poodle-hero p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 14px;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+    }
+
+    .poodle-detail-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+        gap: 18px;
+        align-items: start;
+    }
+
+    .poodle-detail-gallery {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .poodle-main-image {
+        width: 100%;
+        border-radius: 16px;
+        aspect-ratio: 1 / 1.1;
+        object-fit: cover;
+        box-shadow: none;
+        max-height: 500px;
+    }
+
+    .poodle-thumb-list {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .poodle-thumb {
+        width: 46px;
+        height: 46px;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 2px solid #e5e7eb;
+        cursor: pointer;
+        transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .poodle-thumb:hover {
+        transform: translateY(-1px);
+    }
+
+    .poodle-thumb.active {
+        border-color: #f97316;
+    }
+
+    .poodle-detail-content {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .poodle-detail-title {
+        margin: 0 0 8px;
+        color: #111827;
+        font-size: clamp(20px, 2.1vw, 30px);
+        line-height: 1.18;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+    }
+
+    .poodle-detail-price {
+        margin: 0 0 16px;
+        color: #f97316;
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .poodle-detail-meta {
+        margin: 0;
+        padding: 18px 0;
+        border-top: 1px solid #e5e7eb;
+        display: grid;
+        gap: 7px;
+        color: #6b7280;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .poodle-detail-meta b {
+        color: #111827;
+        font-weight: 700;
+    }
+
+    .poodle-availability {
+        margin: 14px 0 16px;
+        color: #6b7280;
+        font-size: 12px;
+    }
+
+    .poodle-qty-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .poodle-qty-label {
+        color: #111827;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .poodle-qty-control {
+        display: grid;
+        grid-template-columns: 34px 42px;
+        grid-template-rows: 20px 20px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .poodle-qty-input {
+        grid-row: 1 / span 2;
+        border: none;
+        border-right: 1px solid #d1d5db;
+        text-align: center;
+        font-size: 14px;
+        color: #6b7280;
+        background: #fff;
+        width: 34px;
+    }
+
+    .poodle-qty-btn {
+        border: none;
+        background: #fff;
+        color: #111827;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .poodle-qty-btn:first-of-type {
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .poodle-qty-btn:hover {
+        background: #f9fafb;
+    }
+
+    .poodle-detail-actions {
+        margin-top: 0;
+        display: grid;
+        gap: 8px;
+        max-width: 260px;
+    }
+
+    .poodle-detail-btn {
+        border: none;
+        border-radius: 999px;
+        background: #f97316;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 9px 18px;
+        cursor: pointer;
+        transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.2s ease;
+        box-shadow: 0 10px 22px rgba(249, 115, 22, 0.34);
+    }
+
+    .poodle-detail-btn-primary {
+        width: 100%;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .poodle-detail-btn-ghost {
+        background: #fff;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        box-shadow: none;
+    }
+
+    .poodle-detail-btn-ghost:hover {
+        background: #f9fafb;
+        box-shadow: none;
+    }
+
+    .poodle-detail-btn:hover {
+        background: #ea580c;
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(234, 88, 12, 0.34);
+    }
+
+    .poodle-desc-panel {
+        margin-top: 4px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .poodle-desc-tabs {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .poodle-desc-tab {
+        border: none;
+        background: transparent;
+        color: #111827;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 14px 22px;
+    }
+
+    .poodle-desc-tab.active {
+        background: #f3f0ec;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+    }
+
+    .poodle-desc-content {
+        padding: 18px 10px 0;
+        color: #6b7280;
+        font-size: 13px;
+        line-height: 1.8;
+    }
+
+    .poodle-related-section {
+        margin-top: 34px;
+    }
+
+    .poodle-related-title {
+        margin: 0 0 18px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .poodle-related-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 22px;
+    }
+
+    .poodle-related-item {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .poodle-related-image-wrap {
+        border-radius: 14px;
+        overflow: hidden;
+        background: #f3f4f6;
+        cursor: pointer;
+        aspect-ratio: 3 / 4;
+    }
+
+    .poodle-related-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.25s ease;
+    }
+
+    .poodle-related-image-wrap:hover .poodle-related-image {
+        transform: scale(1.04);
+    }
+
+    .poodle-related-name {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 600;
+        color: #1f2937;
+        line-height: 1.45;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .poodle-related-price {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 600;
+        color: #f97316;
+        text-align: center;
+    }
+
+    .poodle-benefits-section {
+        margin-top: 46px;
+        padding-top: 8px;
+    }
+
+    .poodle-benefits-title {
+        margin: 0 0 18px;
+        text-align: center;
+        font-size: 34px;
+        line-height: 1.3;
+        font-weight: 700;
+        color: #f97316;
+    }
+
+    .poodle-benefits-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 22px;
+    }
+
+    .poodle-benefit-item {
+        position: relative;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #eceff3;
+        border-radius: 18px;
+        padding: 22px 18px;
+        text-align: center;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    .poodle-benefit-item::before {
+        content: '';
+        position: absolute;
+        inset: -60% 15% auto;
+        height: 120px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+
+    .poodle-benefit-item:hover {
+        transform: translateY(-8px);
+        border-color: #dbe4ef;
+        box-shadow: 0 20px 34px rgba(15, 23, 42, 0.14);
+    }
+
+    .poodle-benefit-item:hover::before {
+        opacity: 1;
+    }
+
+    .poodle-benefit-badge {
+        position: relative;
+        overflow: hidden;
+        width: 130px;
+        height: 130px;
+        margin: 0 auto 14px;
+        border-radius: 30px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(165deg, #22c3ee 0%, #1d9fd3 55%, #f59e0b 56%, #f59e0b 100%);
+        color: #fff;
+        font-size: 42px;
+        font-weight: 700;
+        box-shadow: 0 14px 28px rgba(33, 150, 243, 0.28), inset 0 2px 8px rgba(255, 255, 255, 0.25);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .poodle-benefit-badge::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(130deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 45%);
+        pointer-events: none;
+    }
+
+    .poodle-benefit-badge::after {
+        content: '';
+        position: absolute;
+        top: -55%;
+        left: -70%;
+        width: 60%;
+        height: 220%;
+        background: rgba(255, 255, 255, 0.28);
+        transform: rotate(28deg);
+        transition: left 0.45s ease;
+        pointer-events: none;
+    }
+
+    .poodle-benefit-item:hover .poodle-benefit-badge {
+        transform: translateY(-2px) scale(1.03);
+        box-shadow: 0 18px 34px rgba(33, 150, 243, 0.34), inset 0 2px 10px rgba(255, 255, 255, 0.3);
+    }
+
+    .poodle-benefit-item:hover .poodle-benefit-badge::after {
+        left: 125%;
+    }
+
+    .poodle-benefit-icon {
+        position: relative;
+        z-index: 1;
+        display: inline-block;
+        line-height: 1;
+        filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.26));
+        transition: transform 0.3s ease;
+    }
+
+    .poodle-benefit-item:hover .poodle-benefit-icon {
+        transform: scale(1.08) rotate(-3deg);
+    }
+
+    .poodle-benefit-item.is-shipping .poodle-benefit-badge {
+        background: linear-gradient(165deg, #36c7ef 0%, #1ea7dc 54%, #f59e0b 55%, #f59e0b 100%);
+    }
+
+    .poodle-benefit-item.is-gift .poodle-benefit-badge {
+        background: linear-gradient(165deg, #2ac4ea 0%, #149ed7 54%, #f59e0b 55%, #f59e0b 100%);
+    }
+
+    .poodle-benefit-item.is-contract .poodle-benefit-badge {
+        background: linear-gradient(165deg, #2ab9e8 0%, #1799d0 54%, #f59e0b 55%, #f59e0b 100%);
+    }
+
+    .poodle-benefit-item.is-warranty .poodle-benefit-badge {
+        background: linear-gradient(165deg, #31bee9 0%, #1196ce 54%, #f59e0b 55%, #f59e0b 100%);
+    }
+
+    .poodle-benefit-caption {
+        margin: 0;
+        color: #6b7280;
+        font-size: 16px;
+        line-height: 1.55;
+    }
+
+    .poodle-docs-section {
+        margin-top: 48px;
+    }
+
+    .poodle-docs-title {
+        margin: 0 0 20px;
+        text-align: center;
+        font-size: 52px;
+        line-height: 1.2;
+        font-weight: 700;
+        color: #f97316;
+    }
+
+    .poodle-docs-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .poodle-doc-card {
+        position: relative;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #e5e7eb;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+        transition: transform 0.32s ease, box-shadow 0.32s ease;
+    }
+
+    .poodle-doc-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 22px 36px rgba(15, 23, 42, 0.18);
+    }
+
+    .poodle-doc-card img {
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.45s ease;
+    }
+
+    .poodle-doc-card:hover img {
+        transform: scale(1.03);
+    }
+
+    @media (max-width: 1200px) {
+        .poodle-detail-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .poodle-related-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .poodle-benefits-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .poodle-benefits-title {
+            font-size: 28px;
+        }
+
+        .poodle-docs-title {
+            font-size: 40px;
+        }
+
+        .poodle-docs-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .poodle-thumb {
+            width: 42px;
+            height: 42px;
+        }
+
+        .poodle-detail-title {
+            font-size: 18px;
+        }
+
+        .poodle-detail-price {
+            font-size: 18px;
+        }
+
+        .poodle-detail-meta {
+            font-size: 12px;
+        }
+
+        .poodle-availability {
+            font-size: 12px;
+        }
+
+        .poodle-qty-label {
+            font-size: 13px;
+        }
+
+        .poodle-qty-row {
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .poodle-detail-btn-primary {
+            font-size: 14px;
+        }
+
+        .poodle-desc-tab {
+            padding: 12px 16px;
+            font-size: 13px;
+        }
+
+        .poodle-desc-content {
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .poodle-related-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .poodle-related-name {
+            font-size: 14px;
+        }
+
+        .poodle-related-price {
+            font-size: 20px;
+        }
+
+        .poodle-benefits-grid {
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        .poodle-benefit-item {
+            padding: 18px 14px;
+        }
+
+        .poodle-benefit-badge {
+            width: 110px;
+            height: 110px;
+            border-radius: 24px;
+            font-size: 34px;
+        }
+
+        .poodle-benefits-title {
+            font-size: 24px;
+            margin-bottom: 14px;
+        }
+
+        .poodle-benefit-caption {
+            font-size: 15px;
+        }
+
+        .poodle-docs-title {
+            font-size: 30px;
+            margin-bottom: 14px;
+        }
+
+        .poodle-docs-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -730,11 +1542,19 @@
         summaryElement.textContent = `Hiển thị ${displayed} của ${total} ${unit}`;
     };
 
+    const setShopFilterPanelVisible = (visible) => {
+        const panel = document.getElementById('shopFilterPanel');
+        if (!panel) return;
+        panel.style.display = visible ? 'block' : 'none';
+    };
+
     // Render products
     const renderProducts = (productsToRender) => {
         const grid = document.getElementById('productsGrid');
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
+
+        setShopFilterPanelVisible(true);
 
         grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
 
@@ -785,6 +1605,8 @@
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
 
+        setShopFilterPanelVisible(true);
+
         if (breedsToRender.length === 0) {
             grid.style.display = 'none';
             emptyState.style.display = 'block';
@@ -814,10 +1636,12 @@
         `).join('');
     };
 
-    const renderDogPuppyCards = (puppiesToRender, totalCount) => {
+    const renderDogPuppyCards = (puppiesToRender, totalCount, breedName = '') => {
         const grid = document.getElementById('productsGrid');
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
+
+        setShopFilterPanelVisible(true);
 
         if (puppiesToRender.length === 0) {
             grid.style.display = 'none';
@@ -828,26 +1652,177 @@
         }
 
         grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+        grid.style.gridTemplateColumns = '1fr';
         emptyState.style.display = 'none';
         countElement.textContent = `${puppiesToRender.length} giống chó`;
         updateResultsSummary(puppiesToRender.length, totalCount || puppiesToRender.length, 'kết quả');
 
-        grid.innerHTML = puppiesToRender.map(puppy => `
-            <article class="puppy-card">
-                <div class="puppy-image-wrap">
-                    <img src="${puppy.image}" alt="${puppy.name}">
-                    <button class="puppy-cart-btn" type="button" data-action="add-cart" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}">Thêm vào giỏ hàng</button>
+        const sidebarBreeds = ['Giống khác', 'Giống Chó', 'Chó Akita', 'Chó Alaska', 'Chó Beagle', 'Chó Becgie', 'Chó Bichon', 'Chó Border Collie', 'Chó Bull Pháp', 'Chó Chihuahua'];
+
+        grid.innerHTML = `
+            <div class="breed-detail-layout">
+                <aside class="breed-sidebar">
+                    <h3 class="breed-sidebar-title">Thể loại</h3>
+                    ${sidebarBreeds.map((item) => `
+                        <button type="button" class="breed-sidebar-item ${item.toLowerCase().includes((breedName || '').toLowerCase()) ? 'active' : ''}">
+                            <span>${item}</span>
+                            <span>›</span>
+                        </button>
+                    `).join('')}
+                </aside>
+
+                <div class="breed-right-grid">
+                    ${puppiesToRender.map((puppy) => `
+                        <article class="breed-detail-item">
+                            <div class="breed-detail-card">
+                                <div class="breed-detail-image-wrap" data-action="open-dog-detail" data-puppy-id="${puppy.id}">
+                                    <img src="${puppy.image}" alt="${puppy.name}" class="breed-detail-image" data-action="open-dog-detail" data-puppy-id="${puppy.id}">
+                                    <button class="breed-detail-cart-btn" type="button" data-action="add-cart" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}">Thêm vào giỏ hàng</button>
+                                </div>
+                            </div>
+                            <div class="breed-detail-meta">
+                                <h3 class="breed-detail-name" data-action="open-dog-detail" data-puppy-id="${puppy.id}">${puppy.name}</h3>
+                                <p class="breed-detail-price">${puppy.price} ₫</p>
+                            </div>
+                        </article>
+                    `).join('')}
                 </div>
-                <h3 class="puppy-title">${puppy.name}</h3>
-                <p class="puppy-price">${puppy.price} ₫</p>
-            </article>
-        `).join('');
+            </div>
+        `;
+    };
+
+    const renderDogDetailPage = (puppy) => {
+        const grid = document.getElementById('productsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const countElement = document.getElementById('productCount');
+
+        if (!puppy) return;
+
+        setShopFilterPanelVisible(false);
+
+        const related = dogPuppies.filter(p => p.breed === puppy.breed && p.id !== puppy.id).slice(0, 4);
+        const thumbSources = [puppy.image, ...(related.map(p => p.image).slice(0, 2))];
+
+        grid.style.display = 'block';
+        emptyState.style.display = 'none';
+        countElement.textContent = 'Chi tiết thú cưng';
+        updateResultsSummary(1, 1, 'chi tiết');
+
+        grid.innerHTML = `
+            <div class="poodle-detail-page">
+                <section class="poodle-detail-layout">
+                    <div class="poodle-detail-gallery">
+                        <img src="${puppy.image}" alt="${puppy.name}" class="poodle-main-image" id="poodleMainImage">
+                        <div class="poodle-thumb-list">
+                            ${thumbSources.map((src, index) => `<img src="${src}" alt="${puppy.name}" class="poodle-thumb ${index === 0 ? 'active' : ''}" data-action="select-thumb" data-src="${src}">`).join('')}
+                        </div>
+                    </div>
+
+                    <aside class="poodle-detail-content">
+                        <h3 class="poodle-detail-title">${puppy.name}</h3>
+                        <p class="poodle-detail-price">${puppy.price} ₫</p>
+                        <div class="poodle-detail-meta">
+                            <div><b>Giống:</b> ${puppy.breed}</div>
+                            <div><b>Màu:</b> Bicolor</div>
+                            <div><b>Tuổi:</b> 2 tháng</div>
+                            <div><b>Giới tính:</b> Cái</div>
+                            <div><b>Tiêm phòng:</b> 1 mũi vắc xin</div>
+                            <div><b>Tẩy giun:</b> 1 lần</div>
+                            <div><b>Sức khỏe:</b> Nhanh nhẹn, khỏe mạnh, ăn uống tốt</div>
+                            <div><b>Vận chuyển:</b> Miễn phí</div>
+                            <div><b>Tình trạng:</b> Có sẵn</div>
+                            <div><b>Nguồn gốc:</b> Thuần chủng, sinh sản tại trại PETNOW</div>
+                        </div>
+                        <p class="poodle-availability">Có sẵn trong cửa hàng</p>
+
+                        <div class="poodle-qty-row">
+                            <span class="poodle-qty-label">Chọn số lượng</span>
+                            <div class="poodle-qty-control">
+                                <input class="poodle-qty-input" type="text" value="1" readonly>
+                                <button class="poodle-qty-btn" type="button" data-action="qty-decrease">-</button>
+                                <button class="poodle-qty-btn" type="button" data-action="qty-increase">+</button>
+                            </div>
+                        </div>
+
+                        <div class="poodle-detail-actions">
+                            <button class="poodle-detail-btn poodle-detail-btn-primary" type="button" data-action="add-cart-detail" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}">Thêm vào giỏ hàng</button>
+                            <button class="poodle-detail-btn poodle-detail-btn-ghost" type="button" data-action="back-dog-list" data-breed-name="${puppy.breed}">Quay lại danh sách</button>
+                        </div>
+                    </aside>
+                </section>
+
+                <section class="poodle-desc-panel">
+                    <div class="poodle-desc-tabs">
+                        <button type="button" class="poodle-desc-tab active">Mô tả</button>
+                        <button type="button" class="poodle-desc-tab">Đánh giá (0)</button>
+                    </div>
+                    <div class="poodle-desc-content">
+                        ${puppy.name} cực kỳ xinh xắn với bộ lông xoăn mịn hai màu nổi bật. Bé có kích thước nhỏ gọn, gương mặt baby với đôi mắt tròn đáng yêu. Tính cách ngoan hiền, quấn chủ và rất dễ huấn luyện. Bộ lông ít rụng, dễ chăm sóc, phù hợp nuôi trong căn hộ hoặc nhà phố. Bé ăn khỏe, nhanh nhẹn và đã tiêm phòng đầy đủ. Lựa chọn lý tưởng cho gia đình yêu thích thú cưng nhỏ gọn và đáng yêu.
+                    </div>
+                </section>
+
+                <section class="poodle-related-section">
+                    <h3 class="poodle-related-title">Sản phẩm tương tự</h3>
+                    <div class="poodle-related-grid">
+                        ${related.length > 0 ? related.map((item) => `
+                            <article class="poodle-related-item">
+                                <div class="poodle-related-image-wrap" data-action="open-dog-detail" data-puppy-id="${item.id}">
+                                    <img src="${item.image}" alt="${item.name}" class="poodle-related-image" data-action="open-dog-detail" data-puppy-id="${item.id}">
+                                </div>
+                                <h4 class="poodle-related-name" data-action="open-dog-detail" data-puppy-id="${item.id}">${item.name}</h4>
+                                <p class="poodle-related-price">${item.price} ₫</p>
+                            </article>
+                        `).join('') : '<p style="color:#6b7280; margin:0;">Hiện chưa có sản phẩm tương tự.</p>'}
+                    </div>
+                </section>
+
+                <section class="poodle-benefits-section">
+                    <h3 class="poodle-benefits-title">Quyền lợi khi mua hàng tại PetNow</h3>
+                    <div class="poodle-benefits-grid">
+                        <article class="poodle-benefit-item is-shipping">
+                            <div class="poodle-benefit-badge"><span class="poodle-benefit-icon">🚚</span></div>
+                            <p class="poodle-benefit-caption">Miễn phí vận chuyển.</p>
+                        </article>
+                        <article class="poodle-benefit-item is-gift">
+                            <div class="poodle-benefit-badge"><span class="poodle-benefit-icon">🎁</span></div>
+                            <p class="poodle-benefit-caption">Bộ quà tặng trị giá 500k</p>
+                        </article>
+                        <article class="poodle-benefit-item is-contract">
+                            <div class="poodle-benefit-badge"><span class="poodle-benefit-icon">✅</span></div>
+                            <p class="poodle-benefit-caption">Hợp đồng mua bán - Cam kết rõ ràng</p>
+                        </article>
+                        <article class="poodle-benefit-item is-warranty">
+                            <div class="poodle-benefit-badge"><span class="poodle-benefit-icon">🛡️</span></div>
+                            <p class="poodle-benefit-caption">Bảo hành sức khỏe - Hỗ trợ trọn đời</p>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="poodle-docs-section">
+                    <h3 class="poodle-docs-title">Giấy tờ đi kèm</h3>
+                    <div class="poodle-docs-grid">
+                        <article class="poodle-doc-card">
+                            <img src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=900&h=1200&fit=crop" alt="Hợp đồng mua bán thú cưng">
+                        </article>
+                        <article class="poodle-doc-card">
+                            <img src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=900&h=1200&fit=crop" alt="Sổ theo dõi sức khỏe thú cưng">
+                        </article>
+                        <article class="poodle-doc-card">
+                            <img src="https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=900&h=1200&fit=crop" alt="Hướng dẫn chăm sóc thú cưng">
+                        </article>
+                        <article class="poodle-doc-card">
+                            <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=900&h=1200&fit=crop" alt="Voucher ưu đãi dịch vụ thú cưng">
+                        </article>
+                    </div>
+                </section>
+            </div>
+        `;
     };
 
     const showDogPuppiesByBreed = (breedName) => {
         const filtered = dogPuppies.filter(p => p.breed.toLowerCase().includes(breedName.toLowerCase()));
-        renderDogPuppyCards(filtered, filtered.length);
+        const firstThree = filtered.slice(0, 3);
+        renderDogPuppyCards(firstThree, filtered.length, breedName);
         if (typeof feather !== 'undefined') feather.replace();
     };
 
@@ -855,6 +1830,8 @@
         const grid = document.getElementById('productsGrid');
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
+
+        setShopFilterPanelVisible(true);
 
         if (kittensToRender.length === 0) {
             grid.style.display = 'none';
@@ -892,6 +1869,8 @@
         const grid = document.getElementById('productsGrid');
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
+
+        setShopFilterPanelVisible(true);
 
         if (breedsToRender.length === 0) {
             grid.style.display = 'none';
@@ -1059,19 +2038,20 @@
     };
 
     // Add to cart
-    const addToCart = (name, price, image) => {
+    const addToCart = (name, price, image, quantity = 1) => {
         const cart = JSON.parse(localStorage.getItem('cart')) || [];
         const existing = cart.find(p => p.name === name);
+        const safeQuantity = Math.max(1, parseInt(quantity, 10) || 1);
 
         if (existing) {
-            existing.quantity += 1;
+            existing.quantity += safeQuantity;
         } else {
-            cart.push({ name, price, image, quantity: 1 });
+            cart.push({ name, price, image, quantity: safeQuantity });
         }
 
         localStorage.setItem('cart', JSON.stringify(cart));
         if (typeof updateCartBadge === 'function') updateCartBadge();
-        alert(`Đã thêm "${name}" vào giỏ hàng!`);
+        alert(`Đã thêm ${safeQuantity} "${name}" vào giỏ hàng!`);
     };
 
     // Add to wishlist
@@ -1122,7 +2102,7 @@
 
         if (productsGrid && !productsGrid.dataset.bound) {
             productsGrid.addEventListener('click', (event) => {
-                const actionButton = event.target.closest('button[data-action]');
+                const actionButton = event.target.closest('[data-action]');
                 if (!actionButton) return;
 
                 const action = actionButton.dataset.action;
@@ -1136,6 +2116,59 @@
                 if (action === 'cat-breed-more') {
                     const breedName = actionButton.dataset.breedName || '';
                     showCatKittensByBreed(breedName);
+                    return;
+                }
+
+                if (action === 'open-dog-detail') {
+                    const puppyId = parseInt(actionButton.dataset.puppyId || '0', 10);
+                    const selectedPuppy = dogPuppies.find(p => p.id === puppyId);
+                    if (selectedPuppy) {
+                        renderDogDetailPage(selectedPuppy);
+                    }
+                    return;
+                }
+
+                if (action === 'back-dog-list') {
+                    const breedName = actionButton.dataset.breedName || 'Poodle';
+                    showDogPuppiesByBreed(breedName);
+                    return;
+                }
+
+                if (action === 'select-thumb') {
+                    const selectedSrc = actionButton.dataset.src || '';
+                    const detailPage = actionButton.closest('.poodle-detail-page');
+                    const mainImage = detailPage?.querySelector('.poodle-main-image');
+                    if (mainImage && selectedSrc) {
+                        mainImage.src = selectedSrc;
+                    }
+
+                    const thumbs = detailPage?.querySelectorAll('.poodle-thumb') || [];
+                    thumbs.forEach((thumb) => thumb.classList.remove('active'));
+                    actionButton.classList.add('active');
+                    return;
+                }
+
+                if (action === 'qty-decrease' || action === 'qty-increase') {
+                    const detailContent = actionButton.closest('.poodle-detail-content');
+                    const qtyInput = detailContent?.querySelector('.poodle-qty-input');
+                    if (!qtyInput) return;
+
+                    const current = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+                    qtyInput.value = action === 'qty-decrease' ? Math.max(1, current - 1) : current + 1;
+                    return;
+                }
+
+                if (action === 'add-cart-detail') {
+                    const detailContent = actionButton.closest('.poodle-detail-content');
+                    const qtyInput = detailContent?.querySelector('.poodle-qty-input');
+                    const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
+
+                    addToCart(
+                        actionButton.dataset.name || '',
+                        actionButton.dataset.price || '',
+                        actionButton.dataset.image || '',
+                        quantity
+                    );
                     return;
                 }
 

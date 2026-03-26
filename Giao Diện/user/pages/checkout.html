@@ -1,0 +1,259 @@
+<section style="padding: 50px 0 100px; background: #f8f9fa;">
+  <div class="container-fluid px-5">
+    <div style="max-width: 1180px; margin: 0 auto 26px auto; background: #d8e5f2; border-radius: 10px; padding: 18px 28px; color: #4f79a7;">
+      <p style="margin: 0 0 2px 0; font-size: 16px; line-height: 1.45;">Bạn có mã ưu đãi?</p>
+      <a id="toggleCouponBox" href="#" style="color: #395f89; text-decoration: underline; font-size: 16px; line-height: 1.45;">Ấn vào đây để nhập mã</a>
+    </div>
+
+    <div id="couponInvalidBox" style="display: none; max-width: 1180px; margin: 0 auto 26px auto; background: #d8e5f2; border-radius: 10px; padding: 18px 28px; color: #4f79a7;">
+      <p id="couponInvalidText" style="margin: 0; font-size: 16px; line-height: 1.45;">Vui lòng nhập mã ưu đãi.</p>
+    </div>
+
+    <div id="couponBox" style="display: none; max-width: 1180px; margin: 0 auto 34px auto;">
+      <p style="margin: 0 0 14px 0; color: #7c8087; font-size: 16px; line-height: 1.6;">Nếu bạn có mã giảm giá, vui lòng điền vào phía bên dưới.</p>
+      <div style="display: flex; gap: 18px; align-items: center; flex-wrap: wrap;">
+        <input id="couponInput" type="text" placeholder="Mã ưu đãi" style="flex: 1 1 560px; height: 72px; border: none; border-radius: 12px; background: #eeece9; padding: 0 22px; font-size: 16px; color: #2a2a2a;">
+        <button id="applyCouponBtn" type="button" style="height: 72px; border: none; border-radius: 999px; padding: 0 38px; background: #f97316; color: #fff; font-size: 18px; font-weight: 700; cursor: pointer; transition: background-color 0.25s ease;" onmouseover="this.style.background='#000'" onmouseout="this.style.background='#f97316'">Áp dụng</button>
+      </div>
+    </div>
+
+    <div style="max-width: 1180px; margin: 0 auto;">
+      <!-- Billing Form (theo mẫu) -->
+      <div style="background: transparent; border-radius: 12px; padding: 0; box-shadow: none;">
+        <div id="checkoutValidationErrors" style="display: none; margin: 0 0 22px 0; background: #d8e5f2; border-radius: 12px; padding: 22px 40px; color: #3b6ea5;"></div>
+
+        <h2 style="font-size: 52px; font-weight: 700; margin: 0 0 26px 0; color: #131e2e; line-height: 1.1;">Thông tin thanh toán</h2>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 18px;">
+          <div>
+            <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Tên *</label>
+            <input id="checkoutFirstName" type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+          </div>
+          <div>
+            <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Họ *</label>
+            <input id="checkoutLastName" type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Tên công ty (tùy chọn)</label>
+          <input type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Quốc gia/Khu vực *</label>
+          <select style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #6e7884;">
+            <option selected>Việt Nam</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Địa chỉ *</label>
+          <input id="checkoutAddress1" type="text" placeholder="Địa chỉ" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a; margin-bottom: 12px;">
+          <input type="text" placeholder="Căn hộ, dãy phòng, căn hộ, v.v. (tùy chọn)" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Mã bưu điện (tùy chọn)</label>
+          <input type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Tỉnh / Thành phố *</label>
+          <input id="checkoutCity" type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+        </div>
+
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Số điện thoại *</label>
+          <input id="checkoutPhone" type="tel" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Địa chỉ email *</label>
+          <input id="checkoutEmail" type="email" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <input id="shipOtherAddress" type="checkbox" style="width: 18px; height: 18px; cursor: pointer;">
+          <label for="shipOtherAddress" style="margin: 0; color: #131e2e; font-size: 20px; font-weight: 700; cursor: pointer;">Giao hàng tới địa chỉ khác?</label>
+        </div>
+
+        <textarea rows="4" placeholder="Ghi chú về đơn hàng, ví dụ: thời gian hay chỉ dẫn địa điểm giao hàng chi tiết hơn." style="width: 100%; border: none; border-radius: 10px; background: #eeece9; padding: 14px 16px; font-size: 16px; color: #2a2a2a; resize: vertical; margin-bottom: 16px;"></textarea>
+      </div>
+
+      <div style="margin-top: 34px;">
+        <h3 style="font-size: 46px; font-weight: 700; margin: 0 0 20px 0; color: #131e2e; line-height: 1.1;">Đơn hàng của bạn</h3>
+
+        <table style="width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e7eb;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 18px; color: #131e2e;">Sản phẩm</th>
+              <th style="text-align: left; padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 18px; color: #131e2e; width: 34%;">Tạm tính</th>
+            </tr>
+          </thead>
+          <tbody id="checkoutOrderRows"></tbody>
+          <tfoot>
+            <tr>
+              <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 20px; font-weight: 700; color: #131e2e;">Tạm tính</td>
+              <td id="checkoutSubtotal" style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 20px; color: #3f4a59;">0 ₫</td>
+            </tr>
+            <tr>
+              <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 20px; font-weight: 700; color: #131e2e;">Giao hàng</td>
+              <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 20px; color: #6b7280;">•&nbsp; Giao hàng miễn phí</td>
+            </tr>
+            <tr>
+              <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 34px; font-weight: 700; color: #131e2e;">Tổng</td>
+              <td id="checkoutTotal" style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 34px; font-weight: 700; color: #131e2e;">0 ₫</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <p style="margin: 24px 4px 10px; font-size: 32px; color: #6e7884;">Chuyển khoản ngân hàng</p>
+        <p style="margin: 0 4px 20px; font-size: 16px; line-height: 1.7; color: #8a94a3; max-width: 980px;">
+          Thực hiện thanh toán vào ngay tài khoản ngân hàng của chúng tôi. Vui lòng sử dụng Mã đơn hàng của bạn trong phần Nội dung thanh toán. Đơn hàng sẽ được giao sau khi tiền đã chuyển.
+        </p>
+        <p style="margin: 0 4px 24px; font-size: 16px; line-height: 1.7; color: #8a94a3; max-width: 980px;">
+          Dữ liệu cá nhân của bạn sẽ được sử dụng để xử lý đơn đặt hàng của bạn, hỗ trợ trải nghiệm của bạn trên toàn bộ trang web này và cho các mục đích khác được mô tả trong chính sách riêng tư của chúng tôi.
+        </p>
+
+        <button id="checkoutPlaceOrderBtn" type="button" style="background: #f97316; color: #fff; border: none; border-radius: 999px; padding: 12px 22px; font-size: 18px; font-weight: 700; cursor: pointer; transition: background-color 0.25s ease;" onmouseover="this.style.background='#000'" onmouseout="this.style.background='#f97316'">Đặt hàng</button>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+  (function renderCheckoutOrder() {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const rowsEl = document.getElementById('checkoutOrderRows');
+    const subtotalEl = document.getElementById('checkoutSubtotal');
+    const totalEl = document.getElementById('checkoutTotal');
+
+    if (!rowsEl || !subtotalEl || !totalEl) return;
+
+    const formatVn = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`;
+    const parsePrice = (value) => Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
+
+    if (cart.length === 0) {
+      rowsEl.innerHTML = `
+        <tr>
+          <td colspan="2" style="padding: 16px 18px; border: 1px solid #e5e7eb; color: #6b7280; font-size: 16px;">Giỏ hàng đang trống.</td>
+        </tr>
+      `;
+      subtotalEl.textContent = formatVn(0);
+      totalEl.textContent = formatVn(0);
+      return;
+    }
+
+    const rowsHtml = cart.map((item) => {
+      const qty = Number(item.quantity || 1);
+      const lineTotal = parsePrice(item.price) * qty;
+      return `
+        <tr>
+          <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 16px; font-weight: 700; color: #131e2e;">${item.name} &nbsp;× ${qty}</td>
+          <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 16px; color: #6b7280;">${formatVn(lineTotal)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    rowsEl.innerHTML = rowsHtml;
+
+    const subtotal = cart.reduce((sum, item) => sum + parsePrice(item.price) * Number(item.quantity || 1), 0);
+    subtotalEl.textContent = formatVn(subtotal);
+    totalEl.textContent = formatVn(subtotal);
+  })();
+
+  (function bindCouponToggle() {
+    const toggleLink = document.getElementById('toggleCouponBox');
+    const couponBox = document.getElementById('couponBox');
+    const couponInvalidBox = document.getElementById('couponInvalidBox');
+    const couponInput = document.getElementById('couponInput');
+
+    if (!toggleLink || !couponBox || !couponInvalidBox) return;
+
+    toggleLink.addEventListener('click', (event) => {
+      event.preventDefault();
+      couponInvalidBox.style.display = 'none';
+      couponBox.style.display = 'block';
+      if (couponInput) couponInput.focus();
+    });
+  })();
+
+  (function bindCouponApplyValidation() {
+    const applyBtn = document.getElementById('applyCouponBtn');
+    const couponInput = document.getElementById('couponInput');
+    const couponBox = document.getElementById('couponBox');
+    const couponInvalidBox = document.getElementById('couponInvalidBox');
+    const couponInvalidText = document.getElementById('couponInvalidText');
+
+    if (!applyBtn || !couponInput || !couponBox || !couponInvalidBox || !couponInvalidText) return;
+
+    applyBtn.addEventListener('click', () => {
+      const code = couponInput.value.trim().toUpperCase();
+      const validCodes = ['PET10', 'GIAM10', 'FREESHIP'];
+
+      if (!code) {
+        couponInvalidText.textContent = 'Vui lòng nhập mã ưu đãi.';
+        couponBox.style.display = 'none';
+        couponInvalidBox.style.display = 'block';
+        return;
+      }
+
+      if (!validCodes.includes(code)) {
+        couponInvalidText.textContent = 'Vui lòng nhập mã ưu đãi.';
+        couponBox.style.display = 'none';
+        couponInvalidBox.style.display = 'block';
+        return;
+      }
+
+      couponInvalidText.textContent = 'Áp dụng mã ưu đãi thành công.';
+      couponBox.style.display = 'none';
+      couponInvalidBox.style.display = 'block';
+    });
+  })();
+
+  (function bindCheckoutValidation() {
+    const placeOrderBtn = document.getElementById('checkoutPlaceOrderBtn');
+    const errorBox = document.getElementById('checkoutValidationErrors');
+
+    if (!placeOrderBtn || !errorBox) return;
+
+    const requiredFields = [
+      { id: 'checkoutFirstName', label: 'Tên' },
+      { id: 'checkoutLastName', label: 'Họ' },
+      { id: 'checkoutAddress1', label: 'Địa chỉ' },
+      { id: 'checkoutCity', label: 'Tỉnh / Thành phố' },
+      { id: 'checkoutPhone', label: 'Số điện thoại' },
+      { id: 'checkoutEmail', label: 'Địa chỉ email' }
+    ];
+
+    placeOrderBtn.addEventListener('click', () => {
+      const missingFields = [];
+
+      requiredFields.forEach((field) => {
+        const input = document.getElementById(field.id);
+        const value = input?.value?.trim() || '';
+
+        if (!value) {
+          missingFields.push(field);
+          if (input) input.style.boxShadow = 'inset 0 0 0 2px #ef4444';
+        } else if (input) {
+          input.style.boxShadow = 'none';
+        }
+      });
+
+      if (missingFields.length > 0) {
+        errorBox.innerHTML = missingFields.map((field) =>
+          `<p style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.5;"><strong>Mục ${field.label}:</strong> là mục bắt buộc.</p>`
+        ).join('');
+        errorBox.style.display = 'block';
+        errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      errorBox.style.display = 'none';
+      alert('Đặt hàng thành công!');
+    });
+  })();
+</script>

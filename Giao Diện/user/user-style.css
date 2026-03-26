@@ -20,6 +20,12 @@ body {
     overflow-x: hidden;
 }
 
+/* Font thử nghiệm: dùng Inter cho toàn bộ giao diện */
+body,
+body * {
+    font-family: 'Inter', sans-serif !important;
+}
+
 /* Cursor Trail Effect - Water Bubbles */
 .cursor-trail {
     position: fixed;
@@ -665,7 +671,8 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 .category-card {
     border-radius: 20px;
     overflow: hidden;
-    transition: transform 0.3s;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+    transition: transform 0.75s ease, box-shadow 0.75s ease;
     position: relative;
 }
 
@@ -687,7 +694,8 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 }
 
 .category-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-8px);
+    box-shadow: 0 24px 44px rgba(15, 23, 42, 0.28);
 }
 
 .category-image {

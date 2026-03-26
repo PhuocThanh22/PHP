@@ -1,5 +1,7 @@
 <?php
 
+mysqli_report(MYSQLI_REPORT_OFF);
+
 function app_json_response(array $payload, int $statusCode = 200): void
 {
 	http_response_code($statusCode);
@@ -8,19 +10,141 @@ function app_json_response(array $payload, int $statusCode = 200): void
 	exit;
 }
 
-function app_db_connect(): mysqli
+function app_env_value(string $key, string $default = ''): string
 {
-	$conn = @new mysqli('127.0.0.1', 'root', '', 'qlshop');
-	if ($conn->connect_error) {
-		app_json_response([
-			'ok' => false,
-			'message' => 'Khong ket noi duoc CSDL',
-			'error' => $conn->connect_error,
-		], 500);
+	$value = getenv($key);
+	if ($value !== false && trim((string) $value) !== '') {
+		return trim((string) $value);
 	}
 
-	$conn->set_charset('utf8mb4');
-	return $conn;
+	if (isset($_ENV[$key]) && trim((string) $_ENV[$key]) !== '') {
+		return trim((string) $_ENV[$key]);
+	}
+
+	if (isset($_SERVER[$key]) && trim((string) $_SERVER[$key]) !== '') {
+		return trim((string) $_SERVER[$key]);
+	}
+
+	return $default;
+}
+
+function app_env_int(string $key, int $default = 0): int
+{
+	$value = app_env_value($key);
+	if ($value === '') {
+		return $default;
+	}
+
+	$intValue = (int) $value;
+	return $intValue > 0 ? $intValue : $default;
+}
+
+function app_detect_db_ports(): array
+{
+	$candidates = [
+		app_env_int('DB_PORT', 0),
+		app_env_int('MYSQL_PORT', 0),
+		app_env_int('MYSQL_TCP_PORT', 0),
+		3306,
+		3307,
+	];
+
+	$ports = [];
+	foreach ($candidates as $port) {
+		if ($port > 0 && !in_array($port, $ports, true)) {
+			$ports[] = $port;
+		}
+	}
+
+	return $ports;
+}
+
+function app_db_has_required_tables(mysqli $conn, string $dbName): bool
+{
+	$dbEsc = $conn->real_escape_string($dbName);
+	$sql = "
+		SELECT COUNT(DISTINCT table_name) AS matched
+		FROM information_schema.tables
+		WHERE table_schema = '{$dbEsc}'
+		  AND table_name IN ('dichvu', 'sanpham', 'khachhang', 'thucung', 'danhmuc')
+	";
+
+	$result = $conn->query($sql);
+	if (!$result) {
+		return false;
+	}
+
+	$row = $result->fetch_assoc();
+	$result->free();
+	return (int) ($row['matched'] ?? 0) >= 3;
+}
+
+function app_resolve_db_name(mysqli $serverConn, string $preferredDbName): string
+{
+	if ($preferredDbName !== '' && app_db_has_required_tables($serverConn, $preferredDbName)) {
+		return $preferredDbName;
+	}
+
+	$commonNames = ['qlshop', 'petshop', 'shop', 'pet_store', 'phpchinh'];
+	foreach ($commonNames as $name) {
+		if (app_db_has_required_tables($serverConn, $name)) {
+			return $name;
+		}
+	}
+
+	$dbList = $serverConn->query('SHOW DATABASES');
+	if ($dbList) {
+		while ($row = $dbList->fetch_row()) {
+			$dbName = (string) ($row[0] ?? '');
+			if ($dbName !== '' && app_db_has_required_tables($serverConn, $dbName)) {
+				$dbList->free();
+				return $dbName;
+			}
+		}
+		$dbList->free();
+	}
+
+	return $preferredDbName;
+}
+
+function app_db_connect(): mysqli
+{
+	$host = app_env_value('DB_HOST', '127.0.0.1');
+	$user = app_env_value('DB_USER', 'root');
+	$pass = app_env_value('DB_PASS', '');
+	$dbName = app_env_value('DB_NAME', 'qlshop');
+	$ports = app_detect_db_ports();
+	$lastError = 'Unknown connection error';
+
+	foreach ($ports as $port) {
+		try {
+			$serverConn = @new mysqli($host, $user, $pass, '', $port);
+			if ($serverConn->connect_error) {
+				$lastError = $serverConn->connect_error;
+				continue;
+			}
+
+			$resolvedDbName = app_resolve_db_name($serverConn, $dbName);
+			$serverConn->close();
+
+			$conn = @new mysqli($host, $user, $pass, $resolvedDbName, $port);
+			if (!$conn->connect_error) {
+				$conn->set_charset('utf8mb4');
+				return $conn;
+			}
+
+			$lastError = $conn->connect_error;
+		} catch (Throwable $e) {
+			$lastError = $e->getMessage();
+		}
+	}
+
+	app_json_response([
+		'ok' => false,
+		'message' => 'Khong ket noi duoc CSDL. Kiem tra DB_HOST/DB_PORT tren may nay.',
+		'error' => $lastError,
+		'tried_ports' => $ports,
+	], 500);
 }
 
 function app_request_json(): array
@@ -88,8 +212,8 @@ function app_resolve_category_id(mysqli $conn, string $categoryName, int $fallba
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-	$_GET['api'] = $_GET['api'] ?? 'get_services';
-	require dirname(__DIR__, 2) . '/index.php';
+	$apiParam = rawurlencode((string) ($_GET['api'] ?? 'get_services'));
+	header('Location: ../../index.php?api=' . $apiParam);
 	exit;
 }
 
@@ -417,11 +541,14 @@ if ($entity === 'customers') {
 if ($entity === 'pets') {
 	$hasLoaiThuCung = app_column_exists($conn, 'thucung', 'loaithucung');
 	$hasLoaiVatThuCung = app_column_exists($conn, 'thucung', 'loaivatthucung');
-	if (!$hasLoaiThuCung && !$hasLoaiVatThuCung) {
+	$hasLoaiVatTThuCung = app_column_exists($conn, 'thucung', 'loaivattthucung');
+	if (!$hasLoaiThuCung && !$hasLoaiVatThuCung && !$hasLoaiVatTThuCung) {
 		$conn->close();
 		app_json_response(['ok' => false, 'message' => 'Khong tim thay cot loai thu cung trong bang thucung'], 500);
 	}
-	$petTypeColumn = $hasLoaiThuCung ? 'loaithucung' : 'loaivatthucung';
+	$petTypeColumn = $hasLoaiThuCung
+		? 'loaithucung'
+		: ($hasLoaiVatThuCung ? 'loaivatthucung' : 'loaivattthucung');
 
 	if ($action === 'create') {
 		$name = trim((string) ($input['tenthucung'] ?? ''));
