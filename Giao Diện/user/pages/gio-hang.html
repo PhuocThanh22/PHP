@@ -1,0 +1,267 @@
+﻿<script>
+(function () {
+    const styles = [
+        { key: "bootstrap.min.css", href: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" },
+        { key: "giao-dien-nguoi-dung.css", href: "../giao-dien-nguoi-dung.css" }
+    ];
+
+    styles.forEach((style) => {
+        if (!document.querySelector(`link[href*="${style.key}"]`)) {
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = style.href;
+            document.head.appendChild(link);
+        }
+    });
+
+    const renderIcons = () => {
+        if (typeof window.feather !== "undefined") {
+            window.feather.replace();
+        }
+    };
+
+    if (typeof window.feather !== "undefined") {
+        renderIcons();
+    } else if (!document.querySelector('script[src*="feather-icons"]')) {
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/feather-icons";
+        script.defer = true;
+        script.onload = renderIcons;
+        document.head.appendChild(script);
+    }
+})();
+</script>
+
+<!-- Shopping Cart Page - Professional UI -->
+<section class="cart-section" style="padding: 50px 0 100px; background: #f8f9fa;">
+    <div class="container-fluid px-5">
+        <!-- Main Content -->
+        <div style="display: grid; grid-template-columns: 1fr 360px; gap: 30px;">
+            <!-- Cart Items -->
+            <div id="cartItemsContainer"></div>
+
+            <!-- Summary Sidebar -->
+            <div id="cartSummaryContainer"></div>
+        </div>
+    </div>
+</section>
+
+<script>
+    // Load and display cart
+    const loadCart = () => {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const itemsContainer = document.getElementById('cartItemsContainer');
+        const summaryContainer = document.getElementById('cartSummaryContainer');
+        const countElement = document.getElementById('cartItemsCount');
+
+        if (cart.length === 0) {
+            itemsContainer.style.gridColumn = '1 / -1';
+            summaryContainer.style.display = 'none';
+
+            // Empty cart state
+            itemsContainer.innerHTML = `
+                <div style="background: white; border-radius: 12px; padding: 80px 20px 40px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <div style="margin-bottom: 30px;">
+                        <i data-feather="shopping-cart" style="width: 80px; height: 80px; color: #ddd; stroke-width: 1;"></i>
+                    </div>
+                    <h2 style="font-size: 24px; color: #333; margin-bottom: 15px; font-weight: 600;">Giỏ hàng của bạn trống</h2>
+                    <p style="color: #999; font-size: 15px; margin-bottom: 40px; line-height: 1.6;">
+                        Bạn chưa thêm sản phẩm nào vào giỏ.<br>
+                        Hãy khám phá các sản phẩm tuyệt vời của chúng tôi!
+                    </p>
+                    <button onclick="loadPage('shop')" style="background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%); color: white; border: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(248, 117, 55, 0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(248, 117, 55, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(248, 117, 55, 0.3)'">
+                        <i data-feather="shopping-bag" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
+                        Đi mua hàng
+                    </button>
+                </div>
+            `;
+            summaryContainer.innerHTML = '';
+            if (countElement) {
+                countElement.textContent = '0 sản phẩm';
+            }
+            if (typeof feather !== 'undefined') feather.replace();
+            return;
+        }
+
+        itemsContainer.style.gridColumn = 'auto';
+        summaryContainer.style.display = 'block';
+
+        // Cart items HTML
+        let cartHTML = '<div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">';
+        
+        cart.forEach((item, index) => {
+            const itemTotal = parseFloat(item.price.replace(/[^0-9]/g, '')) * item.quantity;
+            cartHTML += `
+                <div class="cart-item" style="display: grid; grid-template-columns: 130px 1fr 120px; gap: 20px; align-items: center; padding: 20px; border-bottom: 1px solid #f0f0f0; transition: all 0.3s ease;" onmouseover="this.style.backgroundColor='#fafafa'; this.style.transform='scale(1.01)'" onmouseout="this.style.backgroundColor='white'; this.style.transform='scale(1)'">
+                    <!-- Product Image -->
+                    <div style="width: 130px; height: 130px; background: #f5f5f5; border-radius: 8px; overflow: hidden;">
+                        <img src="${item.image}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    </div>
+
+                    <!-- Product Info -->
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #333;">${item.name}</h3>
+                        <p style="color: #F87537; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">${item.price}</p>
+                        
+                        <!-- Quantity Controls -->
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button onclick="changeQuantity(${index}, -1)" style="background: white; border: 1px solid #ddd; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; font-size: 16px; color: #666;" onmouseover="this.style.background='#F87537'; this.style.color='white'; this.style.borderColor='#F87537'" onmouseout="this.style.background='white'; this.style.color='#666'; this.style.borderColor='#ddd'">−</button>
+                            <input type="number" value="${item.quantity}" min="1" style="width: 50px; height: 32px; border: 1px solid #ddd; border-radius: 6px; text-align: center; font-weight: 600; font-size: 14px; padding: 0;" onchange="setQuantity(${index}, this.value)">
+                            <button onclick="changeQuantity(${index}, 1)" style="background: white; border: 1px solid #ddd; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; font-size: 16px; color: #666;" onmouseover="this.style.background='#F87537'; this.style.color='white'; this.style.borderColor='#F87537'" onmouseout="this.style.background='white'; this.style.color='#666'; this.style.borderColor='#ddd'">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Total & Remove -->
+                    <div style="text-align: right;">
+                        <p style="font-size: 16px; font-weight: 700; color: #333; margin: 0 0 15px 0;">
+                            ${(parseFloat(item.price.replace(/[^0-9]/g, '')) * item.quantity).toLocaleString('vi-VN')}₫
+                        </p>
+                        <button onclick="removeItem(${index})" style="background: #F87537; color: white; border: none; width: 36px; height: 36px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; font-size: 18px;" onmouseover="this.style.background='#FBA81F'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#F87537'; this.style.transform='scale(1)'" title="Xóa sản phẩm">
+                            <i data-feather="trash-2" style="width: 18px; height: 18px;"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        cartHTML += '</div>';
+        itemsContainer.innerHTML = cartHTML;
+
+        // Calculate totals
+        const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+        const totalPrice = cart.reduce((sum, item) => sum + (parseFloat(item.price.replace(/[^0-9]/g, '')) * item.quantity), 0);
+
+        // Summary HTML
+        summaryContainer.innerHTML = `
+            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: sticky; top: 20px;">
+                <!-- Order Summary -->
+                <h3 style="font-size: 18px; font-weight: 700; margin: 0 0 20px 0; color: #333;">Tóm tắt đơn hàng</h3>
+
+                <!-- Summary Items -->
+                <div style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #f0f0f0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="color: #666; font-size: 14px;">Tổng sản phẩm:</span>
+                        <span style="font-weight: 600; color: #333;">${totalQuantity}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="color: #666; font-size: 14px;">Tổng tiền hàng:</span>
+                        <span style="font-weight: 600; color: #333;">${totalPrice.toLocaleString('vi-VN')}₫</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #666; font-size: 14px;">Phí vận chuyển:</span>
+                        <span style="font-weight: 600; color: #F87537;">Miễn phí</span>
+                    </div>
+                </div>
+
+                <!-- Total -->
+                <div style="background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; color: white;">
+                        <span style="font-size: 16px; font-weight: 600;">Tổng cộng:</span>
+                        <span style="font-size: 24px; font-weight: 700;">${totalPrice.toLocaleString('vi-VN')}₫</span>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <button onclick="checkoutCart()" style="width: 100%; background: #000; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 12px; transition: all 0.3s ease;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
+                    <i data-feather="credit-card" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
+                    Thanh toán
+                </button>
+
+                <button onclick="loadPage('shop')" style="width: 100%; background: white; color: #333; border: 2px solid #e0e0e0; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.borderColor='#F87537'; this.style.color='#F87537'" onmouseout="this.style.borderColor='#e0e0e0'; this.style.color='#333'">
+                    <i data-feather="shopping-bag" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
+                    Tiếp tục mua hàng
+                </button>
+
+                <!-- Promo Code -->
+                <div style="margin-top: 25px; padding-top: 25px; border-top: 1px solid #f0f0f0;">
+                    <p style="color: #666; font-size: 12px; margin: 0 0 10px 0;">Mã khuyến mãi:</p>
+                    <input type="text" placeholder="Nhập mã khuyến mãi" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 10px;">
+                    <button style="width: 100%; background: #f0f0f0; border: none; padding: 10px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s ease; color: #666;" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='#f0f0f0'">Áp dụng</button>
+                </div>
+            </div>
+        `;
+
+        if (countElement) {
+            countElement.textContent = `${totalQuantity} sản phẩm`;
+        }
+
+        // Initialize feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    };
+
+    // Change quantity
+    const changeQuantity = (index, change) => {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        if (cart[index]) {
+            const newQty = Math.max(1, cart[index].quantity + change);
+            cart[index].quantity = newQty;
+            localStorage.setItem('cart', JSON.stringify(cart));
+            loadCart();
+            updateCartBadge();
+        }
+    };
+
+    // Set exact quantity
+    const setQuantity = (index, value) => {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const qty = Math.max(1, parseInt(value) || 1);
+        if (cart[index]) {
+            cart[index].quantity = qty;
+            localStorage.setItem('cart', JSON.stringify(cart));
+            loadCart();
+            updateCartBadge();
+        }
+    };
+
+    // Remove item
+    const removeItem = (index) => {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        if (!cart[index]) return;
+        cart.splice(index, 1);
+        localStorage.setItem('cart', JSON.stringify(cart));
+        loadCart();
+        updateCartBadge();
+    };
+
+    // Update cart badge
+    const updateCartBadge = () => {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        const badgeCount = document.querySelector('.badge-count');
+        if (badgeCount) {
+            badgeCount.textContent = totalItems;
+        }
+    };
+
+    // Checkout
+    const checkoutCart = () => {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        if (cart.length === 0) {
+            alert('Giỏ hàng của bạn trống!');
+            return;
+        }
+        if (typeof loadPage === 'function') {
+            loadPage('checkout');
+            return;
+        }
+        alert('Không thể mở trang thanh toán lúc này.');
+    };
+
+    // Initialize
+    loadCart();
+    if (typeof feather !== 'undefined') feather.replace();
+
+    // Expose to global
+    window.loadCart = loadCart;
+    window.changeQuantity = changeQuantity;
+    window.setQuantity = setQuantity;
+    window.removeItem = removeItem;
+    window.updateCartBadge = updateCartBadge;
+    window.checkoutCart = checkoutCart;
+</script>
+
+
+
+

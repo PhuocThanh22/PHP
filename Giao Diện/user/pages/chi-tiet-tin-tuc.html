@@ -1,0 +1,725 @@
+﻿<script>
+(function () {
+  const styles = [
+    { key: "bootstrap.min.css", href: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" },
+    { key: "giao-dien-nguoi-dung.css", href: "../giao-dien-nguoi-dung.css" }
+  ];
+
+  styles.forEach((style) => {
+    if (!document.querySelector(`link[href*="${style.key}"]`)) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = style.href;
+      document.head.appendChild(link);
+    }
+  });
+
+  const renderIcons = () => {
+    if (typeof window.feather !== "undefined") {
+      window.feather.replace();
+    }
+  };
+
+  if (typeof window.feather !== "undefined") {
+    renderIcons();
+  } else if (!document.querySelector('script[src*="feather-icons"]')) {
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/feather-icons";
+    script.defer = true;
+    script.onload = renderIcons;
+    document.head.appendChild(script);
+  }
+})();
+</script>
+
+<style>
+  .news-detail-page {
+    background: radial-gradient(circle at top right, rgba(248, 117, 55, 0.15), transparent 36%), #f7f4ef;
+    padding: 42px 0 90px;
+    min-height: 100vh;
+  }
+
+  .news-detail-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .news-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .news-toolbar-btn {
+    border: 1px solid #d8d8d8;
+    background: #fff;
+    color: #333;
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .news-toolbar-btn:hover {
+    border-color: #f87537;
+    color: #f87537;
+  }
+
+  .news-hero {
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    min-height: 410px;
+    background: #111;
+    box-shadow: 0 24px 48px rgba(35, 35, 35, 0.2);
+  }
+
+  .news-hero-image {
+    width: 100%;
+    height: 100%;
+    min-height: 410px;
+    object-fit: cover;
+  }
+
+  .news-hero-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    background: linear-gradient(180deg, rgba(12, 12, 12, 0.08) 0%, rgba(12, 12, 12, 0.8) 100%);
+    padding: 28px;
+    color: #fff;
+  }
+
+  .news-badge {
+    background: #f87537;
+    color: #fff;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .news-hero-title {
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.22;
+    margin: 14px 0 10px;
+    max-width: 840px;
+  }
+
+  .news-hero-meta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+  }
+
+  .news-layout {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .news-main,
+  .news-side {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 10px 28px rgba(19, 24, 33, 0.08);
+    border: 1px solid #f0ebe5;
+  }
+
+  .news-main {
+    padding: 28px;
+  }
+
+  .news-side {
+    padding: 22px;
+    position: sticky;
+    top: 18px;
+  }
+
+  .news-intro {
+    font-size: 18px;
+    line-height: 1.75;
+    color: #3a3a3a;
+    margin-bottom: 20px;
+  }
+
+  .news-body {
+    color: #545454;
+    font-size: 16px;
+    line-height: 1.88;
+  }
+
+  .news-body h3 {
+    color: #222;
+    margin: 30px 0 12px;
+    font-size: 22px;
+  }
+
+  .news-highlight {
+    margin-top: 24px;
+    border-radius: 14px;
+    background: #fdf4ee;
+    border: 1px solid #f7d9c8;
+    padding: 18px;
+  }
+
+  .news-highlight h4,
+  .news-faq h4,
+  .news-related h3,
+  .news-side h4 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    color: #2a2a2a;
+  }
+
+  .news-highlight ul,
+  .news-tags,
+  .news-faq-list {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  .news-highlight li,
+  .news-faq-list li {
+    margin-bottom: 8px;
+    color: #4f4f4f;
+  }
+
+  .news-side-block {
+    margin-bottom: 22px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .news-side-block:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .news-author-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #222;
+    margin: 8px 0 2px;
+  }
+
+  .news-author-role {
+    color: #777;
+    font-size: 14px;
+  }
+
+  .news-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px dashed #ededed;
+    font-size: 14px;
+  }
+
+  .news-stat:last-child {
+    border-bottom: none;
+  }
+
+  .news-tags {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .news-tags li {
+    background: #f4f4f4;
+    color: #555;
+    font-size: 13px;
+    border-radius: 999px;
+    padding: 6px 10px;
+  }
+
+  .news-related {
+    margin-top: 30px;
+  }
+
+  .news-related-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .news-related-card {
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .news-related-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 18px rgba(10, 10, 10, 0.08);
+  }
+
+  .news-related-image {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+  }
+
+  .news-related-body {
+    padding: 12px;
+  }
+
+  .news-related-date {
+    font-size: 12px;
+    color: #8a8a8a;
+    margin-bottom: 6px;
+  }
+
+  .news-related-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #232323;
+    line-height: 1.45;
+  }
+
+  @media (max-width: 992px) {
+    .news-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .news-side {
+      position: static;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .news-detail-wrap {
+      padding: 0 14px;
+    }
+
+    .news-main,
+    .news-side {
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .news-hero {
+      border-radius: 14px;
+      min-height: 320px;
+    }
+
+    .news-hero-image {
+      min-height: 320px;
+    }
+
+    .news-related-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<section class="news-detail-page">
+  <div class="news-detail-wrap">
+    <div class="news-toolbar">
+      <button class="news-toolbar-btn" onclick="handleBackNavigation()">← Quay lại</button>
+      <button class="news-toolbar-btn" onclick="openHomeInNewTab()">Mở trang chủ ở tab mới</button>
+    </div>
+
+    <article>
+      <div class="news-hero">
+        <img id="article-image" class="news-hero-image" src="https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=1200&h=580&fit=crop" alt="Bài viết">
+        <div class="news-hero-overlay">
+          <div>
+            <span id="article-category" class="news-badge">TIN TỨC</span>
+            <h1 id="article-title" class="news-hero-title">Cách chăm sóc thú cưng trong mùa hè nóng nực</h1>
+            <div class="news-hero-meta">
+              <span id="article-date">24 Tháng 5, 2024</span>
+              <span id="article-read-time">8 phút đọc</span>
+              <span id="article-updated">Cập nhật: 24 Tháng 5, 2024</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="news-layout">
+        <div class="news-main">
+          <p id="article-excerpt" class="news-intro"></p>
+          <div id="article-body" class="news-body"></div>
+
+          <div class="news-highlight">
+            <h4>Điểm chính bạn nên nhớ</h4>
+            <ul id="article-key-points"></ul>
+          </div>
+
+          <div class="news-highlight news-faq" style="margin-top: 16px; background: #f7f9ff; border-color: #dde6ff;">
+            <h4>Câu hỏi thường gặp</h4>
+            <ul id="article-faq" class="news-faq-list"></ul>
+          </div>
+
+          <div class="news-related">
+            <h3>Bài viết liên quan</h3>
+            <div id="related-articles" class="news-related-grid"></div>
+          </div>
+        </div>
+
+        <aside class="news-side">
+          <div class="news-side-block">
+            <h4>Tác giả</h4>
+            <div id="article-author-name" class="news-author-name">Bác sĩ thú y Phương Anh</div>
+            <div id="article-author-role" class="news-author-role">Chuyên gia chăm sóc thú cưng</div>
+          </div>
+
+          <div class="news-side-block">
+            <h4>Thông tin nhanh</h4>
+            <div class="news-stat"><span>Chuyên mục</span><strong id="article-stat-category">Tin tức</strong></div>
+            <div class="news-stat"><span>Thời gian đọc</span><strong id="article-stat-read-time">8 phút</strong></div>
+            <div class="news-stat"><span>Cập nhật</span><strong id="article-stat-updated">24/05/2024</strong></div>
+          </div>
+
+          <div class="news-side-block">
+            <h4>Thẻ nội dung</h4>
+            <ul id="article-tags" class="news-tags"></ul>
+          </div>
+
+          <div class="news-side-block">
+            <h4>Chia sẻ</h4>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="news-toolbar-btn" style="padding: 8px 12px;" onclick="shareArticle('facebook')">Facebook</button>
+              <button class="news-toolbar-btn" style="padding: 8px 12px;" onclick="shareArticle('zalo')">Zalo</button>
+              <button class="news-toolbar-btn" style="padding: 8px 12px;" onclick="shareArticle('copy')">Sao chép link</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </article>
+  </div>
+</section>
+
+<script>
+// Database bài viết
+const articlesData = {
+  1: {
+    title: "Cách chăm sóc thú cưng trong mùa hè nóng nực",
+    category: "Chăm sóc",
+    date: "24 Tháng 5, 2024",
+    updatedAt: "24/05/2024",
+    readTime: "8 phút đọc",
+    author: "Bác sĩ thú y Phương Anh",
+    authorRole: "Chuyên gia chăm sóc thú cưng",
+    excerpt: "Nắng nóng kéo dài dễ làm thú cưng mất nước và kiệt sức. Bài viết giúp bạn thiết lập chế độ sinh hoạt, ăn uống và vận động phù hợp để thú cưng luôn khỏe mạnh trong mùa hè.",
+    tags: ["Mùa hè", "Chó mèo", "Sức khỏe", "Mẹo chăm sóc"],
+    keyPoints: [
+      "Giữ nước sạch luôn sẵn có và thay nước trong ngày.",
+      "Dời lịch vận động sang sáng sớm hoặc chiều mát.",
+      "Làm mát không gian sống bằng quạt, điều hòa hoặc thảm lạnh.",
+      "Theo dõi dấu hiệu sốc nhiệt để xử lý kịp thời."
+    ],
+    faq: [
+      "Thú cưng nên uống bao nhiêu nước mỗi ngày? Tùy cân nặng và mức hoạt động, trung bình 50-60 ml/kg/ngày.",
+      "Có nên cạo trụi lông vào mùa hè không? Không nên cạo quá sát vì lông còn giúp bảo vệ da khỏi ánh nắng trực tiếp."
+    ],
+    image: "https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800&h=400&fit=crop",
+    body: `
+      <p style="margin-bottom: 20px;">
+        Mùa hè là thời gian khó khăn cho các thú cưng của chúng ta. Nhiệt độ cao và độ ẩm lớn có thể ảnh hưởng đến sức khỏe và tinh thần của chúng. Dưới đây là một số cách để giúp thú cưng của bạn an toàn và khỏe mạnh trong mùa hè.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">1. Cung cấp nước đủ</h3>
+      <p style="margin-bottom: 20px;">
+        Luôn đảm bảo thú cưng của bạn có quyền tiếp cận nước sạch, mát. Thay đổi nước thường xuyên để giữ cho nó luôn mát và sạch sẽ. Bạn cũng có thể cung cấp các khối nước đá hoặc bát nước thêm ở những nơi khác nhau trong nhà.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">2. Tránh tập luyện quá sức</h3>
+      <p style="margin-bottom: 20px;">
+        Giảm cường độ tập luyện trong những giờ cao điểm của ngày. Thay vào đó, hãy chơi với thú cưng của bạn vào sáng sớm hoặc buổi tối khi thời tiết mát hơn. Nước bơi cũng là một cách tuyệt vời để thú cưng của bạn vận động mà không bị nóng quá.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">3. Làm mát không gian sống</h3>
+      <p style="margin-bottom: 20px;">
+        Đảm bảo căn phòng của thú cưng mát mẻ với quạt hoặc điều hòa không khí. Tạo một nơi trú ẩn mát mẻ để thú cưng có thể nằm lại khi cảm thấy quá nóng. Một chiếc giường làm lạnh hoặc một tấm thảm làm lạnh có thể giúp rất nhiều.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">4. Chế độ ăn uống phù hợp</h3>
+      <p style="margin-bottom: 20px;">
+        Trong mùa hè, thú cưng có thể mất cảm giác thèm ăn. Hãy cung cấp các bữa ăn nhỏ hơn và thường xuyên hơn, và chọn các loại thức ăn nhẹ và dễ tiêu.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">5. Chăm sóc lông</h3>
+      <p style="margin-bottom: 20px;">
+        Chải lông thường xuyên để giúp thú cưng thông thoáng và mát mẻ hơn. Đối với những thú cưng lông dài, hãy cân nhắc cắt ngắn lông để giảm nhiệt độ cơ thể.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">6. Thêm chế độ bơi</h3>
+      <p style="margin-bottom: 20px;">
+        Nếu thú cưng của bạn thích nước, hãy cho nó bơi thường xuyên. Đây là một cách tuyệt vời để nó giải nhiệt và vận động.
+      </p>
+
+      <p style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f0; color: #888;">
+        Hy vọng những lời khuyên trên sẽ giúp thú cưng của bạn có một mùa hè an toàn và thoải mái. Nếu bạn nhận thấy dấu hiệu mệt mỏi quá mức hoặc bất thường, hãy liên hệ với bác sĩ thú y ngay.
+      </p>
+    `,
+    related: [2, 3]
+  },
+  2: {
+    title: "Dinh dưỡng cân bằng cho thú cưng khỏe mạnh",
+    category: "Dinh dưỡng",
+    date: "24 Tháng 5, 2024",
+    updatedAt: "24/05/2024",
+    readTime: "7 phút đọc",
+    author: "ThS. Nguyễn Minh Nhật",
+    authorRole: "Chuyên gia dinh dưỡng thú cưng",
+    excerpt: "Một thực đơn khoa học giúp thú cưng duy trì cân nặng, tăng đề kháng và hạn chế bệnh lý mạn tính. Khám phá các nguyên tắc xây dựng bữa ăn cân bằng cho thú cưng.",
+    tags: ["Dinh dưỡng", "Thức ăn", "Sức đề kháng"],
+    keyPoints: [
+      "Chọn thức ăn có nguồn đạm chất lượng và thành phần rõ ràng.",
+      "Canh khẩu phần theo cân nặng và độ tuổi để tránh béo phì.",
+      "Kết hợp thức ăn khô và ướt để cân bằng dinh dưỡng."
+    ],
+    faq: [
+      "Có cần đổi thức ăn thường xuyên không? Chỉ đổi khi cần và nên chuyển dần trong 5-7 ngày.",
+      "Thú cưng bỏ ăn 1 bữa có nguy hiểm không? Nếu kéo dài hơn 24 giờ nên đưa đi khám."
+    ],
+    image: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=800&h=400&fit=crop",
+    body: `
+      <p style="margin-bottom: 20px;">
+        Dinh dưỡng là yếu tố quan trọng nhất để đảm bảo sức khỏe tối ưu cho thú cưng của bạn. Một chế độ ăn uống cân bằng sẽ giúp thú cưng luôn khỏe mạnh, năng động và sống lâu.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">1. Hiểu nhu cầu dinh dưỡng của thú cưng</h3>
+      <p style="margin-bottom: 20px;">
+        Mỗi loại thú cưng có nhu cầu dinh dưỡng khác nhau. Chó cần protein, chất béo, carbohydrate và các vitamin cần thiết. Mèo cần arginine, taurine và nhiều thực phẩm giàu protein.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">2. Chọn thực phẩm chất lượng cao</h3>
+      <p style="margin-bottom: 20px;">
+        Lựa chọn thực phẩm cho thú cưng được làm từ nguyên liệu tự nhiên, không chứa chất bảo quản nhân tạo. Tìm những sản phẩm được xác nhận bởi các tổ chức thú y uy tín.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">3. Kích thước phần ăn phù hợp</h3>
+      <p style="margin-bottom: 20px;">
+        Quá ăn là nguyên nhân chính gây béo phì ở thú cưng. Hãy kiểm tra hướng dẫn trên bao thực phẩm hoặc tư vấn từ bác sĩ thú y để xác định lượng thức ăn phù hợp.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">4. Cân bằng giữa thực phẩm khô và ướt</h3>
+      <p style="margin-bottom: 20px;">
+        Kết hợp thực phẩm khô và ướt để cung cấp dinh dưỡng đa dạng và giúp thú cưng có nước uống đủ. Thực phẩm ướt đặc biệt tốt cho những con vật không uống nhiều nước.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">5. Tránh các thực phẩm có độc</h3>
+      <p style="margin-bottom: 20px;">
+        Một số thực phẩm như socola, nho, hành tây có thể gây độc cho thú cưng. Luôn kiểm tra trước khi cho thú cưng ăn bất cứ thứ gì mới.
+      </p>
+
+      <p style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f0; color: #888;">
+        Đầu tư vào dinh dưỡng tốt cho thú cưng của bạn là đầu tư cho sức khỏe và hạnh phúc lâu dài của chúng.
+      </p>
+    `,
+    related: [1, 3]
+  },
+  3: {
+    title: "Hướng dẫn huấn luyện thú cưng cơ bản cho người mới",
+    category: "Huấn luyện",
+    date: "24 Tháng 5, 2024",
+    updatedAt: "24/05/2024",
+    readTime: "9 phút đọc",
+    author: "HLV Trần Quốc Bảo",
+    authorRole: "Huấn luyện viên hành vi thú cưng",
+    excerpt: "Huấn luyện đúng cách giúp thú cưng ngoan ngoãn hơn và giảm stress cho cả chủ nuôi. Bắt đầu với các kỹ thuật cơ bản, dễ áp dụng tại nhà.",
+    tags: ["Huấn luyện", "Hành vi", "Kỹ năng cơ bản"],
+    keyPoints: [
+      "Dạy lệnh ngắn, rõ ràng và lặp lại nhất quán.",
+      "Ưu tiên thưởng tích cực để tạo động lực học.",
+      "Giữ buổi huấn luyện ngắn nhưng đều đặn mỗi ngày."
+    ],
+    faq: [
+      "Bao lâu thì thú cưng học được lệnh cơ bản? Thường từ 2-4 tuần nếu luyện đều.",
+      "Có nên phạt khi thú cưng không nghe lời? Không nên, hãy điều chỉnh phương pháp và tăng thưởng đúng lúc."
+    ],
+    image: "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=800&h=400&fit=crop",
+    body: `
+      <p style="margin-bottom: 20px;">
+        Huấn luyện thú cưng không chỉ giúp chúng trở nên vâng lời mà còn cung cấp kích thích tinh thần và xây dựng mối quan hệ tuyệt vời giữa bạn và thú cưng.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">1. Bắt đầu sớm</h3>
+      <p style="margin-bottom: 20px;">
+        Càng sớm huấn luyện thú cưng càng tốt. Những con vật trẻ dễ học hỏi hơn. Hãy bắt đầu với những lệnh đơn giản như ngồi, nằm, tới đây.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">2. Sử dụng phương pháp tích cực</h3>
+      <p style="margin-bottom: 20px;">
+        Luôn sử dụng phương pháp khen thưởng thay vì phạt. Thú cưng sẽ học nhanh hơn khi được khen ngợi và thưởng cho hành vi tốt.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">3. Tính nhất quán</h3>
+      <p style="margin-bottom: 20px;">
+        Hãy nhất quán trong việc huấn luyện. Sử dụng cùng một từ lệnh, tín hiệu, và phương pháp tương tự. Điều này giúp thú cưng hiểu rõ hơn những gì được mong đợi.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">4. Thời gian huấn luyện ngắn</h3>
+      <p style="margin-bottom: 20px;">
+        Giữ các buổi huấn luyện ngắn (5-10 phút) để tránh thú cưng bị mệt mỏi hoặc mất tập trung. Thực hiện nhiều buổi ngắn hơn là tốt hơn một buổi dài.
+      </p>
+
+      <h3 style="font-size: 20px; margin: 30px 0 15px;">5. Kiên nhẫn và yêu thương</h3>
+      <p style="margin-bottom: 20px;">
+        Mỗi thú cưng có tốc độ học khác nhau. Hãy kiên nhẫn, yêu thương và chúc mừng từng tiến bộ nhỏ. Huấn luyện là một quá trình, không phải một cuộc đua.
+      </p>
+
+      <p style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f0; color: #888;">
+        Huấn luyện thú cưng là một cách tuyệt vời để xây dựng mối quan hệ mạnh mẽ và đảm bảo thú cưng của bạn trở thành một thành viên tốt của cộng đồng.
+      </p>
+    `,
+    related: [1, 2]
+  }
+};
+
+// Hàm cập nhật nội dung bài viết
+function updateArticleContent(articleId) {
+  const article = articlesData[articleId];
+  if (!article) return;
+
+  // Cập nhật tiêu đề, ngày, và hình ảnh
+  document.getElementById('article-title').textContent = article.title;
+  document.getElementById('article-date').textContent = article.date;
+  document.getElementById('article-image').src = article.image.replace('w=800&h=400', 'w=1200&h=580');
+  document.getElementById('article-image').alt = article.title;
+  document.getElementById('article-category').textContent = article.category.toUpperCase();
+  document.getElementById('article-read-time').textContent = article.readTime;
+  document.getElementById('article-updated').textContent = `Cập nhật: ${article.updatedAt}`;
+  document.getElementById('article-excerpt').textContent = article.excerpt;
+  document.getElementById('article-author-name').textContent = article.author;
+  document.getElementById('article-author-role').textContent = article.authorRole;
+
+  document.getElementById('article-stat-category').textContent = article.category;
+  document.getElementById('article-stat-read-time').textContent = article.readTime;
+  document.getElementById('article-stat-updated').textContent = article.updatedAt;
+  
+  // Cập nhật nội dung
+  document.getElementById('article-body').innerHTML = article.body;
+
+  const tagsContainer = document.getElementById('article-tags');
+  tagsContainer.innerHTML = article.tags.map((tag) => `<li>#${tag}</li>`).join('');
+
+  const keyPointsContainer = document.getElementById('article-key-points');
+  keyPointsContainer.innerHTML = article.keyPoints.map((point) => `<li>${point}</li>`).join('');
+
+  const faqContainer = document.getElementById('article-faq');
+  faqContainer.innerHTML = article.faq.map((item) => `<li>${item}</li>`).join('');
+
+  // Cập nhật bài viết liên quan
+  const relatedContainer = document.getElementById('related-articles');
+  relatedContainer.innerHTML = '';
+  
+  article.related.forEach(relatedId => {
+    const relatedArticle = articlesData[relatedId];
+    const relatedHtml = `
+      <div class="news-related-card" onclick="openArticle(${relatedId})">
+        <img class="news-related-image" src="${relatedArticle.image.replace('w=800&h=400', 'w=450&h=260')}" alt="${relatedArticle.title}">
+        <div class="news-related-body">
+          <p class="news-related-date">${relatedArticle.date}</p>
+          <p class="news-related-title">${relatedArticle.title}</p>
+        </div>
+      </div>
+    `;
+    relatedContainer.innerHTML += relatedHtml;
+  });
+
+  window.currentNewsArticleId = articleId;
+  document.title = `${article.title} | Pet Shop`;
+  const nextUrl = `${window.location.pathname}?article=${articleId}`;
+  window.history.replaceState({ articleId }, '', nextUrl);
+}
+
+function openArticle(articleId) {
+  const parsedId = Number.parseInt(articleId, 10);
+  const normalizedId = Number.isFinite(parsedId) ? parsedId : 1;
+  updateArticleContent(normalizedId);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function shareArticle(platform) {
+  const articleId = window.currentNewsArticleId || 1;
+  const shareUrl = `${window.location.origin}${window.location.pathname}?article=${articleId}`;
+
+  if (platform === 'copy') {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      alert('Đã sao chép liên kết bài viết');
+    });
+    return;
+  }
+
+  alert(`Tính năng chia sẻ ${platform} sẽ được kết nối API sau. Link: ${shareUrl}`);
+}
+
+function handleBackNavigation() {
+  if (window.history.length > 1) {
+    window.history.back();
+    return;
+  }
+
+  if (window.opener && !window.opener.closed) {
+    window.close();
+    return;
+  }
+
+  window.location.href = '../home.html';
+}
+
+function openHomeInNewTab() {
+  window.open('../home.html', '_blank', 'noopener,noreferrer');
+}
+
+const getCurrentArticleId = () => {
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = Number.parseInt(params.get('article'), 10);
+  if (Number.isFinite(fromQuery) && articlesData[fromQuery]) {
+    return fromQuery;
+  }
+
+  const fromGlobal = Number.parseInt(window.currentNewsArticleId, 10);
+  if (Number.isFinite(fromGlobal) && articlesData[fromGlobal]) {
+    return fromGlobal;
+  }
+
+  const contentDiv = document.getElementById('content');
+  if (contentDiv) {
+    const fromContent = Number.parseInt(contentDiv.getAttribute('data-article-id'), 10);
+    if (Number.isFinite(fromContent) && articlesData[fromContent]) {
+      return fromContent;
+    }
+  }
+
+  return 1;
+};
+
+const initArticleModule = () => {
+  const articleId = getCurrentArticleId();
+  updateArticleContent(articleId);
+
+  const contentDiv = document.getElementById('content');
+  if (contentDiv) {
+    contentDiv.setAttribute('data-article-id', String(articleId));
+  }
+};
+
+initArticleModule();
+</script>
+
+
