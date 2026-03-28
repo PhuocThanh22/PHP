@@ -1,0 +1,607 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dịch Vụ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="staff-style.css">
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="top-header d-flex justify-content-between align-items-center">
+            <h2>Quản Lý Dịch Vụ</h2>
+            <div class="service-toolbar">
+                <div class="service-search">
+                    <i class="bi bi-search"></i>
+                    <input id="serviceSearchInput" type="text" placeholder="Tìm theo tên hoặc mã dịch vụ..." aria-label="Tìm dịch vụ">
+                </div>
+                <div class="service-toolbar-actions">
+                </div>
+            </div>
+        </div>
+
+        <div class="service-grid" id="serviceGrid">
+            <div class="service-card"><div class="service-title">Đang tải dữ liệu dịch vụ...</div></div>
+        </div>
+    </div>
+
+    <div class="service-modal" id="serviceEditModal" aria-hidden="true">
+        <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="serviceEditTitle">
+            <div class="service-modal-header">
+                <h3 class="service-modal-title" id="serviceEditTitle">Chỉnh sửa dịch vụ</h3>
+                <button type="button" class="service-modal-close" id="closeServiceModal" aria-label="Đóng">&times;</button>
+            </div>
+
+            <form id="serviceEditForm">
+                <div class="service-modal-body">
+                    <input type="hidden" id="editServiceId">
+
+                    <div class="service-form-group full">
+                        <label for="editServiceName">Tên dịch vụ</label>
+                        <input class="service-form-control" id="editServiceName" type="text" required>
+                    </div>
+
+                    <div class="service-form-group">
+                        <label for="editServicePrice">Giá dịch vụ (VND)</label>
+                        <input class="service-form-control" id="editServicePrice" type="number" min="0" step="1000" required>
+                    </div>
+
+                    <div class="service-form-group">
+                        <label for="editServiceDuration">Thời gian (phút)</label>
+                        <input class="service-form-control" id="editServiceDuration" type="number" min="1" required>
+                    </div>
+
+                    <div class="service-form-group">
+                        <label for="editServiceStatus">Trạng thái</label>
+                        <select class="service-form-control" id="editServiceStatus" required>
+                            <option value="hoatdong">Hoạt động</option>
+                            <option value="khonghoatdong">Ngừng hoạt động</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="service-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="cancelServiceModal">Hủy</button>
+                    <button type="submit" class="btn btn-warning text-white" id="saveServiceBtn">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const serviceStore = new Map();
+        let allServices = [];
+        let currentFilter = '';
+        let editMode = 'update';
+        const STAFF_CAN_CREATE = false;
+        const STAFF_CAN_UPDATE = false;
+        const STAFF_CAN_DELETE = false;
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatCurrencyVND(value) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
+        }
+
+        function getErrorMessage(error) {
+            if (!error) return 'Lỗi không xác định';
+            if (typeof error === 'string') return error;
+            if (error.message) return error.message;
+            return 'Lỗi không xác định';
+        }
+
+        let noticeTimer = null;
+
+        function getNoticeTitle(type) {
+            if (type === 'error') return 'Thông báo lỗi';
+            if (type === 'warning') return 'Thông báo';
+            return 'Chúc mừng';
+        }
+
+        function getNoticeRestoreModalId() {
+            return '';
+        }
+
+        function ensureNoticeModal() {
+            let modal = document.getElementById('globalNoticeModal');
+            if (modal) return modal;
+
+            modal = document.createElement('div');
+            modal.id = 'globalNoticeModal';
+            modal.className = 'service-modal';
+            modal.setAttribute('aria-hidden', 'true');
+            modal.innerHTML = `
+                <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
+                    <div class="service-modal-header">
+                        <h3 class="service-modal-title" id="noticeModalTitle">Thông báo</h3>
+                        <button type="button" class="service-modal-close" id="noticeModalCloseBtn" aria-label="Dong">&times;</button>
+                    </div>
+                    <div class="service-modal-body">
+                        <div id="noticeModalMessage" style="text-align:center; font-size:16px; font-weight:500;"></div>
+                    </div>
+                    <div class="service-modal-footer">
+                        <button type="button" class="btn btn-warning text-white" id="noticeModalOkBtn">Đóng</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (event) => {
+                if (event.target.id === 'globalNoticeModal') closeNotice();
+            });
+            modal.querySelector('#noticeModalCloseBtn')?.addEventListener('click', closeNotice);
+            modal.querySelector('#noticeModalOkBtn')?.addEventListener('click', closeNotice);
+
+            return modal;
+        }
+
+        function isNoticeVisible() {
+            const modal = document.getElementById('globalNoticeModal');
+            return Boolean(modal && modal.classList.contains('show'));
+        }
+
+        function closeNotice() {
+            const modal = document.getElementById('globalNoticeModal');
+            if (!modal) return;
+
+            if (noticeTimer) {
+                window.clearTimeout(noticeTimer);
+                noticeTimer = null;
+            }
+
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+
+            const restoreId = modal.dataset.restoreModalId || '';
+            if (restoreId) {
+                const restoreModal = document.getElementById(restoreId);
+                if (restoreModal && !restoreModal.classList.contains('show')) {
+                    restoreModal.classList.add('show');
+                    restoreModal.setAttribute('aria-hidden', 'false');
+                }
+            }
+            modal.dataset.restoreModalId = '';
+        }
+
+        function showNotice(message, type = 'success') {
+            const modal = ensureNoticeModal();
+            const titleEl = modal.querySelector('#noticeModalTitle');
+            const messageEl = modal.querySelector('#noticeModalMessage');
+
+            const restoreId = getNoticeRestoreModalId();
+            if (restoreId) {
+                const restoreModal = document.getElementById(restoreId);
+                restoreModal?.classList.remove('show');
+                restoreModal?.setAttribute('aria-hidden', 'true');
+            }
+            modal.dataset.restoreModalId = restoreId;
+
+            if (titleEl) titleEl.textContent = getNoticeTitle(type);
+            if (messageEl) messageEl.textContent = String(message || '');
+
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+
+            if (noticeTimer) window.clearTimeout(noticeTimer);
+            noticeTimer = window.setTimeout(closeNotice, 2500);
+        }
+
+        async function parseFailedResponse(response, fallbackMessage) {
+            let errorMessage = fallbackMessage || ('HTTP ' + response.status);
+            try {
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const body = await response.json();
+                    errorMessage = body.message || body.error || errorMessage;
+                } else {
+                    const raw = (await response.text() || '').trim();
+                    if (raw) errorMessage = raw;
+                }
+            } catch (_) {
+                // Keep fallback message when body parsing fails.
+            }
+            return new Error(errorMessage);
+        }
+
+        function getServiceVisual(serviceName) {
+            const name = String(serviceName || '').toLowerCase();
+            if (name.includes('cắt') || name.includes('tỉa') || name.includes('groom')) return { typeClass: 'type-grooming', icon: 'bi-scissors' };
+            if (name.includes('khám') || name.includes('tiêm') || name.includes('xét nghiệm') || name.includes('cấp cứu')) return { typeClass: 'type-health', icon: 'bi-heart-pulse' };
+            if (name.includes('tắm') || name.includes('vệ sinh') || name.includes('khử mùi')) return { typeClass: 'type-cleaning', icon: 'bi-droplet-half' };
+            if (name.includes('huấn luyện')) return { typeClass: 'type-training', icon: 'bi-mortarboard' };
+            if (name.includes('lưu chuồng') || name.includes('trông giữ') || name.includes('vận chuyển')) return { typeClass: 'type-boarding', icon: 'bi-house-heart' };
+            return { typeClass: 'type-other', icon: 'bi-stars' };
+        }
+
+        function getFilteredServices(list, keyword) {
+            const key = String(keyword || '').trim().toLowerCase();
+            if (!key) return list;
+            return list.filter((row) => {
+                const name = String(row.tendichvu || '').toLowerCase();
+                const idText = String(row.id || '').toLowerCase();
+                return name.includes(key) || idText.includes(key);
+            });
+        }
+
+        function renderServices(rows) {
+            const grid = document.getElementById('serviceGrid');
+            if (!grid) return;
+
+            if (!rows.length) {
+                grid.innerHTML = '<div class="service-card"><div class="service-title">Không tìm thấy dịch vụ phù hợp.</div></div>';
+                return;
+            }
+
+            grid.innerHTML = rows.map((row) => {
+                const visual = getServiceVisual(row.tendichvu);
+                const isActive = row.trangthaidichvu === 'hoatdong';
+                const statusClass = isActive ? 'service-state-btn' : 'service-state-btn inactive';
+                const statusText = isActive ? 'Hoạt động' : 'Ngừng hoạt động';
+                const activeClass = isActive ? 'is-active' : 'is-inactive';
+                const createdAt = row.ngaytaodichvu ? new Date(row.ngaytaodichvu).toLocaleDateString('vi-VN') : 'N/A';
+
+                return `
+                    <div class="service-card ${visual.typeClass} ${activeClass}" data-service-id="${row.id}">
+                        <div class="service-card-header">
+                            <div class="service-title"><span class="service-title-icon"><i class="bi ${visual.icon}"></i></span><span class="js-service-name">${escapeHtml(row.tendichvu)}</span></div>
+                        </div>
+                        <div class="service-meta">
+                            <div><i class="bi bi-hash"></i> Mã dịch vụ: ${row.id}</div>
+                            <div><i class="bi bi-cash-stack"></i> Giá: <span class="js-service-price">${formatCurrencyVND(row.giadichvu)}</span></div>
+                            <div><i class="bi bi-clock"></i> Thời gian: <span class="js-service-duration">${row.thoigiandichvu}</span> phút</div>
+                            <div><i class="bi bi-calendar3"></i> Ngày tạo: ${createdAt}</div>
+                        </div>
+                        <div class="service-actions">
+                            <span class="${statusClass} js-service-status">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderByCurrentFilter() {
+            const filtered = getFilteredServices(allServices, currentFilter);
+            renderServices(filtered);
+        }
+
+        function getServiceApiCandidates() {
+            const candidates = [];
+
+            const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+            candidates.push(`${protocol}//127.0.0.1/PHP/index.php?api=get_services`);
+            candidates.push(`${protocol}//localhost/PHP/index.php?api=get_services`);
+
+            // Most reliable candidate: resolve from the current iframe URL.
+            candidates.push(new URL('../../index.php?api=get_services', window.location.href).toString());
+
+            const marker = '/admin/';
+            const pathname = window.location.pathname || '';
+            const markerIndex = pathname.lastIndexOf(marker);
+            if (markerIndex >= 0) {
+                const beforeAdmin = pathname.slice(0, markerIndex);
+                const giaoDienIndex = beforeAdmin.lastIndexOf('/Giao');
+                const detectedBase = giaoDienIndex >= 0 ? beforeAdmin.slice(0, giaoDienIndex) : beforeAdmin;
+                if (detectedBase) candidates.push(`${detectedBase}/index.php?api=get_services`);
+            }
+
+            candidates.push('/PHP/index.php?api=get_services');
+            candidates.push('/index.php?api=get_services');
+
+            return Array.from(new Set(candidates));
+        }
+
+        async function fetchServicesPayload() {
+            const candidates = getServiceApiCandidates();
+            const cacheBuster = `_t=${Date.now()}`;
+            let lastError = new Error('Khong lay duoc du lieu dich vu');
+            const attempts = [];
+
+            for (const candidate of candidates) {
+                const separator = candidate.includes('?') ? '&' : '?';
+                const url = `${candidate}${separator}${cacheBuster}`;
+
+                try {
+                    const response = await fetch(url, { cache: 'no-store' });
+                    if (!response.ok) {
+                        lastError = new Error('HTTP ' + response.status);
+                        attempts.push(`${url} -> HTTP ${response.status}`);
+                        continue;
+                    }
+
+                    const payload = await response.json();
+                    if (!payload.ok) {
+                        lastError = new Error(payload.message || 'Khong lay duoc du lieu dich vu');
+                        attempts.push(`${url} -> API ${payload.message || 'ok=false'}`);
+                        continue;
+                    }
+
+                    payload.__debugApiUrl = url;
+                    return payload;
+                } catch (error) {
+                    lastError = error;
+                    attempts.push(`${url} -> ${error.message}`);
+                }
+            }
+
+            const detail = attempts.length ? attempts.join(' | ') : 'Khong co attempt';
+            throw new Error(`${lastError.message} | Attempts: ${detail}`);
+        }
+
+        async function mutateService(action, payload = {}) {
+            const candidates = getServiceApiCandidates();
+            let lastError = new Error('Khong the xu ly dich vu');
+
+            for (const candidate of candidates) {
+                const separator = candidate.includes('?') ? '&' : '?';
+                const url = `${candidate}${separator}_t=${Date.now()}`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ entity: 'services', action, ...payload }),
+                    });
+
+                    if (!response.ok) {
+                        lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                        continue;
+                    }
+
+                    const data = await response.json();
+                    if (!data.ok) {
+                        lastError = new Error(data.message || 'API ok=false');
+                        continue;
+                    }
+
+                    return data;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            throw lastError;
+        }
+
+        async function loadServices(forceReload = false) {
+            const grid = document.getElementById('serviceGrid');
+            if (!grid) return;
+            if (grid.dataset.loaded === '1' && !forceReload) return;
+
+            serviceStore.clear();
+
+            grid.innerHTML = '<div class="service-card"><div class="service-title">Đang tải dữ liệu dịch vụ...</div></div>';
+
+            try {
+                const payload = await fetchServicesPayload();
+
+                const rows = Array.isArray(payload.data) ? payload.data : [];
+                if (!rows.length) {
+                    grid.innerHTML = '<div class="service-card"><div class="service-title">Chưa có dữ liệu dịch vụ.</div></div>';
+                    return;
+                }
+
+                allServices = rows.map((row) => ({ ...row }));
+                allServices.forEach((row) => serviceStore.set(String(row.id), row));
+                renderByCurrentFilter();
+
+                grid.dataset.loaded = '1';
+            } catch (error) {
+                grid.innerHTML = `<div class="service-card"><div class="service-title text-danger">Không tải được dữ liệu dịch vụ</div><div class="service-meta"><div>${escapeHtml(error.message)}</div></div></div>`;
+            }
+        }
+
+        function openAddServiceModal() {
+            if (!STAFF_CAN_CREATE) {
+                showNotice('Tai khoan staff khong co quyen them dich vu.', 'warning');
+                return;
+            }
+
+            editMode = 'create';
+            document.getElementById('serviceEditTitle').textContent = 'Thêm dịch vụ mới';
+            document.getElementById('saveServiceBtn').textContent = 'Thêm mới';
+            document.getElementById('editServiceId').value = '';
+            document.getElementById('editServiceName').value = '';
+            document.getElementById('editServicePrice').value = 0;
+            document.getElementById('editServiceDuration').value = 30;
+            document.getElementById('editServiceStatus').value = 'hoatdong';
+            openServiceModal();
+        }
+
+        async function deleteServiceBySearch() {
+            if (!STAFF_CAN_DELETE) {
+                showNotice('Tai khoan staff khong co quyen xoa dich vu.', 'warning');
+                return;
+            }
+
+            const keyword = String(document.getElementById('serviceSearchInput')?.value || '').trim().toLowerCase();
+            if (!keyword) {
+                showNotice('Nhập mã hoặc tên dịch vụ cần xóa trong ô tìm kiếm.', 'warning');
+                return;
+            }
+
+            const target = getFilteredServices(allServices, keyword)[0];
+            if (!target) {
+                showNotice('Không tìm thấy dịch vụ để xóa.', 'warning');
+                return;
+            }
+
+            const ok = confirm(`Bạn có chắc muốn xóa dịch vụ "${target.tendichvu}" (ID: ${target.id})?`);
+            if (!ok) return;
+
+            try {
+                await mutateService('delete', { id: target.id });
+                allServices = allServices.filter((item) => String(item.id) !== String(target.id));
+                serviceStore.delete(String(target.id));
+                renderByCurrentFilter();
+                showNotice(`Xóa dịch vụ "${target.tendichvu}" thành công.`, 'success');
+            } catch (error) {
+                showNotice('Xóa dịch vụ thất bại: ' + getErrorMessage(error), 'error');
+            }
+        }
+
+        function editService(serviceId) {
+            if (!STAFF_CAN_UPDATE) {
+                showNotice('Tai khoan staff khong co quyen chinh sua dich vu.', 'warning');
+                return;
+            }
+
+            const key = String(serviceId);
+            const service = serviceStore.get(key);
+            if (!service) return;
+
+            editMode = 'update';
+            document.getElementById('serviceEditTitle').textContent = 'Chỉnh sửa dịch vụ';
+            document.getElementById('saveServiceBtn').textContent = 'Lưu thay đổi';
+
+            document.getElementById('editServiceId').value = service.id;
+            document.getElementById('editServiceName').value = service.tendichvu || '';
+            document.getElementById('editServicePrice').value = Number(service.giadichvu || 0);
+            document.getElementById('editServiceDuration').value = Number(service.thoigiandichvu || 0);
+            document.getElementById('editServiceStatus').value = service.trangthaidichvu === 'hoatdong' ? 'hoatdong' : 'khonghoatdong';
+
+            openServiceModal();
+        }
+
+        function openServiceModal() {
+            const modal = document.getElementById('serviceEditModal');
+            if (!modal) return;
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeServiceModal() {
+            const modal = document.getElementById('serviceEditModal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function applyServiceToCard(service) {
+            const card = document.querySelector(`[data-service-id="${service.id}"]`);
+            if (!card) return;
+
+            const visual = getServiceVisual(service.tendichvu);
+            card.classList.remove('type-grooming', 'type-health', 'type-cleaning', 'type-training', 'type-boarding', 'type-other');
+            card.classList.add(visual.typeClass);
+
+            const iconEl = card.querySelector('.service-title-icon i');
+            if (iconEl) iconEl.className = `bi ${visual.icon}`;
+
+            const nameEl = card.querySelector('.js-service-name');
+            if (nameEl) nameEl.textContent = service.tendichvu;
+
+            const priceEl = card.querySelector('.js-service-price');
+            if (priceEl) priceEl.textContent = formatCurrencyVND(service.giadichvu);
+
+            const durationEl = card.querySelector('.js-service-duration');
+            if (durationEl) durationEl.textContent = service.thoigiandichvu;
+
+            const statusEl = card.querySelector('.js-service-status');
+            if (statusEl) {
+                const active = service.trangthaidichvu === 'hoatdong';
+                statusEl.textContent = active ? 'Hoạt động' : 'Ngừng hoạt động';
+                statusEl.className = active ? 'service-state-btn js-service-status' : 'service-state-btn inactive js-service-status';
+                card.classList.toggle('is-active', active);
+                card.classList.toggle('is-inactive', !active);
+            }
+        }
+
+        document.getElementById('closeServiceModal').addEventListener('click', closeServiceModal);
+        document.getElementById('cancelServiceModal').addEventListener('click', closeServiceModal);
+
+        document.getElementById('serviceEditModal').addEventListener('click', (event) => {
+            if (event.target.id === 'serviceEditModal') closeServiceModal();
+        });
+
+        document.getElementById('serviceEditForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const rawId = document.getElementById('editServiceId').value;
+            const name = document.getElementById('editServiceName').value.trim();
+            const price = Number(document.getElementById('editServicePrice').value || 0);
+            const duration = Number(document.getElementById('editServiceDuration').value || 0);
+            const status = document.getElementById('editServiceStatus').value;
+
+            if (!name) return;
+
+            if (editMode === 'create' && !STAFF_CAN_CREATE) {
+                showNotice('Tai khoan staff khong co quyen them dich vu.', 'warning');
+                return;
+            }
+
+            if (editMode === 'update' && !STAFF_CAN_UPDATE) {
+                showNotice('Tai khoan staff khong co quyen chinh sua dich vu.', 'warning');
+                return;
+            }
+
+            try {
+                if (editMode === 'create') {
+                    const res = await mutateService('create', {
+                        tendichvu: name,
+                        giadichvu: price,
+                        thoigiandichvu: duration,
+                        trangthaidichvu: status,
+                    });
+
+                    const created = res.data || {};
+                    allServices.unshift(created);
+                    serviceStore.set(String(created.id), created);
+                    renderByCurrentFilter();
+                    showNotice(`Thêm dịch vụ "${created.tendichvu || name}" thành công.`, 'success');
+                } else {
+                    const id = String(rawId);
+                    const res = await mutateService('update', {
+                        id: Number(rawId),
+                        tendichvu: name,
+                        giadichvu: price,
+                        thoigiandichvu: duration,
+                        trangthaidichvu: status,
+                    });
+
+                    const updated = res.data || {};
+                    serviceStore.set(id, updated);
+                    allServices = allServices.map((item) => String(item.id) === id ? updated : item);
+                    applyServiceToCard(updated);
+                    showNotice(`Cập nhật dịch vụ "${updated.tendichvu || name}" thành công.`, 'success');
+                }
+
+                closeServiceModal();
+            } catch (error) {
+                showNotice('Lưu dịch vụ thất bại: ' + getErrorMessage(error), 'error');
+            }
+        });
+
+        document.getElementById('serviceSearchInput').addEventListener('input', (event) => {
+            currentFilter = event.target.value || '';
+            renderByCurrentFilter();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                if (isNoticeVisible()) {
+                    closeNotice();
+                    return;
+                }
+                closeServiceModal();
+            }
+        });
+
+        document.documentElement.classList.add('hide-scrollbar');
+        document.body.classList.add('hide-scrollbar');
+
+        loadServices();
+    </script>
+</body>
+</html>
+
+

@@ -1,4 +1,4 @@
-﻿<script>
+﻿﻿<script>
 (function () {
     const styles = [
         { key: "bootstrap.min.css", href: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" },
@@ -37,7 +37,7 @@
     <div class="container-fluid px-5">
         <!-- Header -->
         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 50px;">
-            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                 <i data-feather="search" style="width: 28px; height: 28px; color: white;"></i>
             </div>
             <div>
@@ -55,15 +55,15 @@
                     placeholder="Nhập tên sản phẩm..." 
                     style="flex: 1; padding: 14px 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: all 0.3s ease;" 
                     onkeyup="handleSearchKeyPress(event)"
-                    onfocus="this.style.borderColor='#F87537'; this.style.boxShadow='0 0 0 3px rgba(248, 117, 55, 0.1)'"
+                    onfocus="this.style.borderColor='#1F8F4D'; this.style.boxShadow='0 0 0 3px rgba(31, 143, 77, 0.1)'"
                     onblur="this.style.borderColor='#ddd'; this.style.boxShadow='none'"
                 >
                 <button 
                     id="searchBtn" 
                     onclick="performSearch()"
-                    style="padding: 14px 30px; background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(248, 117, 55, 0.3);"
-                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(248, 117, 55, 0.4)'"
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(248, 117, 55, 0.3)'"
+                    style="padding: 14px 30px; background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(31, 143, 77, 0.3);"
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(31, 143, 77, 0.4)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(31, 143, 77, 0.3)'"
                 >
                     <i data-feather="search" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
                     Tìm Kiếm
@@ -79,7 +79,7 @@
             <i data-feather="inbox" style="width: 80px; height: 80px; color: #ddd; margin-bottom: 20px;"></i>
             <h2 style="font-size: 24px; color: #333; margin-bottom: 15px; font-weight: 600;">Không tìm thấy sản phẩm</h2>
             <p style="color: #999; font-size: 15px; margin-bottom: 30px;">Vui lòng thử từ khóa khác hoặc xem tất cả sản phẩm</p>
-            <button onclick="clearSearch()" style="background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            <button onclick="clearSearch()" style="background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                 Xóa Tìm Kiếm
             </button>
         </div>
@@ -177,7 +177,7 @@
                 <!-- Product Image -->
                 <div style="position: relative; overflow: hidden; height: 280px; background: #f8f9fa;">
                     <img src="${product.image}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-                    <span style="position: absolute; top: 12px; right: 12px; background: #F87537; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">${product.category}</span>
+                    <span style="position: absolute; top: 12px; right: 12px; background: #1F8F4D; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">${product.category}</span>
                 </div>
 
                 <!-- Product Info -->
@@ -186,7 +186,7 @@
                     
                     <!-- Price -->
                     <div style="margin-bottom: 15px; margin-top: auto;">
-                        <p style="color: #F87537; font-size: 22px; font-weight: 700; margin: 0;">${product.price}</p>
+                        <p style="color: #1F8F4D; font-size: 22px; font-weight: 700; margin: 0;">${product.price}</p>
                     </div>
 
                     <!-- Add to Cart Button -->

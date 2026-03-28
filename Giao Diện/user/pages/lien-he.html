@@ -1,4 +1,4 @@
-﻿<script>
+﻿﻿<script>
 (function () {
   const styles = [
     { key: "bootstrap.min.css", href: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" },
@@ -32,121 +32,405 @@
 })();
 </script>
 
-<section class="featured" style="padding-top: 50px; padding-bottom: 100px;">
-  <div class="container-fluid px-5">
-    <p style="text-align: center; margin: 0 0 14px 0; color: #f87537; font-size: 24px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">
-      🏠 Liên hệ
-    </p>
+<style>
+  .contact-v2 {
+    --cv2-primary: #1f8f4d;
+    --cv2-primary-soft: rgba(31, 143, 77, 0.14);
+    --cv2-accent: #1d9bf0;
+    --cv2-text: #111827;
+    --cv2-muted: #64748b;
+    --cv2-border: #e8ebf1;
+    --cv2-bg: #f7f8fb;
+    padding: 36px 0 72px;
+    background:
+      radial-gradient(circle at 10% 10%, rgba(31, 143, 77, 0.1), transparent 32%),
+      radial-gradient(circle at 92% 16%, rgba(29, 155, 240, 0.08), transparent 35%),
+      var(--cv2-bg);
+  }
 
-    <h1 class="display-4 fw-bold mb-5" style="text-align: center; max-width: 900px; margin-left: auto; margin-right: auto; line-height: 1.2;">
-      Để lại thông tin liên hệ với<br>Pet Shop
-    </h1>
+  .contact-v2-shell {
+    max-width: 1260px;
+    margin: 0 auto;
+    padding: 0 22px;
+  }
 
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 40px;">
-      <!-- Form liên hệ -->
-      <form id="contactForm" style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-        <h3 style="font-size: 22px; font-weight: 700; margin-bottom: 25px;">Gửi tin nhắn cho chúng tôi</h3>
+  .contact-v2-head {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto 24px;
+  }
 
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Tên của bạn</label>
-          <input id="contactName" name="name" type="text" placeholder="Nhập tên của bạn" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
-        </div>
+  .contact-v2-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--cv2-primary);
+    background: #fff;
+    border: 1px solid #ffe2d4;
+    border-radius: 999px;
+    padding: 7px 12px;
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
 
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Email</label>
-          <input id="contactEmail" name="email" type="email" placeholder="your@email.com" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
-        </div>
+  .contact-v2-title {
+    margin: 0 0 10px;
+    color: var(--cv2-text);
+    font-size: clamp(28px, 3.6vw, 44px);
+    line-height: 1.12;
+    font-weight: 800;
+  }
 
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Số điện thoại</label>
-          <input id="contactPhone" name="phone" type="tel" placeholder="0123456789" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
-        </div>
+  .contact-v2-sub {
+    margin: 0;
+    color: var(--cv2-muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
 
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Tiêu đề</label>
-          <input id="contactSubject" name="subject" type="text" placeholder="Tiêu đề tin nhắn" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
-        </div>
+  .contact-v2-layout {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.95fr);
+    gap: 18px;
+    align-items: start;
+  }
 
-        <div style="margin-bottom: 25px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nội dung</label>
-          <textarea id="contactMessage" name="message" placeholder="Nhập nội dung tin nhắn..." rows="6" class="form-control" required style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; resize: vertical;"></textarea>
-        </div>
+  .contact-v2-card {
+    background: #fff;
+    border: 1px solid var(--cv2-border);
+    border-radius: 18px;
+    box-shadow: 0 12px 34px rgba(15, 23, 42, 0.06);
+  }
 
-        <p id="contactFormStatus" style="display: none; margin: 0 0 14px 0; font-size: 14px; color: #2e7d32; font-weight: 600;"></p>
+  .contact-v2-form {
+    padding: 24px;
+  }
 
-        <button type="submit" class="btn btn-dark" style="width: 100%; padding: 12px; font-weight: 600; cursor: pointer;">Gửi tin nhắn</button>
-      </form>
+  .contact-v2-form h3,
+  .contact-v2-side h3,
+  .contact-v2-map h3 {
+    margin: 0 0 14px;
+    color: var(--cv2-text);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
 
-      <!-- Thông tin liên hệ -->
-      <div>
-        <h3 style="font-size: 22px; font-weight: 700; margin-bottom: 25px;">Thông tin liên hệ</h3>
+  .contact-v2-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
 
-        <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-          <h5 style="font-weight: 700; margin-bottom: 10px;">📍 Địa chỉ</h5>
-          <p style="color: #666; line-height: 1.6;">Phường 6, Thành Phố Cao Lãnh, Đồng Tháp</p>
-        </div>
+  .contact-v2-field {
+    margin-bottom: 10px;
+  }
 
-        <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-          <h5 style="font-weight: 700; margin-bottom: 10px;">📞 Điện thoại</h5>
-          <p style="color: #666;"><a href="tel:+379871837" style="color: #666; text-decoration: none;">+379 871-8371</a></p>
-        </div>
+  .contact-v2-field.span-2 {
+    grid-column: span 2;
+  }
 
-        <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-          <h5 style="font-weight: 700; margin-bottom: 10px;">✉️ Email</h5>
-          <p style="color: #666;"><a href="mailto:rgarton@outlook.com" style="color: #666; text-decoration: none;">rgarton@outlook.com</a></p>
-        </div>
+  .contact-v2-label {
+    display: block;
+    margin-bottom: 5px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+  }
 
-        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-          <h5 style="font-weight: 700; margin-bottom: 15px;">⏰ Giờ mở cửa</h5>
-          <p style="color: #666; margin-bottom: 5px;">Thứ 2 - Thứ 6: 08:00 - 18:00</p>
-          <p style="color: #666; margin-bottom: 5px;">Thứ 7: 08:00 - 17:00</p>
-          <p style="color: #666;">Chủ Nhật: Đóng cửa</p>
-        </div>
-      </div>
+  .contact-v2 .form-control {
+    border: 1px solid #dfe4ec !important;
+    border-radius: 10px !important;
+    background: #fff;
+    color: #111827;
+    font-size: 13px !important;
+    min-height: 42px;
+    padding: 10px 12px !important;
+    box-shadow: none !important;
+  }
+
+  .contact-v2 textarea.form-control {
+    min-height: 122px;
+    resize: vertical;
+  }
+
+  .contact-v2 .form-control:focus {
+    border-color: #f5b89b !important;
+    box-shadow: 0 0 0 3px rgba(31, 143, 77, 0.12) !important;
+  }
+
+  .contact-v2-status {
+    display: none;
+    margin: 8px 0 10px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #166534;
+    background: #ecfdf3;
+    border: 1px solid #bbf7d0;
+  }
+
+  .contact-v2-btn {
+    width: 100%;
+    border: none;
+    border-radius: 11px;
+    padding: 11px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #1f8f4d 0%, #6fcf5f 100%);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .contact-v2-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(31, 143, 77, 0.28);
+  }
+
+  .contact-v2-side {
+    padding: 18px;
+  }
+
+  .contact-v2-side-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .contact-v2-item {
+    background: #fff;
+    border: 1px solid #e8ecf2;
+    border-radius: 14px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+
+  .contact-v2-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(31, 143, 77, 0.2), rgba(29, 155, 240, 0.14));
+    color: #0f172a;
+  }
+
+  .contact-v2-icon svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.2;
+  }
+
+  .contact-v2-item h5 {
+    margin: 0 0 2px;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .contact-v2-item p,
+  .contact-v2-item a {
+    margin: 0;
+    color: #5b6474;
+    font-size: 12.5px;
+    line-height: 1.65;
+    text-decoration: none;
+  }
+
+  .contact-v2-item a:hover {
+    color: var(--cv2-primary);
+  }
+
+  .contact-v2-map {
+    margin-top: 18px;
+    padding: 22px;
+  }
+
+  .contact-v2-map-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(280px, 1fr));
+    gap: 18px;
+  }
+
+  .contact-v2-map-card {
+    border: 1px solid #e8ecf2;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+  }
+
+  .contact-v2-map-card iframe {
+    width: 100%;
+    height: 240px;
+    border: 0;
+    display: block;
+  }
+
+  .contact-v2-map-card p {
+    margin: 0;
+    padding: 11px 12px;
+    font-size: 13px;
+    color: #556174;
+    background: #fcfcfd;
+  }
+
+  @media (max-width: 1100px) {
+    .contact-v2-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .contact-v2-map-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 768px) {
+    .contact-v2 {
+      padding: 26px 0 56px;
+    }
+
+    .contact-v2-shell {
+      padding: 0 14px;
+    }
+
+    .contact-v2-form,
+    .contact-v2-side,
+    .contact-v2-map {
+      padding: 14px;
+    }
+
+    .contact-v2-grid,
+    .contact-v2-map-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .contact-v2-field.span-2 {
+      grid-column: span 1;
+    }
+  }
+</style>
+
+<section class="contact-v2">
+  <div class="contact-v2-shell">
+    <div class="contact-v2-head">
+      <p class="contact-v2-tag"><i data-feather="send"></i> Liên hệ Pet Shop</p>
+      <h1 class="contact-v2-title">Để lại thông tin liên hệ với Pet Shop</h1>
+      <p class="contact-v2-sub">Đội ngũ hỗ trợ luôn sẵn sàng tư vấn sản phẩm, lịch dịch vụ và giải đáp mọi thắc mắc của bạn trong thời gian nhanh nhất.</p>
     </div>
 
-    <!-- Danh sách vị trí cửa hàng -->
-    <div style="margin-top: 50px;">
-      <h3 style="font-size: 22px; font-weight: 700; margin-bottom: 20px;">Vị trí cửa hàng</h3>
+    <div class="contact-v2-layout">
+      <form id="contactForm" class="contact-v2-card contact-v2-form">
+        <h3>Gửi tin nhắn cho chúng tôi</h3>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
-        <div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eee;">
+        <div class="contact-v2-grid">
+          <div class="contact-v2-field">
+            <label class="contact-v2-label" for="contactName">Tên của bạn</label>
+            <input id="contactName" name="name" type="text" placeholder="Nhập tên của bạn" class="form-control" required>
+          </div>
+
+          <div class="contact-v2-field">
+            <label class="contact-v2-label" for="contactPhone">Số điện thoại</label>
+            <input id="contactPhone" name="phone" type="tel" placeholder="0123 456 789" class="form-control" required>
+          </div>
+
+          <div class="contact-v2-field span-2">
+            <label class="contact-v2-label" for="contactEmail">Email</label>
+            <input id="contactEmail" name="email" type="email" placeholder="your@email.com" class="form-control" required>
+          </div>
+
+          <div class="contact-v2-field span-2">
+            <label class="contact-v2-label" for="contactSubject">Tiêu đề</label>
+            <input id="contactSubject" name="subject" type="text" placeholder="Tiêu đề tin nhắn" class="form-control" required>
+          </div>
+
+          <div class="contact-v2-field span-2">
+            <label class="contact-v2-label" for="contactMessage">Nội dung</label>
+            <textarea id="contactMessage" name="message" placeholder="Nhập nội dung tin nhắn..." rows="6" class="form-control" required></textarea>
+          </div>
+        </div>
+
+        <p id="contactFormStatus" class="contact-v2-status"></p>
+        <button type="submit" class="contact-v2-btn">Gửi tin nhắn</button>
+      </form>
+
+      <aside class="contact-v2-card contact-v2-side">
+        <h3>Thông tin liên hệ</h3>
+
+        <div class="contact-v2-side-list">
+          <div class="contact-v2-item">
+            <span class="contact-v2-icon"><i data-feather="map-pin"></i></span>
+            <div>
+              <h5>Địa chỉ</h5>
+              <p>Phường 6, Thành phố Cao Lãnh, Đồng Tháp</p>
+            </div>
+          </div>
+
+          <div class="contact-v2-item">
+            <span class="contact-v2-icon"><i data-feather="phone-call"></i></span>
+            <div>
+              <h5>Điện thoại</h5>
+              <p><a href="tel:+379871837">+379 871-8371</a></p>
+            </div>
+          </div>
+
+          <div class="contact-v2-item">
+            <span class="contact-v2-icon"><i data-feather="mail"></i></span>
+            <div>
+              <h5>Email</h5>
+              <p><a href="mailto:rgarton@outlook.com">rgarton@outlook.com</a></p>
+            </div>
+          </div>
+
+          <div class="contact-v2-item">
+            <span class="contact-v2-icon"><i data-feather="clock"></i></span>
+            <div>
+              <h5>Giờ mở cửa</h5>
+              <p>Thứ 2 - Thứ 6: 08:00 - 18:00</p>
+              <p>Thứ 7: 08:00 - 17:00</p>
+              <p>Chủ nhật: Đóng cửa</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="contact-v2-card contact-v2-map">
+      <h3>Vị trí cửa hàng</h3>
+      <div class="contact-v2-map-grid">
+        <div class="contact-v2-map-card">
           <iframe
             title="Cơ sở 1"
-            src="https://www.google.com/maps?q=263+Giap+Nhat,+Thanh+Xuan,+Ha+Noi&output=embed"
-            width="100%"
-            height="300"
-            style="border: 0; display: block;"
+            src="https://maps.google.com/maps?q=263+Giap+Nhat,+Thanh+Xuan,+Ha+Noi&t=k&z=16&output=embed"
             loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade">
-          </iframe>
-          <p style="margin: 0; padding: 12px 14px; font-size: 16px; color: #555; text-align: center;">CS 1: 263 Giáp Nhất, Thanh Xuân, Hà Nội</p>
+            referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <p>CS1: 263 Giáp Nhất, Thanh Xuân, Hà Nội</p>
         </div>
 
-        <div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eee;">
+        <div class="contact-v2-map-card">
           <iframe
             title="Cơ sở 2"
-            src="https://www.google.com/maps?q=190+Le+Trong+Tan,+Thanh+Xuan,+Ha+Noi&output=embed"
-            width="100%"
-            height="300"
-            style="border: 0; display: block;"
+            src="https://maps.google.com/maps?q=190+Le+Trong+Tan,+Thanh+Xuan,+Ha+Noi&t=k&z=16&output=embed"
             loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade">
-          </iframe>
-          <p style="margin: 0; padding: 12px 14px; font-size: 16px; color: #555; text-align: center;">CS 2: 190 Lê Trọng Tấn, Thanh Xuân, Hà Nội</p>
+            referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <p>CS2: 190 Lê Trọng Tấn, Thanh Xuân, Hà Nội</p>
         </div>
 
-        <div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eee;">
+        <div class="contact-v2-map-card">
           <iframe
             title="Cơ sở 3"
-            src="https://www.google.com/maps?q=1099+Luy+Ban+Bich,+Tan+Phu,+Ho+Chi+Minh&output=embed"
-            width="100%"
-            height="300"
-            style="border: 0; display: block;"
+            src="https://maps.google.com/maps?q=1099+Luy+Ban+Bich,+Tan+Phu,+Ho+Chi+Minh&t=k&z=16&output=embed"
             loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade">
-          </iframe>
-          <p style="margin: 0; padding: 12px 14px; font-size: 16px; color: #555; text-align: center;">CS 3: 1099 Lũy Bán Bích, Tân Phú, TP.HCM</p>
+            referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <p>CS3: 1099 Lũy Bán Bích, Tân Phú, TP.HCM</p>
         </div>
       </div>
     </div>
@@ -154,6 +438,10 @@
 </section>
 
 <script>
+  if (typeof window.feather !== 'undefined') {
+    window.feather.replace();
+  }
+
   const contactForm = document.getElementById('contactForm');
 
   if (contactForm) {

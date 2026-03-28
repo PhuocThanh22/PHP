@@ -37,59 +37,101 @@
     <div class="container-fluid px-5">
         <p id="productCount" style="display: none;">Đang tải sản phẩm...</p>
 
-        <!-- Filters & Search -->
-        <div id="shopFilterPanel" style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            <div id="shopToolbar" class="shop-toolbar" style="margin-bottom: 15px;">
-                <!-- Search -->
-                <div>
-                    <input type="text" id="searchInput" class="shop-input" placeholder="Tìm kiếm sản phẩm...">
+        <div class="shop-layout">
+            <aside class="shop-category-sidebar" id="shopCategorySidebar">
+                <h3 class="shop-category-title">Danh mục</h3>
+                <button type="button" class="shop-category-btn active" data-category="">Tất cả sản phẩm</button>
+                <button type="button" class="shop-category-btn" data-category="Thức ăn">Thức ăn</button>
+                <button type="button" class="shop-category-btn" data-category="Phụ kiện">Phụ kiện</button>
+                <button type="button" class="shop-category-btn" data-category="Nội thất">Nội thất</button>
+                <button type="button" class="shop-category-btn" data-category="Túi xách">Túi xách</button>
+                <button type="button" class="shop-category-btn" data-category="Giống chó">Giống chó</button>
+                <button type="button" class="shop-category-btn" data-category="Giống mèo">Giống mèo</button>
+            </aside>
+
+            <div class="shop-main-content">
+                <!-- Filters & Search -->
+                <div id="shopFilterPanel" style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <div id="shopToolbar" class="shop-toolbar" style="margin-bottom: 15px;">
+                        <!-- Search -->
+                        <div>
+                            <input type="text" id="searchInput" class="shop-input" placeholder="Tìm kiếm sản phẩm...">
+                        </div>
+
+                        <!-- Result Summary -->
+                        <div id="resultsSummary" class="shop-result-summary">Hiển thị 0 của 0 kết quả</div>
+
+                        <!-- Category Filter (hidden, controlled by left sidebar) -->
+                        <select id="categoryFilter" class="shop-input shop-input-hidden" aria-hidden="true" tabindex="-1">
+                            <option value="">Tất cả danh mục</option>
+                            <option value="Thức ăn">Thức ăn</option>
+                            <option value="Phụ kiện">Phụ kiện</option>
+                            <option value="Nội thất">Nội thất</option>
+                            <option value="Túi xách">Túi xách</option>
+                            <option value="Giống chó">Giống chó</option>
+                            <option value="Giống mèo">Giống mèo</option>
+                        </select>
+
+                        <!-- Price Filter (custom UI + hidden select for logic) -->
+                        <div class="shop-custom-select" id="priceFilterCustom" data-select-id="priceFilter">
+                            <button type="button" class="shop-custom-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                <span class="shop-custom-label">Tất cả giá</span>
+                                <span class="shop-custom-caret">▾</span>
+                            </button>
+                            <div class="shop-custom-menu" role="listbox" aria-label="Lọc theo giá">
+                                <button type="button" class="shop-custom-option active" data-value="">Tất cả giá</button>
+                                <button type="button" class="shop-custom-option" data-value="0-300">Dưới 300k</button>
+                                <button type="button" class="shop-custom-option" data-value="300-500">300k - 500k</button>
+                                <button type="button" class="shop-custom-option" data-value="500-1000">500k - 1M</button>
+                                <button type="button" class="shop-custom-option" data-value="1000+">Trên 1M</button>
+                            </div>
+                        </div>
+
+                        <select id="priceFilter" class="shop-input shop-input-hidden" aria-hidden="true" tabindex="-1">
+                            <option value="">Tất cả giá</option>
+                            <option value="0-300">Dưới 300k</option>
+                            <option value="300-500">300k - 500k</option>
+                            <option value="500-1000">500k - 1M</option>
+                            <option value="1000+">Trên 1M</option>
+                        </select>
+
+                        <!-- Sort (custom UI + hidden select for logic) -->
+                        <div class="shop-custom-select" id="sortFilterCustom" data-select-id="sortFilter">
+                            <button type="button" class="shop-custom-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                <span class="shop-custom-label">Sắp xếp</span>
+                                <span class="shop-custom-caret">▾</span>
+                            </button>
+                            <div class="shop-custom-menu" role="listbox" aria-label="Sắp xếp sản phẩm">
+                                <button type="button" class="shop-custom-option active" data-value="">Sắp xếp</button>
+                                <button type="button" class="shop-custom-option" data-value="price-asc">Giá: Thấp → Cao</button>
+                                <button type="button" class="shop-custom-option" data-value="price-desc">Giá: Cao → Thấp</button>
+                                <button type="button" class="shop-custom-option" data-value="newest">Mới nhất</button>
+                            </div>
+                        </div>
+
+                        <select id="sortFilter" class="shop-input shop-input-hidden" aria-hidden="true" tabindex="-1">
+                            <option value="">Sắp xếp</option>
+                            <option value="price-asc">Giá: Thấp → Cao</option>
+                            <option value="price-desc">Giá: Cao → Thấp</option>
+                            <option value="newest">Mới nhất</option>
+                        </select>
+                    </div>
+
+                    <!-- Active Filters Display -->
+                    <div id="activeFilters" style="display: none; padding-top: 15px; border-top: 1px solid #f0f0f0; flex-wrap: wrap; gap: 8px;"></div>
                 </div>
 
-                <!-- Result Summary -->
-                <div id="resultsSummary" class="shop-result-summary">Hiển thị 0 của 0 kết quả</div>
+                <!-- Products Grid -->
+                <div id="productsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px;"></div>
 
-                <!-- Category Filter -->
-                <select id="categoryFilter" class="shop-input">
-                    <option value="">Tất cả danh mục</option>
-                    <option value="Thức ăn">Thức ăn</option>
-                    <option value="Phụ kiện">Phụ kiện</option>
-                    <option value="Nội thất">Nội thất</option>
-                    <option value="Túi xách">Túi xách</option>
-                    <option value="Giống chó">Giống chó</option>
-                    <option value="Giống mèo">Giống mèo</option>
-                </select>
-
-                <!-- Price Filter -->
-                <select id="priceFilter" class="shop-input">
-                    <option value="">Tất cả giá</option>
-                    <option value="0-300">Dưới 300k</option>
-                    <option value="300-500">300k - 500k</option>
-                    <option value="500-1000">500k - 1M</option>
-                    <option value="1000+">Trên 1M</option>
-                </select>
-
-                <!-- Sort -->
-                <select id="sortFilter" class="shop-input">
-                    <option value="">Sắp xếp</option>
-                    <option value="price-asc">Giá: Thấp → Cao</option>
-                    <option value="price-desc">Giá: Cao → Thấp</option>
-                    <option value="newest">Mới nhất</option>
-                </select>
+                <!-- No Products Found -->
+                <div id="emptyState" style="display: none; text-align: center; padding: 80px 20px;">
+                    <i data-feather="inbox" style="width: 80px; height: 80px; color: #ddd; margin-bottom: 20px;"></i>
+                    <h2 style="font-size: 24px; color: #333; margin-bottom: 15px; font-weight: 600;">Không tìm thấy sản phẩm</h2>
+                    <p style="color: #999; font-size: 15px; margin-bottom: 30px;">Hãy thử thay đổi tiêu chí tìm kiếm hoặc lọc</p>
+                    <button id="clearFiltersBtn" type="button" style="background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: 600; cursor: pointer;">Xóa bộ lọc</button>
+                </div>
             </div>
-
-            <!-- Active Filters Display -->
-            <div id="activeFilters" style="display: none; padding-top: 15px; border-top: 1px solid #f0f0f0; flex-wrap: wrap; gap: 8px;"></div>
-        </div>
-
-        <!-- Products Grid -->
-        <div id="productsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px;"></div>
-
-        <!-- No Products Found -->
-        <div id="emptyState" style="display: none; text-align: center; padding: 80px 20px;">
-            <i data-feather="inbox" style="width: 80px; height: 80px; color: #ddd; margin-bottom: 20px;"></i>
-            <h2 style="font-size: 24px; color: #333; margin-bottom: 15px; font-weight: 600;">Không tìm thấy sản phẩm</h2>
-            <p style="color: #999; font-size: 15px; margin-bottom: 30px;">Hãy thử thay đổi tiêu chí tìm kiếm hoặc lọc</p>
-            <button id="clearFiltersBtn" type="button" style="background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: 600; cursor: pointer;">Xóa bộ lọc</button>
         </div>
     </div>
 </section>
@@ -103,9 +145,9 @@
             <img id="qvImage" src="" alt="" style="width: 100%; border-radius: 8px; object-fit: cover;">
             <div>
                 <h2 id="qvName" style="font-size: 24px; font-weight: 700; margin: 0 0 15px 0;"></h2>
-                <p id="qvCategory" style="color: #F87537; font-size: 14px; font-weight: 600; margin: 0 0 10px 0;"></p>
+                <p id="qvCategory" style="color: #1F8F4D; font-size: 14px; font-weight: 600; margin: 0 0 10px 0;"></p>
                 <p id="qvDescription" style="color: #666; line-height: 1.6; margin-bottom: 20px;"></p>
-                <p id="qvPrice" style="font-size: 28px; font-weight: 700; color: #F87537; margin: 20px 0;"></p>
+                <p id="qvPrice" style="font-size: 28px; font-weight: 700; color: #1F8F4D; margin: 20px 0;"></p>
                 <button onclick="addToCartFromQV()" style="width: 100%; background: #000; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
                     <i data-feather="shopping-cart" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
                     Thêm vào giỏ
@@ -128,19 +170,91 @@
     }
 
     .product-card {
-        background: white;
+        background: linear-gradient(180deg, #ffffff 0%, #fffaf6 100%);
         border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
         transition: all 0.3s ease;
-        border: 1px solid #f0f0f0;
+        border: 1px solid #ecd8ca;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .shop-layout {
+        display: grid;
+        grid-template-columns: 270px minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+    }
+
+    .shop-category-sidebar {
+        position: sticky;
+        top: 18px;
+        background: #fff;
+        border: 1px solid #eceff3;
+        border-radius: 14px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        padding: 16px 12px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .shop-category-title {
+        margin: 2px 6px 8px;
+        font-size: 18px;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1.2;
+    }
+
+    .shop-category-btn {
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 10px;
+        color: #4b5563;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .shop-category-btn::after {
+        content: '›';
+        color: #9ca3af;
+        font-size: 16px;
+        line-height: 1;
+    }
+
+    .shop-category-btn:hover {
+        background: #f7f9fc;
+        color: #111827;
+    }
+
+    .shop-category-btn.active {
+        background: linear-gradient(135deg, #e9f7ea 0%, #f4fcf2 100%);
+        color: #1C7F45;
+        font-weight: 700;
+    }
+
+    .shop-main-content {
+        min-width: 0;
     }
 
     .shop-toolbar {
         display: grid;
-        grid-template-columns: minmax(240px, 1.4fr) minmax(240px, 1fr) minmax(170px, 0.75fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr);
+        grid-template-columns: minmax(240px, 1.6fr) minmax(240px, 1fr) minmax(170px, 0.8fr) minmax(170px, 0.8fr);
         gap: 12px;
         align-items: center;
+    }
+
+    .shop-input-hidden {
+        display: none !important;
     }
 
     .shop-input {
@@ -151,6 +265,95 @@
         border-radius: 8px;
         font-size: 14px;
         background: #fff;
+    }
+
+    .shop-custom-select {
+        position: relative;
+        width: 100%;
+    }
+
+    .shop-custom-trigger {
+        width: 100%;
+        height: 50px;
+        border-radius: 14px;
+        border: 1px solid #d7dee8;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+        color: #1f2937;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+    }
+
+    .shop-custom-trigger:hover {
+        border-color: #f4b08f;
+        box-shadow: 0 8px 20px rgba(31, 143, 77, 0.15);
+    }
+
+    .shop-custom-select.open .shop-custom-trigger {
+        border-color: #1F8F4D;
+        box-shadow: 0 10px 22px rgba(31, 143, 77, 0.2);
+    }
+
+    .shop-custom-caret {
+        font-size: 14px;
+        color: #6b7280;
+        transition: transform 0.22s ease;
+    }
+
+    .shop-custom-select.open .shop-custom-caret {
+        transform: rotate(180deg);
+    }
+
+    .shop-custom-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        z-index: 20;
+        background: #fff;
+        border: 1px solid #f0d2c2;
+        border-radius: 14px;
+        box-shadow: 0 18px 30px rgba(15, 23, 42, 0.14);
+        padding: 8px;
+        display: none;
+        transform: translateY(6px);
+        opacity: 0;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .shop-custom-select.open .shop-custom-menu {
+        display: grid;
+        gap: 4px;
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .shop-custom-option {
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 10px;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .shop-custom-option:hover {
+        background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
+        color: #fff;
+    }
+
+    .shop-custom-option.active {
+        background: #edf9ef;
+        color: #2C8D52;
     }
 
     .shop-result-summary {
@@ -167,13 +370,13 @@
     }
 
     .product-card:hover {
-        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
         transform: translateY(-8px);
     }
 
     @media (max-width: 1400px) {
         .shop-toolbar {
-            grid-template-columns: minmax(240px, 1.5fr) minmax(220px, 1fr) repeat(3, minmax(150px, 0.8fr));
+            grid-template-columns: minmax(240px, 1.6fr) minmax(220px, 1fr) repeat(2, minmax(160px, 0.85fr));
         }
     }
 
@@ -181,18 +384,31 @@
         .shop-toolbar {
             grid-template-columns: repeat(2, minmax(220px, 1fr));
         }
+
+        .shop-layout {
+            grid-template-columns: 240px minmax(0, 1fr);
+            gap: 16px;
+        }
     }
 
     @media (max-width: 768px) {
         .shop-toolbar {
             grid-template-columns: 1fr;
         }
+
+        .shop-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .shop-category-sidebar {
+            position: static;
+        }
     }
 
     .product-image {
         position: relative;
         width: 100%;
-        height: 280px;
+        height: 220px;
         background: #f5f5f5;
         overflow: hidden;
     }
@@ -210,19 +426,79 @@
 
     .product-badge {
         position: absolute;
-        top: 12px;
-        right: 12px;
-        background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%);
+        top: 10px;
+        left: 10px;
+        background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
         color: white;
         padding: 6px 12px;
         border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        z-index: 1;
+        font-size: 11px;
+        font-weight: 700;
+        z-index: 4;
     }
 
     .product-badge.new {
-        background: linear-gradient(135deg, #F87537 0%, #FBA81F 100%);
+        background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
+    }
+
+    .product-heart-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 34px;
+        height: 34px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.95);
+        color: #1F8F4D;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+        z-index: 4;
+    }
+
+    .product-heart-btn:hover {
+        background: #1F8F4D;
+        color: #fff;
+        transform: translateY(-2px);
+    }
+
+    .product-corner-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: auto;
+        padding-top: 10px;
+    }
+
+    .product-corner-btn {
+        border: none;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        min-width: 92px;
+        padding: 8px 12px;
+        line-height: 1;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+    }
+
+    .product-corner-btn.buy {
+        background: #edf9ef;
+        color: #c85d2c;
+        border: 1px solid #f1c2a8;
+    }
+
+    .product-corner-btn.detail {
+        background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
+        color: #fff;
+    }
+
+    .product-corner-btn:hover {
+        transform: translateY(-2px);
     }
 
     .product-overlay {
@@ -238,15 +514,18 @@
         gap: 10px;
         opacity: 0;
         transition: opacity 0.3s ease;
+        z-index: 3;
+        pointer-events: none;
     }
 
     .product-card:hover .product-overlay {
         opacity: 1;
+        pointer-events: auto;
     }
 
     .overlay-btn {
-        width: 44px;
-        height: 44px;
+        width: 46px;
+        height: 46px;
         border-radius: 50%;
         border: none;
         cursor: pointer;
@@ -255,6 +534,7 @@
         justify-content: center;
         transition: all 0.2s ease;
         font-size: 20px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
     }
 
     .overlay-btn.add-cart {
@@ -267,34 +547,44 @@
         transform: scale(1.1);
     }
 
-    .overlay-btn.wishlist {
-        background: white;
-        color: #F87537;
+    .product-info {
+        padding: 14px;
+        background: linear-gradient(180deg, #fffdfb 0%, #fff7f0 100%);
+        border-top: 1px solid #f0dfd3;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
     }
 
-    .overlay-btn.wishlist:hover {
-        background: #F87537;
-        color: white;
-        transform: scale(1.1);
+    .product-name {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 6px 0;
+        color: #1f2937;
+        line-height: 1.4;
     }
 
-    .overlay-btn.quick-view {
-        background: white;
-        color: #F87537;
+    .product-category {
+        color: #1F8F4D;
+        font-size: 12px;
+        font-weight: 700;
+        margin: 0 0 8px 0;
     }
 
-    .overlay-btn.quick-view:hover {
-        background: #F87537;
-        color: white;
-        transform: scale(1.1);
+    .product-price {
+        color: #1F8F4D;
+        font-size: 22px;
+        font-weight: 800;
+        margin: 0;
+        line-height: 1;
     }
 
     .breed-card {
-        background: #fff;
-        border-radius: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #fffaf5 100%);
+        border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-        border: 1px solid #ececec;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        border: 1px solid #ead8cb;
         display: flex;
         flex-direction: column;
         height: 100%;
@@ -302,21 +592,22 @@
     }
 
     .breed-card:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 14px 28px rgba(0,0,0,0.16);
+        transform: translateY(-5px);
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
     }
 
     .breed-image {
         width: 100%;
-        height: 340px;
+        height: 220px;
         object-fit: cover;
         display: block;
     }
 
     .breed-content {
-        padding: 24px 20px 22px;
+        padding: 14px;
         text-align: center;
-        background: #f7f7f7;
+        background: linear-gradient(180deg, #fffdfa 0%, #fff4ea 100%);
+        border-top: 1px solid #efddcf;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -326,11 +617,11 @@
     }
 
     .breed-title {
-        font-size: 42px;
-        line-height: 1.05;
-        margin: 0 0 12px;
+        font-size: 14px;
+        line-height: 1.35;
+        margin: 0 0 8px;
         font-weight: 700;
-        color: #222;
+        color: #1f2937;
     }
 
     .breed-line {
@@ -339,10 +630,10 @@
 
     .breed-text {
         margin: 0;
-        color: #777;
-        font-size: 14px;
+        color: #6b7280;
+        font-size: 12px;
         line-height: 1.45;
-        min-height: 40px;
+        min-height: 34px;
         width: 100%;
         flex: 1;
     }
@@ -350,26 +641,38 @@
     .breed-btn {
         margin-top: auto;
         border: none;
-        border-radius: 28px;
-        padding: 11px 34px;
-        background: #0e93b1;
+        border-radius: 999px;
+        padding: 8px 12px;
+        min-width: 120px;
+        background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
         color: #fff;
-        font-size: 16px;
+        font-size: 12px;
         font-weight: 700;
         cursor: pointer;
         position: relative;
         z-index: 3;
         pointer-events: auto;
-        transition: all 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 8px 18px rgba(31, 143, 77, 0.24);
     }
 
     .breed-btn:hover {
-        background: #0b7d96;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 22px rgba(31, 143, 77, 0.3);
     }
 
     .puppy-card {
-        background: transparent;
+        background: linear-gradient(180deg, #ffffff 0%, #fffaf4 100%);
+        border: 1px solid #ecd9cb;
+        border-radius: 14px;
+        padding: 10px 10px 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .puppy-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
     }
 
     .puppy-image-wrap {
@@ -426,7 +729,7 @@
     }
 
     .puppy-title {
-        margin: 24px 8px 8px;
+        margin: 14px 8px 8px;
         text-align: center;
         font-size: 30px;
         line-height: 1.2;
@@ -437,7 +740,7 @@
     .puppy-price {
         margin: 0;
         text-align: center;
-        color: #fb923c;
+        color: #4CAF67;
         font-size: 28px;
         font-weight: 300;
     }
@@ -564,7 +867,7 @@
 
     .breed-detail-price {
         margin: 0;
-        color: #f4a261;
+        color: #6CBF78;
         font-size: 18px;
         font-weight: 500;
         text-align: center;
@@ -612,10 +915,6 @@
     }
 
     @media (max-width: 1200px) {
-        .breed-title {
-            font-size: 36px;
-        }
-
         .puppy-title {
             font-size: 26px;
         }
@@ -728,7 +1027,7 @@
     }
 
     .poodle-thumb.active {
-        border-color: #f97316;
+        border-color: #22A35A;
     }
 
     .poodle-detail-content {
@@ -750,7 +1049,7 @@
 
     .poodle-detail-price {
         margin: 0 0 16px;
-        color: #f97316;
+        color: #22A35A;
         font-size: 24px;
         font-weight: 700;
     }
@@ -838,7 +1137,7 @@
     .poodle-detail-btn {
         border: none;
         border-radius: 999px;
-        background: #f97316;
+        background: #22A35A;
         color: #fff;
         font-size: 13px;
         font-weight: 600;
@@ -868,7 +1167,7 @@
     }
 
     .poodle-detail-btn:hover {
-        background: #ea580c;
+        background: #1C7F45;
         transform: translateY(-1px);
         box-shadow: 0 12px 24px rgba(234, 88, 12, 0.34);
     }
@@ -964,7 +1263,7 @@
         margin: 0;
         font-size: 17px;
         font-weight: 600;
-        color: #f97316;
+        color: #22A35A;
         text-align: center;
     }
 
@@ -979,7 +1278,7 @@
         font-size: 34px;
         line-height: 1.3;
         font-weight: 700;
-        color: #f97316;
+        color: #22A35A;
     }
 
     .poodle-benefits-grid {
@@ -1030,7 +1329,7 @@
         border-radius: 30px;
         display: grid;
         place-items: center;
-        background: linear-gradient(165deg, #22c3ee 0%, #1d9fd3 55%, #f59e0b 56%, #f59e0b 100%);
+        background: linear-gradient(165deg, #22c3ee 0%, #1d9fd3 55%, #58B86A 56%, #58B86A 100%);
         color: #fff;
         font-size: 42px;
         font-weight: 700;
@@ -1082,19 +1381,19 @@
     }
 
     .poodle-benefit-item.is-shipping .poodle-benefit-badge {
-        background: linear-gradient(165deg, #36c7ef 0%, #1ea7dc 54%, #f59e0b 55%, #f59e0b 100%);
+        background: linear-gradient(165deg, #36c7ef 0%, #1ea7dc 54%, #58B86A 55%, #58B86A 100%);
     }
 
     .poodle-benefit-item.is-gift .poodle-benefit-badge {
-        background: linear-gradient(165deg, #2ac4ea 0%, #149ed7 54%, #f59e0b 55%, #f59e0b 100%);
+        background: linear-gradient(165deg, #2ac4ea 0%, #149ed7 54%, #58B86A 55%, #58B86A 100%);
     }
 
     .poodle-benefit-item.is-contract .poodle-benefit-badge {
-        background: linear-gradient(165deg, #2ab9e8 0%, #1799d0 54%, #f59e0b 55%, #f59e0b 100%);
+        background: linear-gradient(165deg, #2ab9e8 0%, #1799d0 54%, #58B86A 55%, #58B86A 100%);
     }
 
     .poodle-benefit-item.is-warranty .poodle-benefit-badge {
-        background: linear-gradient(165deg, #31bee9 0%, #1196ce 54%, #f59e0b 55%, #f59e0b 100%);
+        background: linear-gradient(165deg, #31bee9 0%, #1196ce 54%, #58B86A 55%, #58B86A 100%);
     }
 
     .poodle-benefit-caption {
@@ -1114,7 +1413,7 @@
         font-size: 52px;
         line-height: 1.2;
         font-weight: 700;
-        color: #f97316;
+        color: #22A35A;
     }
 
     .poodle-docs-grid {
@@ -1545,6 +1844,7 @@
     ];
 
     let currentQVProduct = null;
+    const SHOP_CATEGORY_STORAGE_KEY = 'shopSelectedCategory';
 
     const updateShopHeroByCategory = () => {
         const categorySelect = document.getElementById('categoryFilter');
@@ -1582,6 +1882,132 @@
         panel.style.display = visible ? 'block' : 'none';
     };
 
+    const syncCategorySidebarState = () => {
+        const categorySelect = document.getElementById('categoryFilter');
+        const activeCategory = String(categorySelect?.value || '').trim().toLowerCase();
+        const sidebarButtons = document.querySelectorAll('#shopCategorySidebar .shop-category-btn');
+
+        sidebarButtons.forEach((button) => {
+            const buttonCategory = String(button.dataset.category || '').trim().toLowerCase();
+            button.classList.toggle('active', buttonCategory === activeCategory);
+        });
+    };
+
+    const getBreedPriceLabel = (breedType, breedName) => {
+        const source = breedType === 'cat' ? catKittens : dogPuppies;
+        const normalizedBreed = String(breedName || '').trim().toLowerCase();
+
+        const matched = source.filter((item) => {
+            const itemBreed = String(item.breed || '').trim().toLowerCase();
+            return itemBreed.includes(normalizedBreed) || normalizedBreed.includes(itemBreed);
+        });
+
+        if (matched.length === 0) {
+            return 'Liên hệ';
+        }
+
+        const prices = matched
+            .map((item) => parseInt(String(item.price || '').replace(/[^0-9]/g, ''), 10))
+            .filter((price) => Number.isFinite(price));
+
+        if (prices.length === 0) {
+            return 'Liên hệ';
+        }
+
+        const minPrice = Math.min(...prices);
+        return `Từ ${new Intl.NumberFormat('vi-VN').format(minPrice)}đ`;
+    };
+
+    const openQuickViewWithData = (item) => {
+        if (!item) return;
+
+        currentQVProduct = item;
+        document.getElementById('qvImage').src = item.image || '';
+        document.getElementById('qvName').textContent = item.name || '';
+        document.getElementById('qvCategory').textContent = item.category || '';
+        document.getElementById('qvDescription').textContent = item.description || '';
+        document.getElementById('qvPrice').textContent = `${item.price || 'Liên hệ'}`;
+        document.getElementById('quickViewModal').style.display = 'flex';
+    };
+
+    const syncCustomSelectFromNative = (customSelect) => {
+        if (!customSelect) return;
+
+        const selectId = customSelect.dataset.selectId;
+        const nativeSelect = selectId ? document.getElementById(selectId) : null;
+        if (!nativeSelect) return;
+
+        const currentValue = nativeSelect.value;
+        const currentOption = Array.from(nativeSelect.options).find((option) => option.value === currentValue);
+        const currentLabel = currentOption ? currentOption.textContent : '';
+
+        const labelNode = customSelect.querySelector('.shop-custom-label');
+        if (labelNode) {
+            labelNode.textContent = currentLabel || 'Chọn';
+        }
+
+        customSelect.querySelectorAll('.shop-custom-option').forEach((optionBtn) => {
+            optionBtn.classList.toggle('active', optionBtn.dataset.value === currentValue);
+        });
+    };
+
+    const closeAllCustomSelects = () => {
+        document.querySelectorAll('.shop-custom-select.open').forEach((selectNode) => {
+            selectNode.classList.remove('open');
+            const trigger = selectNode.querySelector('.shop-custom-trigger');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        });
+    };
+
+    const setupCustomSelectEvents = () => {
+        document.querySelectorAll('.shop-custom-select').forEach((customSelect) => {
+            if (customSelect.dataset.bound === '1') {
+                syncCustomSelectFromNative(customSelect);
+                return;
+            }
+
+            const trigger = customSelect.querySelector('.shop-custom-trigger');
+
+            if (trigger) {
+                trigger.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const willOpen = !customSelect.classList.contains('open');
+                    closeAllCustomSelects();
+                    customSelect.classList.toggle('open', willOpen);
+                    trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                });
+            }
+
+            customSelect.addEventListener('click', (event) => {
+                const optionButton = event.target.closest('.shop-custom-option');
+                if (!optionButton) return;
+
+                const selectId = customSelect.dataset.selectId;
+                const nativeSelect = selectId ? document.getElementById(selectId) : null;
+                if (!nativeSelect) return;
+
+                nativeSelect.value = optionButton.dataset.value || '';
+                syncCustomSelectFromNative(customSelect);
+                closeAllCustomSelects();
+
+                nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+
+            syncCustomSelectFromNative(customSelect);
+            customSelect.dataset.bound = '1';
+        });
+
+        if (!document.body.dataset.customSelectBound) {
+            document.addEventListener('click', closeAllCustomSelects);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeAllCustomSelects();
+                }
+            });
+            document.body.dataset.customSelectBound = '1';
+        }
+    };
+
     // Render products
     const renderProducts = (productsToRender) => {
         const grid = document.getElementById('productsGrid');
@@ -1590,7 +2016,7 @@
 
         setShopFilterPanelVisible(true);
 
-        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
 
         if (productsToRender.length === 0) {
             grid.style.display = 'none';
@@ -1610,23 +2036,25 @@
                 <div class="product-image">
                     <img src="${product.image}" alt="${product.name}">
                     ${product.badge ? `<div class="product-badge ${product.badge === 'new' ? 'new' : ''}">${product.badge === 'sale' ? '🔥 Sale' : '✨ Mới'}</div>` : ''}
+                    <button class="product-heart-btn" data-action="toggle-wishlist" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Yêu thích">
+                        <i data-feather="heart" style="width: 18px; height: 18px;"></i>
+                    </button>
+
                     <div class="product-overlay">
                         <button class="overlay-btn add-cart" data-action="add-cart" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Thêm vào giỏ">
                             <i data-feather="shopping-cart" style="width: 20px; height: 20px;"></i>
                         </button>
-                        <button class="overlay-btn wishlist" data-action="toggle-wishlist" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Yêu thích">
-                            <i data-feather="heart" style="width: 20px; height: 20px;"></i>
-                        </button>
-                        <button class="overlay-btn quick-view" data-action="quick-view" data-product-id="${product.id}" title="Xem nhanh">
-                            <i data-feather="eye" style="width: 20px; height: 20px;"></i>
-                        </button>
                     </div>
                 </div>
 
-                <div style="padding: 20px;">
-                    <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #333;">${product.name}</h3>
-                    <p style="color: #F87537; font-size: 12px; font-weight: 600; margin: 0 0 12px 0;">${product.category}</p>
-                    <p style="color: #F87537; font-size: 20px; font-weight: 700; margin: 0;">${product.price}₫</p>
+                <div class="product-info">
+                    <h3 class="product-name">${product.name}</h3>
+                    <p class="product-category">${product.category}</p>
+                    <p class="product-price">${product.price}₫</p>
+                    <div class="product-corner-actions">
+                        <button class="product-corner-btn buy" data-action="add-cart" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Mua ngay">Mua</button>
+                        <button class="product-corner-btn detail" data-action="quick-view" data-product-id="${product.id}" title="Xem chi tiết">Chi tiết</button>
+                    </div>
                 </div>
             </div>
         `).join('');
@@ -1664,7 +2092,7 @@
                     <h3 class="breed-title">${breed.name}</h3>
                     <div class="breed-line"></div>
                     <p class="breed-text">${breed.description}</p>
-                    <button class="breed-btn" type="button" data-action="breed-more" data-breed-name="${breed.name.replace(/"/g, '&quot;')}">Xem thêm</button>
+                    <button class="breed-btn" type="button" data-action="breed-quick-view" data-breed-name="${breed.name.replace(/"/g, '&quot;')}" data-breed-image="${breed.image}" data-breed-type="dog" data-breed-price="${getBreedPriceLabel('dog', breed.name)}" data-breed-description="${breed.description.replace(/"/g, '&quot;')}">Xem thêm</button>
                 </div>
             </div>
         `).join('');
@@ -1929,7 +2357,7 @@
                     <h3 class="breed-title">${breed.name}</h3>
                     <div class="breed-line"></div>
                     <p class="breed-text">${breed.description}</p>
-                    <button class="breed-btn" type="button" data-action="cat-breed-more" data-breed-name="${breed.name.replace(/"/g, '&quot;')}">Xem thêm</button>
+                    <button class="breed-btn" type="button" data-action="breed-quick-view" data-breed-name="${breed.name.replace(/"/g, '&quot;')}" data-breed-image="${breed.image}" data-breed-type="cat" data-breed-price="${getBreedPriceLabel('cat', breed.name)}" data-breed-description="${breed.description.replace(/"/g, '&quot;')}">Xem thêm</button>
                 </div>
             </div>
         `).join('');
@@ -1953,6 +2381,7 @@
 
             renderDogBreedCards(filteredBreeds);
             updateActiveFilters();
+            syncCategorySidebarState();
             return;
         }
 
@@ -1965,6 +2394,7 @@
 
             renderCatBreedCards(filteredBreeds);
             updateActiveFilters();
+            syncCategorySidebarState();
             return;
         }
 
@@ -2012,6 +2442,7 @@
         console.log('Filtered result:', filtered.length, 'products');
         renderProducts(filtered);
         updateActiveFilters();
+        syncCategorySidebarState();
     };
 
     // Update active filters display
@@ -2031,7 +2462,7 @@
 
         if (filters.length > 0) {
             container.style.display = 'flex';
-            container.innerHTML = filters.map(f => `<span style="background: #F87537; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px;">${f}</span>`).join('');
+            container.innerHTML = filters.map(f => `<span style="background: #1F8F4D; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px;">${f}</span>`).join('');
         } else {
             container.style.display = 'none';
         }
@@ -2043,20 +2474,47 @@
         document.getElementById('categoryFilter').value = '';
         document.getElementById('priceFilter').value = '';
         document.getElementById('sortFilter').value = '';
+        document.querySelectorAll('.shop-custom-select').forEach(syncCustomSelectFromNative);
         filterAndRenderProducts();
+        syncCategorySidebarState();
+    };
+
+    const applyPendingCategoryFilter = () => {
+        const pendingCategory = (localStorage.getItem(SHOP_CATEGORY_STORAGE_KEY) || '').trim();
+        const categorySelect = document.getElementById('categoryFilter');
+
+        if (!categorySelect) {
+            return false;
+        }
+
+        if (!pendingCategory) {
+            return false;
+        }
+
+        const matchedOption = Array.from(categorySelect.options || []).find(
+            option => option.value.trim().toLowerCase() === pendingCategory.toLowerCase()
+        );
+
+        localStorage.removeItem(SHOP_CATEGORY_STORAGE_KEY);
+
+        if (!matchedOption) {
+            return false;
+        }
+
+        categorySelect.value = matchedOption.value;
+        filterAndRenderProducts();
+        syncCategorySidebarState();
+        return true;
     };
 
     // Quick view
     const openQuickView = (productId) => {
         const product = products.find(p => p.id === productId);
         if (product) {
-            currentQVProduct = product;
-            document.getElementById('qvImage').src = product.image;
-            document.getElementById('qvName').textContent = product.name;
-            document.getElementById('qvCategory').textContent = product.category;
-            document.getElementById('qvDescription').textContent = product.description;
-            document.getElementById('qvPrice').textContent = product.price + '₫';
-            document.getElementById('quickViewModal').style.display = 'flex';
+            openQuickViewWithData({
+                ...product,
+                price: `${product.price}₫`
+            });
         }
     };
 
@@ -2117,6 +2575,7 @@
         const toolbar = document.getElementById('shopToolbar');
         const productsGrid = document.getElementById('productsGrid');
         const clearBtn = document.getElementById('clearFiltersBtn');
+        const categorySidebar = document.getElementById('shopCategorySidebar');
 
         if (toolbar && !toolbar.dataset.bound) {
             toolbar.addEventListener('input', (event) => {
@@ -2141,15 +2600,20 @@
 
                 const action = actionButton.dataset.action;
 
-                if (action === 'breed-more') {
+                if (action === 'breed-quick-view') {
                     const breedName = actionButton.dataset.breedName || '';
-                    showDogPuppiesByBreed(breedName);
-                    return;
-                }
+                    const breedType = actionButton.dataset.breedType === 'cat' ? 'Giống mèo' : 'Giống chó';
+                    const breedImage = actionButton.dataset.breedImage || '';
+                    const breedPrice = actionButton.dataset.breedPrice || 'Liên hệ';
+                    const breedDescription = actionButton.dataset.breedDescription || '';
 
-                if (action === 'cat-breed-more') {
-                    const breedName = actionButton.dataset.breedName || '';
-                    showCatKittensByBreed(breedName);
+                    openQuickViewWithData({
+                        name: breedName,
+                        category: breedType,
+                        image: breedImage,
+                        price: breedPrice,
+                        description: `${breedDescription}. Nhấn Thêm vào giỏ để lưu vào giỏ hàng và xem thêm chi tiết khi cần.`
+                    });
                     return;
                 }
 
@@ -2229,15 +2693,39 @@
             clearBtn.addEventListener('click', clearFilters);
             clearBtn.dataset.bound = '1';
         }
+
+        if (categorySidebar && !categorySidebar.dataset.bound) {
+            categorySidebar.addEventListener('click', (event) => {
+                const categoryBtn = event.target.closest('.shop-category-btn');
+                if (!categoryBtn) return;
+
+                const categorySelect = document.getElementById('categoryFilter');
+                if (!categorySelect) return;
+
+                categorySelect.value = categoryBtn.dataset.category || '';
+                filterAndRenderProducts();
+                syncCategorySidebarState();
+            });
+
+            categorySidebar.dataset.bound = '1';
+        }
     };
 
     // Initialize - render products on page load
     const initShopPage = () => {
         console.log('Shop page initialized');
-        // Render all products initially
-        renderProducts(products);
-        updateShopHeroByCategory();
         setupDelegatedEvents();
+        setupCustomSelectEvents();
+
+        const hasPendingCategory = applyPendingCategoryFilter();
+        if (!hasPendingCategory) {
+            renderProducts(products);
+            updateShopHeroByCategory();
+        }
+
+        syncCategorySidebarState();
+        document.querySelectorAll('.shop-custom-select').forEach(syncCustomSelectFromNative);
+
         if (typeof feather !== 'undefined') feather.replace();
     };
 
