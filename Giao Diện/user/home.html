@@ -163,7 +163,7 @@
     <section class="categories-section py-5">
         <div class="container-fluid px-5">
             <div class="d-flex justify-content-between align-items-center mb-5">
-                <h2 class="section-title no-underline">Duyệt theo danh mục</h2>
+                <h2 class="section-title no-underline">Danh mục sản phẩm</h2>
                 <div class="d-flex gap-3">
                     <button class="btn btn-dark btn-circle" onclick="scrollCategories(-1)">
                         <i data-feather="chevron-left"></i>
@@ -188,9 +188,7 @@
                                     <h5 class="category-title">Thức Ăn</h5>
                                     <p class="category-count">45 sản phẩm</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -206,9 +204,7 @@
                                     <h5 class="category-title">Snack & Thưởng</h5>
                                     <p class="category-count">38 sản phẩm</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -224,9 +220,7 @@
                                     <h5 class="category-title">Phụ Kiện</h5>
                                     <p class="category-count">52 sản phẩm</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -242,9 +236,7 @@
                                     <h5 class="category-title">Đồ Chơi</h5>
                                     <p class="category-count">28 sản phẩm</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -260,9 +252,7 @@
                                     <h5 class="category-title">Vệ Sinh & Chăm Sóc</h5>
                                     <p class="category-count">35 sản phẩm</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -278,9 +268,7 @@
                                     <h5 class="category-title">Sức Khỏe</h5>
                                     <p class="category-count">24 sản phẩm</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -296,9 +284,7 @@
                                     <h5 class="category-title">Chuồng & Nội Thất</h5>
                                     <p class="category-count">18 sản phẩm</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -314,9 +300,7 @@
                                     <h5 class="category-title">Vận Chuyển</h5>
                                     <p class="category-count">12 sản phẩm</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -332,9 +316,7 @@
                                     <h5 class="category-title">Theo Thú Cưng</h5>
                                     <p class="category-count">Chó | Mèo</p>
                                 </div>
-                                <button class="btn btn-white btn-sm btn-circle-sm">
-                                    <i data-feather="arrow-right"></i>
-                                </button>
+                                <button class="category-view-btn" type="button">Xem</button>
                             </div>
                         </div>
                     </div>
@@ -346,56 +328,94 @@
     <!-- Featured Products Section -->
     <section class="featured-section py-5">
         <div class="container-fluid px-5">
-            <h2 class="section-title text-center mb-5 no-underline">Sản phẩm nổi bật</h2>
-            <div class="row g-4">
-                <div class="col-lg-4 col-md-6">
-                    <div class="product-card">
-                        <div class="product-image">
-                            <img src="https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=416&h=416&fit=crop" alt="Premium Dog Food" class="img-fluid">
-                        </div>
-                        <div class="product-content">
-                            <div>
-                                <h5 class="product-title">Thức ăn cho chó cao cấp</h5>
-                                <p class="product-price">450.000₫</p>
-                            </div>
-                            <button class="btn btn-light btn-sm btn-circle-sm wishlist-btn" onclick="addToWishlist('Thức ăn cho chó cao cấp', 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=416&h=416&fit=crop', '450.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
+            <div class="featured-showcase-head text-center">
+                <p class="featured-showcase-kicker">Được tin chọn bởi hàng nghìn khách hàng</p>
+                <h2 class="featured-showcase-title">Sản phẩm nổi bật cho thú cưng hạnh phúc</h2>
+            </div>
+
+            <div class="featured-showcase-filters" role="tablist" aria-label="Lọc sản phẩm nổi bật">
+                <button type="button" class="featured-filter-pill is-active">Tất cả</button>
+                <button type="button" class="featured-filter-pill">Dinh dưỡng</button>
+                <button type="button" class="featured-filter-pill">Da &amp; lông</button>
+                <button type="button" class="featured-filter-pill">Tăng cân</button>
+                <button type="button" class="featured-filter-pill">Kén ăn</button>
+                <button type="button" class="featured-filter-pill">Giống lớn</button>
+            </div>
+
+            <div class="featured-showcase-carousel">
+                <button type="button" class="featured-nav-btn prev" id="featuredPrevBtn" aria-label="Sản phẩm trước">
+                    <i data-feather="chevron-left"></i>
+                </button>
+
+                <div class="featured-showcase-track" aria-label="Danh sách sản phẩm nổi bật">
+                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Bánh thưởng vị gà cho chó', 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=680&h=460&fit=crop', '149.000₫', '4.8', '182', 'Bánh thưởng mềm, dễ tiêu hóa, phù hợp cho chó kén ăn hoặc cần bổ sung năng lượng nhanh.')">
+                    <div class="featured-showcase-image-wrap">
+                        <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=680&h=460&fit=crop" alt="Bánh thưởng vị gà cho chó" class="featured-showcase-image">
                     </div>
-                </div>
-                <div class="col-lg-4 col-md-6">
-                    <div class="product-card">
-                        <div class="product-image">
-                            <img src="https://images.unsplash.com/photo-1611003228941-98852ba62227?w=416&h=416&fit=crop" alt="Premium Cat Food" class="img-fluid">
-                        </div>
-                        <div class="product-content">
-                            <div>
-                                <h5 class="product-title">Thức ăn cho mèo cao cấp</h5>
-                                <p class="product-price">420.000₫</p>
-                            </div>
-                            <button class="btn btn-light btn-sm btn-circle-sm wishlist-btn" onclick="addToWishlist('Thức ăn cho mèo cao cấp', 'https://images.unsplash.com/photo-1611003228941-98852ba62227?w=416&h=416&fit=crop', '420.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
+                    <div class="featured-showcase-body">
+                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
+                        <h3 class="featured-showcase-name">Bánh thưởng vị gà cho chó</h3>
+                        <p class="featured-showcase-copy">Mùi thơm tự nhiên, kết cấu mềm vừa phải giúp bé dễ nhai và hào hứng hơn trong giờ thưởng.</p>
+                        <p class="featured-showcase-meta">Giá từ 149.000₫</p>
                     </div>
-                </div>
-                <div class="col-lg-4 col-md-6">
-                    <div class="product-card">
-                        <div class="product-image">
-                            <img src="https://images.unsplash.com/photo-1600804340584-c7db2eacf0bf?w=416&h=416&fit=crop" alt="Premium Dog Food" class="img-fluid">
-                        </div>
-                        <div class="product-content">
-                            <div>
-                                <h5 class="product-title">Thức ăn cho chó siêu cấp</h5>
-                                <p class="product-price">520.000₫</p>
-                            </div>
-                            <button class="btn btn-light btn-sm btn-circle-sm wishlist-btn" onclick="addToWishlist('Thức ăn cho chó siêu cấp', 'https://images.unsplash.com/photo-1600804340584-c7db2eacf0bf?w=416&h=416&fit=crop', '520.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
+                </article>
+
+                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Pate tươi cho mèo trưởng thành', 'https://images.unsplash.com/photo-1611003228941-98852ba62227?w=680&h=460&fit=crop', '189.000₫', '4.9', '244', 'Pate giàu đạm, bổ sung vitamin giúp mèo ăn ngon miệng, giảm rụng lông và hỗ trợ tiêu hóa.')">
+                    <div class="featured-showcase-image-wrap">
+                        <img src="https://images.unsplash.com/photo-1611003228941-98852ba62227?w=680&h=460&fit=crop" alt="Pate tươi cho mèo trưởng thành" class="featured-showcase-image">
                     </div>
+                    <div class="featured-showcase-body">
+                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
+                        <h3 class="featured-showcase-name">Pate tươi cho mèo trưởng thành</h3>
+                        <p class="featured-showcase-copy">Giàu omega 3 và khoáng chất thiết yếu, giúp da khỏe, lông mượt và giảm biếng ăn.</p>
+                        <p class="featured-showcase-meta">Giá từ 189.000₫</p>
+                    </div>
+                </article>
+
+                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Hạt mềm dinh dưỡng cho chó nhỏ', 'https://images.unsplash.com/photo-1601758177266-bc599de87707?w=680&h=460&fit=crop', '229.000₫', '4.7', '167', 'Hạt mềm vị thịt thật, phù hợp chó nhỏ hoặc chó lớn tuổi, hỗ trợ tiêu hóa tốt hơn.')">
+                    <div class="featured-showcase-image-wrap">
+                        <img src="https://images.unsplash.com/photo-1601758177266-bc599de87707?w=680&h=460&fit=crop" alt="Hạt mềm dinh dưỡng cho chó nhỏ" class="featured-showcase-image">
+                    </div>
+                    <div class="featured-showcase-body">
+                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
+                        <h3 class="featured-showcase-name">Hạt mềm dinh dưỡng cho chó nhỏ</h3>
+                        <p class="featured-showcase-copy">Công thức cân bằng đạm - xơ, hỗ trợ hấp thu tốt và duy trì mức năng lượng ổn định cả ngày.</p>
+                        <p class="featured-showcase-meta">Giá từ 229.000₫</p>
+                    </div>
+                </article>
+
+                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Snack nha khoa vị bò', 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=680&h=460&fit=crop', '119.000₫', '4.8', '210', 'Thanh snack giúp giảm mảng bám, thơm miệng và bổ sung khoáng chất cho răng chắc khỏe.')">
+                    <div class="featured-showcase-image-wrap">
+                        <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=680&h=460&fit=crop" alt="Snack nha khoa vị bò" class="featured-showcase-image">
+                    </div>
+                    <div class="featured-showcase-body">
+                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
+                        <h3 class="featured-showcase-name">Snack nha khoa vị bò</h3>
+                        <p class="featured-showcase-copy">Vừa là món thưởng ngon, vừa hỗ trợ làm sạch răng nhờ kết cấu dai nhẹ, phù hợp dùng hằng ngày.</p>
+                        <p class="featured-showcase-meta">Giá từ 119.000₫</p>
+                    </div>
+                </article>
+
+                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Súp thưởng bổ sung nước cho mèo', 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=680&h=460&fit=crop', '99.000₫', '4.9', '301', 'Súp thưởng thơm ngon giúp mèo uống nước tốt hơn, hỗ trợ đường tiết niệu khỏe mạnh.')">
+                    <div class="featured-showcase-image-wrap">
+                        <img src="https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=680&h=460&fit=crop" alt="Súp thưởng bổ sung nước cho mèo" class="featured-showcase-image">
+                    </div>
+                    <div class="featured-showcase-body">
+                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
+                        <h3 class="featured-showcase-name">Súp thưởng bổ sung nước cho mèo</h3>
+                        <p class="featured-showcase-copy">Kết cấu mịn, vị dễ ăn, lý tưởng cho mèo kén ăn hoặc cần tăng hấp thu nước mỗi ngày.</p>
+                        <p class="featured-showcase-meta">Giá từ 99.000₫</p>
+                    </div>
+                </article>
                 </div>
+
+                <button type="button" class="featured-nav-btn next" id="featuredNextBtn" aria-label="Sản phẩm tiếp theo">
+                    <i data-feather="chevron-right"></i>
+                </button>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="javascript:void(0)" class="featured-review-btn" onclick="routeToPage('shop')">Xem tất cả sản phẩm</a>
             </div>
         </div>
     </section>
@@ -585,10 +605,6 @@
                         <div class="difference-icon"><i data-feather="smile"></i></div>
                         <p class="difference-label">Tiêu hóa tốt hơn</p>
                     </article>
-                </div>
-                <div class="difference-actions">
-                    <a href="javascript:void(0)" class="difference-btn primary" onclick="routeToPage('services')">Tìm hiểu thêm</a>
-                    <a href="javascript:void(0)" class="difference-btn secondary" onclick="routeToPage('shop')">Tìm cửa hàng <span aria-hidden="true">→</span></a>
                 </div>
             </div>
         </div>
@@ -1855,25 +1871,16 @@
                         <li><a href="javascript:void(0)" onclick="routeToPage('contact')">Theo Dõi Đơn Hàng</a></li>
                     </ul>
                 </div>
-
-                <div>
-                    <h4 class="pet-footer-title">Cửa Hàng</h4>
-                    <div class="pet-footer-store">
-                        <p>8592 Fairground St.<br>Tallahassee, FL 32303</p>
-                        <p><a href="tel:+17753786348">+775 378-6348</a></p>
-                        <p><a href="mailto:rgarton@outlook.com">rgarton@outlook.com</a></p>
-                    </div>
-                </div>
             </div>
 
             <div class="pet-footer-bottom">
                 <p class="pet-footer-copyright">&copy; Bản quyền Pet Shop 2024. Thiết kế bởi Figma.guru</p>
                 <div class="pet-footer-payments">
                     <span class="payment-label">Chấp Nhận Thanh Toán:</span>
-                    <span class="payment-chip">VISA</span>
-                    <span class="payment-chip small">AMERICAN EXPRESS</span>
-                    <span class="payment-chip">mastercard</span>
-                    <span class="payment-chip">PayPal</span>
+                    <span class="payment-logo" aria-label="Visa"><i class="fa-brands fa-cc-visa" aria-hidden="true"></i></span>
+                    <span class="payment-logo" aria-label="American Express"><i class="fa-brands fa-cc-amex" aria-hidden="true"></i></span>
+                    <span class="payment-logo" aria-label="Mastercard"><i class="fa-brands fa-cc-mastercard" aria-hidden="true"></i></span>
+                    <span class="payment-logo" aria-label="PayPal"><i class="fa-brands fa-cc-paypal" aria-hidden="true"></i></span>
                 </div>
             </div>
         </div>
@@ -2096,6 +2103,99 @@
 
             console.log('Position:', categoryCurrentPosition, 'TranslateX:', translateX + '%');
         };
+
+        const initFeaturedShowcaseCarousel = () => {
+            const track = document.querySelector('.featured-showcase-track');
+            const prevBtn = document.getElementById('featuredPrevBtn');
+            const nextBtn = document.getElementById('featuredNextBtn');
+
+            if (!track || !prevBtn || !nextBtn || track.dataset.carouselReady === '1') {
+                return;
+            }
+
+            const getStep = () => {
+                const firstCard = track.querySelector('.featured-showcase-card');
+                if (!firstCard) return 320;
+                const cardWidth = firstCard.getBoundingClientRect().width;
+                return Math.round(cardWidth + 12);
+            };
+
+            const clampScroll = (value) => {
+                const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+                return Math.max(0, Math.min(value, maxScroll));
+            };
+
+            const slideBy = (direction, smooth = true) => {
+                const step = getStep();
+                const target = clampScroll(track.scrollLeft + (direction * step));
+                track.scrollTo({ left: target, behavior: smooth ? 'smooth' : 'auto' });
+                return target;
+            };
+
+            let autoDirection = 1;
+            let autoTimer = null;
+
+            const autoStep = () => {
+                const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+                if (maxScroll <= 0) return;
+
+                const current = track.scrollLeft;
+                if (current >= (maxScroll - 4)) {
+                    autoDirection = -1;
+                } else if (current <= 4) {
+                    autoDirection = 1;
+                }
+
+                slideBy(autoDirection);
+            };
+
+            const stopAuto = () => {
+                if (autoTimer) {
+                    clearInterval(autoTimer);
+                    autoTimer = null;
+                }
+            };
+
+            const startAuto = () => {
+                stopAuto();
+                autoTimer = setInterval(autoStep, 3200);
+            };
+
+            prevBtn.addEventListener('click', () => {
+                autoDirection = -1;
+                slideBy(-1);
+            });
+
+            nextBtn.addEventListener('click', () => {
+                autoDirection = 1;
+                slideBy(1);
+            });
+
+            track.addEventListener('mouseenter', stopAuto);
+            track.addEventListener('mouseleave', startAuto);
+            track.addEventListener('focusin', stopAuto);
+            track.addEventListener('focusout', startAuto);
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    stopAuto();
+                } else {
+                    startAuto();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+                if (track.scrollLeft > maxScroll) {
+                    track.scrollLeft = maxScroll;
+                }
+            });
+
+            track.dataset.carouselReady = '1';
+            startAuto();
+        };
+
+        initFeaturedShowcaseCarousel();
 
         const toggleScrollTopButton = () => {
             const scrollTopBtn = document.getElementById('scrollTopBtn');
