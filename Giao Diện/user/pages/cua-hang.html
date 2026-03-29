@@ -516,8 +516,8 @@
         height: 34px;
         border: none;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.95);
-        color: #1F8F4D;
+        background: #ffffff;
+        color: #9ca3af;
         box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
         display: inline-flex;
         align-items: center;
@@ -527,9 +527,23 @@
     }
 
     .product-heart-btn:hover {
-        background: #1F8F4D;
-        color: #fff;
+        background: #ffffff;
+        color: #ef4444;
         transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(239, 68, 68, 0.22);
+    }
+
+    .product-heart-btn.liked {
+        background: #ffffff;
+        color: #ef4444;
+        box-shadow: 0 10px 20px rgba(239, 68, 68, 0.22);
+    }
+
+    .product-heart-btn.liked i,
+    .product-heart-btn.liked svg {
+        color: #ef4444;
+        stroke: #ef4444;
+        fill: #ef4444;
     }
 
     .product-corner-actions {
@@ -2187,6 +2201,8 @@
         const grid = document.getElementById('productsGrid');
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
+        const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+        const wishlistNames = new Set(wishlist.map(item => item.name));
 
         setShopFilterPanelVisible(true);
         setMainCategorySidebarVisible(true);
@@ -2211,7 +2227,7 @@
                 <div class="product-image">
                     <img src="${product.image}" alt="${product.name}">
                     ${product.badge ? `<div class="product-badge ${product.badge === 'new' ? 'new' : ''}">${product.badge === 'sale' ? '🔥 Sale' : '✨ Mới'}</div>` : ''}
-                    <button class="product-heart-btn" data-action="toggle-wishlist" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Yêu thích">
+                    <button class="product-heart-btn ${wishlistNames.has(product.name) ? 'liked' : ''}" data-action="toggle-wishlist" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Yêu thích">
                         <i data-feather="heart" style="width: 18px; height: 18px;"></i>
                     </button>
 
@@ -2317,22 +2333,33 @@
 
                 <div class="breed-right-grid">
                     ${puppiesToRender.map((puppy) => `
-                        <article class="breed-detail-item">
-                            <div class="breed-detail-card">
-                                <div class="breed-detail-image-wrap" data-action="open-dog-detail" data-puppy-id="${puppy.id}">
-                                    <img src="${puppy.image}" alt="${puppy.name}" class="breed-detail-image" data-action="open-dog-detail" data-puppy-id="${puppy.id}">
-                                    <button class="breed-detail-cart-btn" type="button" data-action="add-cart" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}">Thêm vào giỏ hàng</button>
+                        <article class="product-card product-card-dog">
+                            <div class="product-image" data-action="open-dog-detail" data-puppy-id="${puppy.id}" title="Xem chi tiết ${puppy.name}">
+                                <img src="${puppy.image}" alt="${puppy.name}" data-action="open-dog-detail" data-puppy-id="${puppy.id}">
+
+                                <div class="product-overlay">
+                                    <button class="overlay-btn add-cart" data-action="add-cart" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}" title="Thêm vào giỏ">
+                                        <i data-feather="shopping-cart" style="width: 20px; height: 20px;"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="breed-detail-meta">
-                                <h3 class="breed-detail-name" data-action="open-dog-detail" data-puppy-id="${puppy.id}">${puppy.name}</h3>
-                                <p class="breed-detail-price">${puppy.price} ₫</p>
+
+                            <div class="product-info">
+                                <h3 class="product-name" data-action="open-dog-detail" data-puppy-id="${puppy.id}">${puppy.name}</h3>
+                                <p class="product-category">Giống chó</p>
+                                <p class="product-price">${puppy.price} ₫</p>
+                                <div class="product-corner-actions">
+                                    <button class="product-corner-btn buy" data-action="add-cart" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}" title="Mua ngay">Mua</button>
+                                    <button class="product-corner-btn detail" data-action="open-dog-detail" data-puppy-id="${puppy.id}" title="Xem chi tiết">Chi tiết</button>
+                                </div>
                             </div>
                         </article>
                     `).join('')}
                 </div>
             </div>
         `;
+
+        if (typeof feather !== 'undefined') feather.replace();
     };
 
     const renderDogDetailPage = (puppy) => {
@@ -2786,17 +2813,20 @@
     const toggleWishlist = (name, image, price) => {
         const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
         const index = wishlist.findIndex(p => p.name === name);
+        let isLiked = false;
 
         if (index > -1) {
             wishlist.splice(index, 1);
             alert(`Đã xóa "${name}" khỏi yêu thích`);
         } else {
             wishlist.push({ name, image, price });
+            isLiked = true;
             alert(`Đã thêm "${name}" vào yêu thích!`);
         }
 
         localStorage.setItem('wishlist', JSON.stringify(wishlist));
         if (typeof updateWishlistIcons === 'function') updateWishlistIcons();
+        return isLiked;
     };
 
     // Close modal on outside click
@@ -2928,7 +2958,8 @@
                 }
 
                 if (action === 'toggle-wishlist') {
-                    toggleWishlist(actionButton.dataset.name || '', actionButton.dataset.image || '', actionButton.dataset.price || '');
+                    const isLiked = toggleWishlist(actionButton.dataset.name || '', actionButton.dataset.image || '', actionButton.dataset.price || '');
+                    actionButton.classList.toggle('liked', isLiked);
                 }
             });
 
