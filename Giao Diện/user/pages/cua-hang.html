@@ -33,7 +33,7 @@
 </script>
 
 <!-- Professional Pet Shop Page -->
-<section class="shop-section" style="padding: 28px 0 100px; background: #f8f9fa;">
+<section class="shop-section" style="padding: 24px 0 100px; background: #f8f9fa;">
     <div class="container-fluid px-5">
         <p id="productCount" style="display: none;">Đang tải sản phẩm...</p>
 
@@ -45,7 +45,8 @@
                 <button type="button" class="shop-category-btn" data-category="Phụ kiện">Phụ kiện</button>
                 <button type="button" class="shop-category-btn" data-category="Nội thất">Nội thất</button>
                 <button type="button" class="shop-category-btn" data-category="Túi xách">Túi xách</button>
-                <button type="button" class="shop-category-btn" data-category="Giống chó">Giống chó</button>
+                <button type="button" class="shop-category-btn has-children" data-category="Giống chó">Giống chó</button>
+                <div id="dogBreedSubmenu" class="shop-subcategory-list" aria-label="Danh sách giống chó"></div>
                 <button type="button" class="shop-category-btn" data-category="Giống mèo">Giống mèo</button>
             </aside>
 
@@ -169,6 +170,27 @@
         }
     }
 
+    .hero-section.content-only-mode .main-header {
+        margin-bottom: 0 !important;
+        padding: 8px 24px !important;
+    }
+
+    .hero-section.content-only-mode .logo-container .logo-image.logo-image-full {
+        height: 84px;
+        max-width: 300px;
+    }
+
+    .hero-section.content-only-mode .nav-menu .nav-link {
+        font-size: 18px;
+    }
+
+    .hero-section.content-only-mode .header-icons .icon-button,
+    .hero-section.content-only-mode .header-icons .icon-badge,
+    .hero-section.content-only-mode .header-icons .mini-cart-trigger {
+        width: 38px;
+        height: 38px;
+    }
+
     .product-card {
         background: linear-gradient(180deg, #ffffff 0%, #fffaf6 100%);
         border-radius: 12px;
@@ -186,6 +208,10 @@
         grid-template-columns: 270px minmax(0, 1fr);
         gap: 22px;
         align-items: start;
+    }
+
+    .shop-layout.sidebar-hidden {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .shop-category-sidebar {
@@ -229,6 +255,11 @@
         color: #9ca3af;
         font-size: 16px;
         line-height: 1;
+        transition: transform 0.22s ease;
+    }
+
+    .shop-category-btn.has-children.expanded::after {
+        transform: rotate(90deg);
     }
 
     .shop-category-btn:hover {
@@ -240,6 +271,42 @@
         background: linear-gradient(135deg, #e9f7ea 0%, #f4fcf2 100%);
         color: #1C7F45;
         font-weight: 700;
+    }
+
+    .shop-subcategory-list {
+        display: none;
+        margin-top: -2px;
+        margin-bottom: 4px;
+        padding: 0 0 0 12px;
+        gap: 4px;
+    }
+
+    .shop-subcategory-list.open {
+        display: grid;
+    }
+
+    .shop-subcategory-btn {
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+        padding: 8px 10px;
+        border-radius: 8px;
+        color: #6b7280;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .shop-subcategory-btn:hover {
+        background: #f7f9fc;
+        color: #111827;
+    }
+
+    .shop-subcategory-btn.active {
+        background: #edf9ef;
+        color: #1C7F45;
     }
 
     .shop-main-content {
@@ -513,13 +580,16 @@
         justify-content: center;
         gap: 10px;
         opacity: 0;
-        transition: opacity 0.3s ease;
+        transform: scale(0.96) translateY(8px);
+        transition: opacity 3s cubic-bezier(0.22, 1, 0.36, 1), transform 3s cubic-bezier(0.22, 1, 0.36, 1);
         z-index: 3;
         pointer-events: none;
+        will-change: opacity, transform;
     }
 
     .product-card:hover .product-overlay {
         opacity: 1;
+        transform: scale(1) translateY(0);
         pointer-events: auto;
     }
 
@@ -532,9 +602,16 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s ease;
+        transform: scale(0.84) translateY(6px);
+        opacity: 0;
+        transition: transform 2.75s cubic-bezier(0.22, 1, 0.36, 1), opacity 2.75s cubic-bezier(0.22, 1, 0.36, 1), background-color 1.25s ease;
         font-size: 20px;
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .product-card:hover .overlay-btn {
+        transform: scale(1) translateY(0);
+        opacity: 1;
     }
 
     .overlay-btn.add-cart {
@@ -544,7 +621,7 @@
 
     .overlay-btn.add-cart:hover {
         background: #333;
-        transform: scale(1.1);
+        transform: scale(1.08) translateY(0);
     }
 
     .product-info {
@@ -572,7 +649,7 @@
     }
 
     .product-price {
-        color: #1F8F4D;
+        color: #111827;
         font-size: 22px;
         font-weight: 800;
         margin: 0;
@@ -584,11 +661,11 @@
         border-radius: 12px;
         overflow: hidden;
         box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-        border: 1px solid #ead8cb;
+        border: 1px solid #ecd8ca;
         display: flex;
         flex-direction: column;
         height: 100%;
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
     .breed-card:hover {
@@ -596,11 +673,34 @@
         box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
     }
 
-    .breed-image {
+    .breed-image-wrap {
+        position: relative;
         width: 100%;
         height: 220px;
+        background: linear-gradient(135deg, #eef3f7 0%, #e7edf3 100%);
+        overflow: hidden;
+    }
+
+    .breed-image-wrap::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0) 58%, rgba(15, 23, 42, 0.12) 100%);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .breed-image {
+        width: 100%;
+        height: 100%;
         object-fit: cover;
         display: block;
+        transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1), filter 0.4s ease;
+    }
+
+    .breed-card:hover .breed-image {
+        transform: scale(1.045);
+        filter: saturate(1.04);
     }
 
     .breed-content {
@@ -636,6 +736,11 @@
         min-height: 34px;
         width: 100%;
         flex: 1;
+        line-clamp: 2;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
     .breed-btn {
@@ -657,6 +762,7 @@
     }
 
     .breed-btn:hover {
+        background: linear-gradient(135deg, #15803d 0%, #4dbd4f 100%);
         transform: translateY(-2px);
         box-shadow: 0 12px 22px rgba(31, 143, 77, 0.3);
     }
@@ -665,7 +771,7 @@
         background: linear-gradient(180deg, #ffffff 0%, #fffaf4 100%);
         border: 1px solid #ecd9cb;
         border-radius: 14px;
-        padding: 10px 10px 14px;
+        padding: 8px 8px 12px;
         box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
         transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
@@ -729,20 +835,20 @@
     }
 
     .puppy-title {
-        margin: 14px 8px 8px;
+        margin: 10px 8px 6px;
         text-align: center;
-        font-size: 30px;
-        line-height: 1.2;
-        color: #111827;
+        font-size: 14px;
+        line-height: 1.4;
+        color: #4b5563;
         font-weight: 600;
     }
 
     .puppy-price {
         margin: 0;
         text-align: center;
-        color: #4CAF67;
-        font-size: 28px;
-        font-weight: 300;
+        color: #111827;
+        font-size: 14px;
+        font-weight: 600;
     }
 
     .breed-detail-layout {
@@ -750,6 +856,10 @@
         grid-template-columns: 280px 1fr;
         gap: 22px;
         align-items: start;
+    }
+
+    .breed-detail-layout.no-sidebar {
+        grid-template-columns: 1fr;
     }
 
     .breed-sidebar {
@@ -796,8 +906,8 @@
 
     .breed-right-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 22px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
     }
 
     .breed-detail-item {
@@ -825,9 +935,8 @@
         width: 100%;
         aspect-ratio: 1 / 1.1;
         overflow: hidden;
-        border-radius: 12px;
-        margin: 10px;
-        margin-bottom: 0;
+        border-radius: 14px 14px 0 0;
+        margin: 0;
         background: #f3f4f6;
     }
 
@@ -858,18 +967,18 @@
 
     .breed-detail-name {
         margin: 0 0 6px;
-        color: #111827;
-        font-size: 17px;
-        line-height: 1.35;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.4;
         font-weight: 600;
         text-align: center;
     }
 
     .breed-detail-price {
         margin: 0;
-        color: #6CBF78;
-        font-size: 18px;
-        font-weight: 500;
+        color: #111827;
+        font-size: 14px;
+        font-weight: 600;
         text-align: center;
     }
 
@@ -910,23 +1019,23 @@
 
     @media (max-width: 1200px) {
         .breed-right-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
     }
 
     @media (max-width: 1200px) {
         .puppy-title {
-            font-size: 26px;
+            font-size: 14px;
         }
 
         .puppy-price {
-            font-size: 24px;
+            font-size: 14px;
         }
     }
 
     @media (max-width: 992px) {
-        .breed-image {
-            height: 280px;
+        .breed-image-wrap {
+            height: 220px;
         }
 
         .breed-detail-layout {
@@ -941,6 +1050,10 @@
     @media (max-width: 768px) {
         .breed-right-grid {
             grid-template-columns: 1fr;
+        }
+
+        .breed-image-wrap {
+            height: 200px;
         }
     }
 
@@ -1144,7 +1257,7 @@
         padding: 9px 18px;
         cursor: pointer;
         transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.2s ease;
-        box-shadow: 0 10px 22px rgba(249, 115, 22, 0.34);
+        box-shadow: 0 10px 22px rgba(31, 143, 77, 0.28);
     }
 
     .poodle-detail-btn-primary {
@@ -1161,15 +1274,17 @@
         box-shadow: none;
     }
 
-    .poodle-detail-btn-ghost:hover {
-        background: #f9fafb;
-        box-shadow: none;
-    }
-
     .poodle-detail-btn:hover {
         background: #1C7F45;
         transform: translateY(-1px);
-        box-shadow: 0 12px 24px rgba(234, 88, 12, 0.34);
+        box-shadow: 0 12px 24px rgba(31, 143, 77, 0.36);
+    }
+
+    .poodle-detail-btn-ghost:hover {
+        background: #f9fafb;
+        color: #1f2937;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.16);
     }
 
     .poodle-desc-panel {
@@ -1682,7 +1797,7 @@
     ];
 
     const dogBreeds = [
-        { id: 101, name: 'Poodle', image: 'https://images.unsplash.com/photo-1625316708582-7c38734bead5?w=600&h=700&fit=crop', description: 'Thân thiện, thông minh và nhanh nhẹn' },
+        { id: 101, name: 'Poodle', image: 'https://images.unsplash.com/photo-1601758174114-e711c0cbaa69?w=600&h=700&fit=crop', description: 'Thân thiện, thông minh và nhanh nhẹn' },
         { id: 102, name: 'Phốc sóc', image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&h=700&fit=crop', description: 'Dòng chó lông xù có kích thước nhỏ' },
         { id: 103, name: 'Corgi', image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=600&h=700&fit=crop', description: 'Thông minh, dễ chăm sóc và lanh lợi' },
         { id: 104, name: 'Alaska', image: 'https://images.unsplash.com/photo-1605568427561-40dd23c2acea?w=600&h=700&fit=crop', description: 'Ngoại hình to lớn, dũng mãnh, thân thiện' },
@@ -1845,6 +1960,8 @@
 
     let currentQVProduct = null;
     const SHOP_CATEGORY_STORAGE_KEY = 'shopSelectedCategory';
+    let currentDogBreedView = '';
+    let keepMainSidebarOnDogBreedView = false;
 
     const updateShopHeroByCategory = () => {
         const categorySelect = document.getElementById('categoryFilter');
@@ -1882,15 +1999,57 @@
         panel.style.display = visible ? 'block' : 'none';
     };
 
+    const setMainCategorySidebarVisible = (visible) => {
+        const sidebar = document.getElementById('shopCategorySidebar');
+        const shopLayout = document.querySelector('.shop-layout');
+
+        if (sidebar) {
+            sidebar.style.display = visible ? '' : 'none';
+        }
+
+        if (shopLayout) {
+            shopLayout.classList.toggle('sidebar-hidden', !visible);
+        }
+    };
+
+    const buildDogBreedSubmenu = () => {
+        const submenu = document.getElementById('dogBreedSubmenu');
+        if (!submenu) return;
+
+        const uniqueBreeds = Array.from(
+            new Set(
+                dogPuppies
+                    .map((item) => String(item.breed || '').trim())
+                    .filter(Boolean)
+            )
+        ).sort((a, b) => a.localeCompare(b, 'vi'));
+
+        submenu.innerHTML = uniqueBreeds
+            .map((breed) => `<button type="button" class="shop-subcategory-btn" data-breed="${breed.replace(/"/g, '&quot;')}">${breed}</button>`)
+            .join('');
+    };
+
     const syncCategorySidebarState = () => {
         const categorySelect = document.getElementById('categoryFilter');
         const activeCategory = String(categorySelect?.value || '').trim().toLowerCase();
         const sidebarButtons = document.querySelectorAll('#shopCategorySidebar .shop-category-btn');
+        const sidebarTitle = document.querySelector('#shopCategorySidebar .shop-category-title');
+        const dogSubmenuButtons = document.querySelectorAll('#dogBreedSubmenu .shop-subcategory-btn');
+        const currentBreed = String(currentDogBreedView || '').trim().toLowerCase();
 
         sidebarButtons.forEach((button) => {
             const buttonCategory = String(button.dataset.category || '').trim().toLowerCase();
             button.classList.toggle('active', buttonCategory === activeCategory);
         });
+
+        dogSubmenuButtons.forEach((button) => {
+            const buttonBreed = String(button.dataset.breed || '').trim().toLowerCase();
+            button.classList.toggle('active', currentBreed && buttonBreed === currentBreed);
+        });
+
+        if (sidebarTitle) {
+            sidebarTitle.textContent = 'Danh mục';
+        }
     };
 
     const getBreedPriceLabel = (breedType, breedName) => {
@@ -1917,6 +2076,21 @@
         const minPrice = Math.min(...prices);
         return `Từ ${new Intl.NumberFormat('vi-VN').format(minPrice)}đ`;
     };
+
+    const getBreedFallbackImage = (breedType = 'dog') => {
+        if (String(breedType).toLowerCase() === 'cat') {
+            return 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&h=700&fit=crop';
+        }
+        return 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=600&h=700&fit=crop';
+    };
+
+    const handleBreedImageFallback = (img, breedType = 'dog') => {
+        if (!img || img.dataset.fallbackApplied === '1') return;
+        img.dataset.fallbackApplied = '1';
+        img.src = getBreedFallbackImage(breedType);
+    };
+
+    window.handleBreedImageFallback = handleBreedImageFallback;
 
     const openQuickViewWithData = (item) => {
         if (!item) return;
@@ -2015,6 +2189,7 @@
         const countElement = document.getElementById('productCount');
 
         setShopFilterPanelVisible(true);
+        setMainCategorySidebarVisible(true);
 
         grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
 
@@ -2067,7 +2242,10 @@
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
 
+        currentDogBreedView = '';
+
         setShopFilterPanelVisible(true);
+        setMainCategorySidebarVisible(true);
 
         if (breedsToRender.length === 0) {
             grid.style.display = 'none';
@@ -2077,17 +2255,17 @@
             return;
         }
 
-        const columns = window.innerWidth >= 1400 ? 4 : window.innerWidth >= 992 ? 3 : window.innerWidth >= 576 ? 2 : 1;
-
         grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
         emptyState.style.display = 'none';
         countElement.textContent = `${breedsToRender.length} giống chó`;
         updateResultsSummary(breedsToRender.length, dogBreeds.length, 'giống chó');
 
         grid.innerHTML = breedsToRender.map(breed => `
             <div class="breed-card">
-                <img src="${breed.image}" alt="${breed.name}" class="breed-image">
+                <div class="breed-image-wrap">
+                    <img src="${breed.image}" alt="${breed.name}" class="breed-image" loading="lazy" onerror="handleBreedImageFallback(this, 'dog')">
+                </div>
                 <div class="breed-content">
                     <h3 class="breed-title">${breed.name}</h3>
                     <div class="breed-line"></div>
@@ -2098,12 +2276,14 @@
         `).join('');
     };
 
-    const renderDogPuppyCards = (puppiesToRender, totalCount, breedName = '') => {
+    const renderDogPuppyCards = (puppiesToRender, totalCount, breedName = '', options = {}) => {
         const grid = document.getElementById('productsGrid');
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
+        const hideCategorySidebar = options?.hideCategorySidebar === true;
 
         setShopFilterPanelVisible(true);
+        setMainCategorySidebarVisible(hideCategorySidebar);
 
         if (puppiesToRender.length === 0) {
             grid.style.display = 'none';
@@ -2122,7 +2302,8 @@
         const sidebarBreeds = ['Giống khác', 'Giống Chó', 'Chó Akita', 'Chó Alaska', 'Chó Beagle', 'Chó Becgie', 'Chó Bichon', 'Chó Border Collie', 'Chó Bull Pháp', 'Chó Chihuahua'];
 
         grid.innerHTML = `
-            <div class="breed-detail-layout">
+            <div class="breed-detail-layout ${hideCategorySidebar ? 'no-sidebar' : ''}">
+                ${hideCategorySidebar ? '' : `
                 <aside class="breed-sidebar">
                     <h3 class="breed-sidebar-title">Thể loại</h3>
                     ${sidebarBreeds.map((item) => `
@@ -2132,6 +2313,7 @@
                         </button>
                     `).join('')}
                 </aside>
+                `}
 
                 <div class="breed-right-grid">
                     ${puppiesToRender.map((puppy) => `
@@ -2160,7 +2342,10 @@
 
         if (!puppy) return;
 
+        currentDogBreedView = puppy.breed || currentDogBreedView;
+
         setShopFilterPanelVisible(false);
+        setMainCategorySidebarVisible(false);
 
         const related = dogPuppies.filter(p => p.breed === puppy.breed && p.id !== puppy.id).slice(0, 4);
         const thumbSources = [puppy.image, ...(related.map(p => p.image).slice(0, 2))];
@@ -2282,9 +2467,10 @@
     };
 
     const showDogPuppiesByBreed = (breedName) => {
+        currentDogBreedView = breedName || '';
+        keepMainSidebarOnDogBreedView = false;
         const filtered = dogPuppies.filter(p => p.breed.toLowerCase().includes(breedName.toLowerCase()));
-        const firstThree = filtered.slice(0, 3);
-        renderDogPuppyCards(firstThree, filtered.length, breedName);
+        renderDogPuppyCards(filtered, filtered.length, breedName, { hideCategorySidebar: false });
         if (typeof feather !== 'undefined') feather.replace();
     };
 
@@ -2294,6 +2480,7 @@
         const countElement = document.getElementById('productCount');
 
         setShopFilterPanelVisible(true);
+        setMainCategorySidebarVisible(true);
 
         if (kittensToRender.length === 0) {
             grid.style.display = 'none';
@@ -2304,7 +2491,7 @@
         }
 
         grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+        grid.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
         emptyState.style.display = 'none';
         countElement.textContent = `${kittensToRender.length} giống mèo`;
         updateResultsSummary(kittensToRender.length, totalCount || kittensToRender.length, 'kết quả');
@@ -2332,7 +2519,10 @@
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
 
+        currentDogBreedView = '';
+
         setShopFilterPanelVisible(true);
+        setMainCategorySidebarVisible(true);
 
         if (breedsToRender.length === 0) {
             grid.style.display = 'none';
@@ -2342,17 +2532,17 @@
             return;
         }
 
-        const columns = window.innerWidth >= 1400 ? 4 : window.innerWidth >= 992 ? 3 : window.innerWidth >= 576 ? 2 : 1;
-
         grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
         emptyState.style.display = 'none';
         countElement.textContent = `${breedsToRender.length} giống mèo`;
         updateResultsSummary(breedsToRender.length, catBreeds.length, 'giống mèo');
 
         grid.innerHTML = breedsToRender.map(breed => `
             <div class="breed-card">
-                <img src="${breed.image}" alt="${breed.name}" class="breed-image">
+                <div class="breed-image-wrap">
+                    <img src="${breed.image}" alt="${breed.name}" class="breed-image" loading="lazy" onerror="handleBreedImageFallback(this, 'cat')">
+                </div>
                 <div class="breed-content">
                     <h3 class="breed-title">${breed.name}</h3>
                     <div class="breed-line"></div>
@@ -2373,6 +2563,50 @@
         updateShopHeroByCategory();
 
         if (categoryValue === 'giống chó') {
+            if (currentDogBreedView) {
+                const normalizedBreed = currentDogBreedView.toLowerCase();
+                let filteredPuppies = dogPuppies.filter((puppy) =>
+                    String(puppy.breed || '').toLowerCase().includes(normalizedBreed)
+                );
+
+                if (searchTerm) {
+                    filteredPuppies = filteredPuppies.filter((puppy) =>
+                        String(puppy.name || '').toLowerCase().includes(searchTerm)
+                    );
+                }
+
+                if (priceRange) {
+                    const [minValue, maxValueRaw] = priceRange.split('-');
+                    const minPrice = (parseInt(minValue, 10) || 0) * 1000;
+                    const maxPrice = Number.isFinite(parseInt(maxValueRaw, 10))
+                        ? parseInt(maxValueRaw, 10) * 1000
+                        : Infinity;
+
+                    filteredPuppies = filteredPuppies.filter((puppy) => {
+                        const puppyPrice = parseInt(String(puppy.price || '').replace(/[^0-9]/g, ''), 10);
+                        if (!Number.isFinite(puppyPrice)) return false;
+                        return puppyPrice >= minPrice && puppyPrice <= maxPrice;
+                    });
+                }
+
+                if (sort === 'price-asc') {
+                    filteredPuppies.sort((a, b) => parseInt(String(a.price || '').replace(/[^0-9]/g, ''), 10) - parseInt(String(b.price || '').replace(/[^0-9]/g, ''), 10));
+                } else if (sort === 'price-desc') {
+                    filteredPuppies.sort((a, b) => parseInt(String(b.price || '').replace(/[^0-9]/g, ''), 10) - parseInt(String(a.price || '').replace(/[^0-9]/g, ''), 10));
+                } else if (sort === 'newest') {
+                    filteredPuppies.sort((a, b) => (b.id || 0) - (a.id || 0));
+                }
+
+                const totalByBreed = dogPuppies.filter((puppy) =>
+                    String(puppy.breed || '').toLowerCase().includes(normalizedBreed)
+                ).length;
+
+                renderDogPuppyCards(filteredPuppies, totalByBreed, currentDogBreedView, { hideCategorySidebar: keepMainSidebarOnDogBreedView });
+                updateActiveFilters();
+                syncCategorySidebarState();
+                return;
+            }
+
             let filteredBreeds = dogBreeds;
 
             if (searchTerm) {
@@ -2474,6 +2708,8 @@
         document.getElementById('categoryFilter').value = '';
         document.getElementById('priceFilter').value = '';
         document.getElementById('sortFilter').value = '';
+        currentDogBreedView = '';
+        keepMainSidebarOnDogBreedView = false;
         document.querySelectorAll('.shop-custom-select').forEach(syncCustomSelectFromNative);
         filterAndRenderProducts();
         syncCategorySidebarState();
@@ -2602,14 +2838,24 @@
 
                 if (action === 'breed-quick-view') {
                     const breedName = actionButton.dataset.breedName || '';
-                    const breedType = actionButton.dataset.breedType === 'cat' ? 'Giống mèo' : 'Giống chó';
+                    const breedType = actionButton.dataset.breedType === 'cat' ? 'cat' : 'dog';
                     const breedImage = actionButton.dataset.breedImage || '';
                     const breedPrice = actionButton.dataset.breedPrice || 'Liên hệ';
                     const breedDescription = actionButton.dataset.breedDescription || '';
 
+                    if (breedType === 'dog') {
+                        showDogPuppiesByBreed(breedName);
+                        return;
+                    }
+
+                    if (breedType === 'cat') {
+                        showCatKittensByBreed(breedName);
+                        return;
+                    }
+
                     openQuickViewWithData({
                         name: breedName,
-                        category: breedType,
+                        category: 'Giống thú cưng',
                         image: breedImage,
                         price: breedPrice,
                         description: `${breedDescription}. Nhấn Thêm vào giỏ để lưu vào giỏ hàng và xem thêm chi tiết khi cần.`
@@ -2696,11 +2942,45 @@
 
         if (categorySidebar && !categorySidebar.dataset.bound) {
             categorySidebar.addEventListener('click', (event) => {
+                const breedBtn = event.target.closest('.shop-subcategory-btn');
+                if (breedBtn) {
+                    const categorySelect = document.getElementById('categoryFilter');
+                    if (!categorySelect) return;
+
+                    categorySelect.value = 'Giống chó';
+                    currentDogBreedView = String(breedBtn.dataset.breed || '').trim();
+                    keepMainSidebarOnDogBreedView = true;
+                    filterAndRenderProducts();
+                    syncCategorySidebarState();
+                    return;
+                }
+
                 const categoryBtn = event.target.closest('.shop-category-btn');
                 if (!categoryBtn) return;
 
                 const categorySelect = document.getElementById('categoryFilter');
                 if (!categorySelect) return;
+
+                 if (categoryBtn.classList.contains('has-children')) {
+                    const bounds = categoryBtn.getBoundingClientRect();
+                    const clickedArrow = event.clientX >= (bounds.right - 44);
+
+                    if (clickedArrow) {
+                        const submenu = document.getElementById('dogBreedSubmenu');
+                        const shouldExpand = !categoryBtn.classList.contains('expanded');
+                        categoryBtn.classList.toggle('expanded', shouldExpand);
+                        submenu?.classList.toggle('open', shouldExpand);
+                        return;
+                    }
+                }
+
+                if (String(categoryBtn.dataset.category || '').trim().toLowerCase() !== 'giống chó') {
+                    currentDogBreedView = '';
+                    keepMainSidebarOnDogBreedView = false;
+                } else {
+                    currentDogBreedView = '';
+                    keepMainSidebarOnDogBreedView = false;
+                }
 
                 categorySelect.value = categoryBtn.dataset.category || '';
                 filterAndRenderProducts();
@@ -2714,6 +2994,7 @@
     // Initialize - render products on page load
     const initShopPage = () => {
         console.log('Shop page initialized');
+        buildDogBreedSubmenu();
         setupDelegatedEvents();
         setupCustomSelectEvents();
 

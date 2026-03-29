@@ -32,18 +32,116 @@
 })();
 </script>
 
-<section style="padding: 50px 0 100px; background: #f8f9fa;">
+<style>
+  .checkout-premium-page {
+    background: linear-gradient(180deg, #f7f9fc 0%, #f3f5f9 100%) !important;
+  }
+
+  .checkout-premium-page .checkout-shell {
+    max-width: 1040px !important;
+  }
+
+  .checkout-premium-page h2 {
+    font-size: clamp(30px, 3.2vw, 40px) !important;
+    letter-spacing: -0.02em;
+  }
+
+  .checkout-premium-page h3 {
+    font-size: clamp(28px, 2.7vw, 36px) !important;
+    letter-spacing: -0.02em;
+  }
+
+  .checkout-premium-page label {
+    font-size: 14px !important;
+    font-weight: 600;
+    color: #657083 !important;
+  }
+
+  .checkout-premium-page input:not([type="checkbox"]):not([type="radio"]),
+  .checkout-premium-page select,
+  .checkout-premium-page textarea {
+    border: 1px solid #dde4ee !important;
+    background: #f8fafc !important;
+    border-radius: 12px !important;
+    font-size: 15px !important;
+    color: #1f2937 !important;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  }
+
+  .checkout-premium-page input:not([type="checkbox"]):not([type="radio"]),
+  .checkout-premium-page select {
+    height: 48px !important;
+    padding: 0 14px !important;
+  }
+
+  .checkout-premium-page textarea {
+    min-height: 110px;
+    padding: 12px 14px !important;
+  }
+
+  .checkout-premium-page input:focus,
+  .checkout-premium-page select:focus,
+  .checkout-premium-page textarea:focus {
+    outline: none;
+    border-color: #4f8df9 !important;
+    box-shadow: 0 0 0 4px rgba(79, 141, 249, 0.14) !important;
+    background: #ffffff !important;
+  }
+
+  .checkout-premium-page #couponInput {
+    height: 50px !important;
+  }
+
+  .checkout-premium-page #applyCouponBtn,
+  .checkout-premium-page #checkoutPlaceOrderBtn {
+    height: 50px !important;
+    padding: 0 26px !important;
+    border-radius: 999px !important;
+    background: linear-gradient(135deg, #21a35a 0%, #168f4a 100%) !important;
+    box-shadow: 0 10px 22px rgba(33, 163, 90, 0.25);
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+  }
+
+  .checkout-premium-page #applyCouponBtn:hover,
+  .checkout-premium-page #checkoutPlaceOrderBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 24px rgba(33, 163, 90, 0.3);
+    filter: brightness(0.97);
+  }
+
+  .checkout-premium-page table {
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+
+  .checkout-premium-page th,
+  .checkout-premium-page td {
+    font-size: 15px !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+  }
+
+  .checkout-premium-page #checkoutTotal,
+  .checkout-premium-page tfoot td[style*="font-size: 34px"] {
+    font-size: 28px !important;
+  }
+</style>
+
+<section class="checkout-premium-page" style="padding: 36px 0 76px; background: #f8f9fa;">
   <div class="container-fluid px-5">
-    <div style="max-width: 1180px; margin: 0 auto 26px auto; background: #d8e5f2; border-radius: 10px; padding: 18px 28px; color: #4f79a7;">
+    <div class="checkout-shell" style="max-width: 1180px; margin: 0 auto 20px auto; background: #d8e5f2; border-radius: 10px; padding: 14px 22px; color: #4f79a7;">
       <p style="margin: 0 0 2px 0; font-size: 16px; line-height: 1.45;">Bạn có mã ưu đãi?</p>
       <a id="toggleCouponBox" href="#" style="color: #395f89; text-decoration: underline; font-size: 16px; line-height: 1.45;">Ấn vào đây để nhập mã</a>
     </div>
 
-    <div id="couponInvalidBox" style="display: none; max-width: 1180px; margin: 0 auto 26px auto; background: #d8e5f2; border-radius: 10px; padding: 18px 28px; color: #4f79a7;">
+    <div id="couponInvalidBox" class="checkout-shell" style="display: none; max-width: 1180px; margin: 0 auto 20px auto; background: #d8e5f2; border-radius: 10px; padding: 14px 22px; color: #4f79a7;">
       <p id="couponInvalidText" style="margin: 0; font-size: 16px; line-height: 1.45;">Vui lòng nhập mã ưu đãi.</p>
     </div>
 
-    <div id="couponBox" style="display: none; max-width: 1180px; margin: 0 auto 34px auto;">
+    <div id="couponBox" class="checkout-shell" style="display: none; max-width: 1180px; margin: 0 auto 28px auto;">
       <p style="margin: 0 0 14px 0; color: #7c8087; font-size: 16px; line-height: 1.6;">Nếu bạn có mã giảm giá, vui lòng điền vào phía bên dưới.</p>
       <div style="display: flex; gap: 18px; align-items: center; flex-wrap: wrap;">
         <input id="couponInput" type="text" placeholder="Mã ưu đãi" style="flex: 1 1 560px; height: 72px; border: none; border-radius: 12px; background: #eeece9; padding: 0 22px; font-size: 16px; color: #2a2a2a;">
@@ -51,7 +149,7 @@
       </div>
     </div>
 
-    <div style="max-width: 1180px; margin: 0 auto;">
+    <div class="checkout-shell" style="max-width: 1180px; margin: 0 auto;">
       <!-- Billing Form (theo mẫu) -->
       <div style="background: transparent; border-radius: 12px; padding: 0; box-shadow: none;">
         <div id="checkoutValidationErrors" style="display: none; margin: 0 0 22px 0; background: #d8e5f2; border-radius: 12px; padding: 22px 40px; color: #3b6ea5;"></div>
@@ -142,7 +240,7 @@
           </tfoot>
         </table>
 
-        <p style="margin: 24px 4px 10px; font-size: 32px; color: #6e7884;">Chuyển khoản ngân hàng</p>
+        <p style="margin: 18px 4px 10px; font-size: 23px; color: #6e7884; font-weight: 600;">Chuyển khoản ngân hàng</p>
         <p style="margin: 0 4px 20px; font-size: 16px; line-height: 1.7; color: #8a94a3; max-width: 980px;">
           Thực hiện thanh toán vào ngay tài khoản ngân hàng của chúng tôi. Vui lòng sử dụng Mã đơn hàng của bạn trong phần Nội dung thanh toán. Đơn hàng sẽ được giao sau khi tiền đã chuyển.
         </p>

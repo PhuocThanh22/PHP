@@ -47,6 +47,15 @@
 </section>
 
 <script>
+    const parsePriceValue = (priceText) => {
+        const numeric = parseInt(String(priceText || '').replace(/[^0-9]/g, ''), 10);
+        return Number.isFinite(numeric) ? numeric : 0;
+    };
+
+    const formatVnCurrency = (value) => {
+        return `${Number(value || 0).toLocaleString('vi-VN')} ₫`;
+    };
+
     // Load and display cart
     const loadCart = () => {
         const cart = JSON.parse(localStorage.getItem('cart')) || [];
@@ -90,7 +99,8 @@
         let cartHTML = '<div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">';
         
         cart.forEach((item, index) => {
-            const itemTotal = parseFloat(item.price.replace(/[^0-9]/g, '')) * item.quantity;
+            const unitPrice = parsePriceValue(item.price);
+            const itemTotal = unitPrice * item.quantity;
             cartHTML += `
                 <div class="cart-item" style="display: grid; grid-template-columns: 130px 1fr 120px; gap: 20px; align-items: center; padding: 20px; border-bottom: 1px solid #f0f0f0; transition: all 0.3s ease;" onmouseover="this.style.backgroundColor='#fafafa'; this.style.transform='scale(1.01)'" onmouseout="this.style.backgroundColor='white'; this.style.transform='scale(1)'">
                     <!-- Product Image -->
@@ -101,7 +111,7 @@
                     <!-- Product Info -->
                     <div>
                         <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #333;">${item.name}</h3>
-                        <p style="color: #1F8F4D; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">${item.price}</p>
+                        <p style="color: #333; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">${formatVnCurrency(unitPrice)}</p>
                         
                         <!-- Quantity Controls -->
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -113,8 +123,8 @@
 
                     <!-- Total & Remove -->
                     <div style="text-align: right;">
-                        <p style="font-size: 16px; font-weight: 700; color: #333; margin: 0 0 15px 0;">
-                            ${(parseFloat(item.price.replace(/[^0-9]/g, '')) * item.quantity).toLocaleString('vi-VN')}₫
+                        <p style="font-size: 18px; font-weight: 600; color: #333; margin: 0 0 15px 0;">
+                            ${formatVnCurrency(itemTotal)}
                         </p>
                         <button onclick="removeItem(${index})" style="background: #1F8F4D; color: white; border: none; width: 36px; height: 36px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; font-size: 18px;" onmouseover="this.style.background='#6FCF5F'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#1F8F4D'; this.style.transform='scale(1)'" title="Xóa sản phẩm">
                             <i data-feather="trash-2" style="width: 18px; height: 18px;"></i>
@@ -129,7 +139,7 @@
 
         // Calculate totals
         const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
-        const totalPrice = cart.reduce((sum, item) => sum + (parseFloat(item.price.replace(/[^0-9]/g, '')) * item.quantity), 0);
+        const totalPrice = cart.reduce((sum, item) => sum + (parsePriceValue(item.price) * item.quantity), 0);
 
         // Summary HTML
         summaryContainer.innerHTML = `
@@ -139,13 +149,13 @@
 
                 <!-- Summary Items -->
                 <div style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #f0f0f0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                         <span style="color: #666; font-size: 14px;">Tổng sản phẩm:</span>
                         <span style="font-weight: 600; color: #333;">${totalQuantity}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                         <span style="color: #666; font-size: 14px;">Tổng tiền hàng:</span>
-                        <span style="font-weight: 600; color: #333;">${totalPrice.toLocaleString('vi-VN')}₫</span>
+                        <span style="font-weight: 600; color: #333;">${formatVnCurrency(totalPrice)}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="color: #666; font-size: 14px;">Phí vận chuyển:</span>
@@ -154,15 +164,15 @@
                 </div>
 
                 <!-- Total -->
-                <div style="background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; color: white;">
-                        <span style="font-size: 16px; font-weight: 600;">Tổng cộng:</span>
-                        <span style="font-size: 24px; font-weight: 700;">${totalPrice.toLocaleString('vi-VN')}₫</span>
+                <div style="background: #f8f8f8; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-bottom: 22px;">
+                    <div style="display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; color: #000;">
+                        <span style="font-size: 18px; font-weight: 700;">Tổng cộng:</span>
+                        <span style="font-size: clamp(20px, 1.8vw, 28px); font-weight: 700; color: #000; text-align: right; white-space: nowrap; letter-spacing: -0.01em;">${formatVnCurrency(totalPrice)}</span>
                     </div>
                 </div>
 
                 <!-- Buttons -->
-                <button onclick="checkoutCart()" style="width: 100%; background: #000; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 12px; transition: all 0.3s ease;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
+                <button onclick="checkoutCart()" style="width: 100%; background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 12px; transition: all 0.3s ease;" onmouseover="this.style.filter='brightness(0.96)'" onmouseout="this.style.filter='none'">
                     <i data-feather="credit-card" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
                     Thanh toán
                 </button>

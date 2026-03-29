@@ -37,7 +37,7 @@
     <div class="container-fluid px-5">
         <!-- Header -->
         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 50px;">
-            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #E53935 0%, #FF6B6B 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                 <i data-feather="heart" style="width: 28px; height: 28px; color: white; fill: white;"></i>
             </div>
             <div>
@@ -90,9 +90,10 @@
                                 <img src="${product.image}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
                                 
                                 <!-- Remove Button -->
-                                <button onclick="removeFromWishlist('${product.name.replace(/'/g, "\\'")}')" style="position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; background: #1F8F4D; color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(31, 143, 77, 0.3); transition: all 0.3s ease; font-size: 20px;" onmouseover="this.style.background='#6FCF5F'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#1F8F4D'; this.style.transform='scale(1)';" title="Bỏ yêu thích">
+                                <button onclick="removeFromWishlist('${product.name.replace(/'/g, "\\'")}')" style="position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; background: #fff; color: #111; border: 1px solid #e5e5e5; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); transition: all 0.3s ease; font-size: 20px;" onmouseover="this.style.background='#f4f4f4'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#fff'; this.style.transform='scale(1)';" title="Bỏ yêu thích">
                                     <i data-feather="x" style="width: 20px; height: 20px;"></i>
                                 </button>
+
                             </div>
 
                             <!-- Product Info -->
@@ -100,15 +101,12 @@
                                 <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 10px 0; color: #333; line-height: 1.4;">${product.name}</h3>
                                 
                                 <!-- Price -->
-                                <div style="margin-bottom: 15px;">
-                                    <p style="color: #1F8F4D; font-size: 22px; font-weight: 700; margin: 0;">${product.price}</p>
+                                <div style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                                    <p style="color: #000; font-size: 22px; font-weight: 800; margin: 0;">${product.price}</p>
+                                    <button class="quick-cart-btn" onclick="addToCartFromFavorites('${product.name.replace(/'/g, "\\'")}', '${product.price}', '${product.image.replace(/'/g, "\\'")}')" style="width: 52px; height: 52px; min-width: 52px; background: #000; color: #fff; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: none; transition: all 0.3s ease;" onmouseover="this.style.background='#222'; this.style.transform='scale(1.08)'; this.style.boxShadow='0 8px 18px rgba(0,0,0,0.35)'" onmouseout="this.style.background='#000'; this.style.transform='scale(1)'; this.style.boxShadow='none';" title="Thêm vào giỏ">
+                                        <i data-feather="shopping-cart" style="width: 22px; height: 22px;"></i>
+                                    </button>
                                 </div>
-
-                                <!-- Add to Cart Button -->
-                                <button onclick="addToCartFromFavorites('${product.name.replace(/'/g, "\\'")}', '${product.price}', '${product.image.replace(/'/g, "\\'")}')" style="width: 100%; background: #000; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
-                                    <i data-feather="shopping-cart" style="width: 16px; height: 16px;"></i>
-                                    Thêm vào giỏ
-                                </button>
                             </div>
                         </div>
                     `).join('')}

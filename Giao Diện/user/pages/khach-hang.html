@@ -36,7 +36,7 @@
   <style>
     .customer-module {
       padding: 40px 0 90px;
-      background: linear-gradient(180deg, #f7f9fc 0%, #f2f5fb 100%);
+      background: linear-gradient(180deg, #f8f9fa 0%, #eef1f4 100%);
     }
 
     .customer-shell {
@@ -52,8 +52,8 @@
       background: #fff;
       border-radius: 18px;
       padding: 22px;
-      border: 1px solid #e8edf5;
-      box-shadow: 0 10px 30px rgba(30, 41, 59, 0.06);
+      border: 1px solid #d9eee1;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.08);
       position: sticky;
       top: 88px;
       align-self: start;
@@ -68,7 +68,13 @@
       border-bottom: 1px dashed #dbe3ee;
     }
 
+    .customer-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
     .customer-avatar {
+      border: none;
       width: 52px;
       height: 52px;
       border-radius: 50%;
@@ -79,6 +85,62 @@
       align-items: center;
       justify-content: center;
       font-size: 18px;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease;
+      box-shadow: 0 6px 14px rgba(22, 163, 74, 0.25);
+    }
+
+    .customer-avatar:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(22, 163, 74, 0.28);
+    }
+
+    .customer-avatar:focus-visible {
+      outline: 2px solid #16a34a;
+      outline-offset: 2px;
+    }
+
+    .customer-avatar-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .customer-avatar.has-image .customer-avatar-image {
+      display: block;
+    }
+
+    .customer-avatar.has-image .customer-avatar-text {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .customer-avatar-edit-badge {
+      position: absolute;
+      right: -2px;
+      bottom: -3px;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #fff;
+      border-radius: 999px;
+      background: #16a34a;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      box-shadow: 0 4px 10px rgba(22, 163, 74, 0.28);
+    }
+
+    .customer-avatar-edit-badge svg {
+      width: 10px;
+      height: 10px;
     }
 
     .customer-menu {
@@ -88,8 +150,8 @@
 
     .customer-menu-btn {
       border: 1px solid transparent;
-      background: #f8fafc;
-      color: #334155;
+      background: #f2fbf5;
+      color: #14532d;
       border-radius: 12px;
       padding: 11px 12px;
       text-align: left;
@@ -104,9 +166,9 @@
 
     .customer-menu-btn:hover,
     .customer-menu-btn.active {
-      background: #111827;
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
       color: #fff;
-      border-color: #111827;
+      border-color: #15803d;
       transform: translateX(2px);
     }
 
@@ -116,9 +178,9 @@
 
     .customer-topbar {
       background: #fff;
-      border: 1px solid #e8edf5;
+      border: 1px solid #d9eee1;
       border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(30, 41, 59, 0.06);
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.08);
       padding: 16px 18px;
       margin-bottom: 16px;
       display: flex;
@@ -132,8 +194,8 @@
       width: 44px;
       height: 44px;
       border-radius: 12px;
-      border: 1px solid #d9e2ef;
-      background: #fff;
+      border: 1px solid #b8e0c5;
+      background: #f3fbf5;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -181,9 +243,9 @@
 
     .customer-card {
       background: #fff;
-      border: 1px solid #e8edf5;
+      border: 1px solid #d9eee1;
       border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.07);
       padding: 18px;
       margin-bottom: 16px;
     }
@@ -203,14 +265,14 @@
     .kpi-card {
       padding: 16px;
       border-radius: 14px;
-      border: 1px solid #e9edf5;
-      background: #fff;
+      border: 1px solid #d9eee1;
+      background: linear-gradient(180deg, #ffffff 0%, #f5fcf7 100%);
     }
 
     .kpi-value {
       font-size: 30px;
       font-weight: 700;
-      color: #0f172a;
+      color: #166534;
       line-height: 1.1;
     }
 
@@ -225,7 +287,7 @@
     }
 
     .chip-pending { background: #fff7ed; color: #c2410c; }
-    .chip-shipping { background: #eff6ff; color: #1d4ed8; }
+    .chip-shipping { background: #ecfdf5; color: #166534; }
     .chip-delivered { background: #ecfdf5; color: #047857; }
     .chip-cancelled { background: #fef2f2; color: #b91c1c; }
 
@@ -250,8 +312,8 @@
     .customer-input:focus,
     .customer-select:focus,
     .customer-textarea:focus {
-      border-color: #4f46e5;
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+      border-color: #16a34a;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
     }
 
     .customer-textarea {
@@ -272,13 +334,20 @@
       transition: all .2s ease;
     }
 
-    .btn-primary { background: #111827; color: #fff; }
-    .btn-primary:hover { background: #1f2937; }
-    .btn-soft { background: #eef2ff; color: #3730a3; }
-    .btn-soft:hover { background: #e0e7ff; }
+    .btn-primary {
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+      color: #fff;
+      box-shadow: 0 8px 16px rgba(22, 163, 74, 0.2);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+      transform: translateY(-1px);
+    }
+    .btn-soft { background: #dcfce7; color: #166534; }
+    .btn-soft:hover { background: #bbf7d0; }
     .btn-danger { background: #ef4444; color: #fff; }
     .btn-danger:hover { background: #dc2626; }
-    .btn-ghost { background: #f8fafc; color: #334155; border: 1px solid #dbe3ee; }
+    .btn-ghost { background: #f3fbf5; color: #166534; border: 1px solid #c9e7d4; }
 
     .table-wrap {
       width: 100%;
@@ -314,7 +383,7 @@
       top: 0;
       bottom: 0;
       width: 2px;
-      background: #dbe6f4;
+      background: #cde9d7;
     }
 
     .timeline li {
@@ -332,11 +401,11 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #cbd5e1;
+      background: #9fd3b3;
     }
 
     .timeline li.done::before {
-      background: #10b981;
+      background: #16a34a;
     }
 
     .timeline li.cancel::before {
@@ -371,7 +440,7 @@
       line-height: 1;
     }
 
-    .star-btn.active { color: #58B86A; }
+    .star-btn.active { color: #fbbf24; }
 
     .address-item,
     .payment-item,
@@ -405,7 +474,7 @@
     }
 
     .notif-row.unread {
-      background: #f8fbff;
+      background: #f2fbf5;
     }
 
     .muted {
@@ -441,12 +510,154 @@
         flex-direction: column;
       }
     }
+
+    /* ===== Dark Mode Variant ===== */
+    .customer-module.dark-mode {
+      background: linear-gradient(180deg, #f6f4f1 0%, #f2efea 100%);
+    }
+
+    .customer-module.dark-mode {
+      background: linear-gradient(180deg, #111315 0%, #181c20 100%);
+    }
+
+    .customer-module.dark-mode .customer-sidebar,
+    .customer-module.dark-mode .customer-topbar,
+    .customer-module.dark-mode .customer-card,
+    .customer-module.dark-mode .customer-notification-panel,
+    .customer-module.dark-mode .address-item,
+    .customer-module.dark-mode .payment-item,
+    .customer-module.dark-mode .voucher-item,
+    .customer-module.dark-mode .ticket-item,
+    .customer-module.dark-mode .favorite-item,
+    .customer-module.dark-mode .kpi-card {
+      background: #1b2026;
+      border-color: #2a313a;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+      color: #e8edf5;
+    }
+
+    .customer-module.dark-mode .kpi-value,
+    .customer-module.dark-mode h1,
+    .customer-module.dark-mode h2,
+    .customer-module.dark-mode h3,
+    .customer-module.dark-mode h4,
+    .customer-module.dark-mode strong,
+    .customer-module.dark-mode label {
+      color: #f3f6fb !important;
+    }
+
+    .customer-module.dark-mode .customer-avatar {
+      background: linear-gradient(135deg, #0f172a, #334155);
+    }
+
+    .customer-module.dark-mode .customer-avatar-edit-badge {
+      border-color: #1b2026;
+      background: #22c55e;
+    }
+
+    .customer-module.dark-mode .customer-menu-btn {
+      background: #20262d;
+      color: #cfd7e3;
+      border-color: #2e3742;
+    }
+
+    .customer-module.dark-mode .customer-menu-btn:hover,
+    .customer-module.dark-mode .customer-menu-btn.active {
+      background: linear-gradient(135deg, #0f172a 0%, #1f2937 100%);
+      color: #f8fafc;
+      border-color: #334155;
+      transform: translateX(2px);
+    }
+
+    .customer-module.dark-mode .customer-input,
+    .customer-module.dark-mode .customer-select,
+    .customer-module.dark-mode .customer-textarea {
+      border-color: #3a4350;
+      background: #111827;
+      color: #e5e7eb;
+    }
+
+    .customer-module.dark-mode .customer-input:focus,
+    .customer-module.dark-mode .customer-select:focus,
+    .customer-module.dark-mode .customer-textarea:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.24);
+    }
+
+    .customer-module.dark-mode .btn-primary {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #fff;
+      box-shadow: 0 10px 18px rgba(37, 99, 235, 0.25);
+    }
+
+    .customer-module.dark-mode .btn-primary:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+      transform: translateY(-1px);
+    }
+
+    .customer-module.dark-mode .btn-soft {
+      background: #1f2937;
+      color: #dbeafe;
+      border: 1px solid #334155;
+    }
+
+    .customer-module.dark-mode .btn-soft:hover {
+      background: #273446;
+    }
+
+    .customer-module.dark-mode .btn-ghost {
+      background: #111827;
+      color: #cbd5e1;
+      border-color: #334155;
+    }
+
+    .customer-module.dark-mode .star-btn.active {
+      color: #fbbf24;
+    }
+
+    .customer-module.dark-mode .chip-delivered {
+      background: #052e2b;
+      color: #6ee7b7;
+    }
+
+    .customer-module.dark-mode .chip-shipping {
+      background: #1e293b;
+      color: #93c5fd;
+    }
+
+    .customer-module.dark-mode .badge-default {
+      background: #102a43;
+      color: #93c5fd;
+    }
+
+    .customer-module.dark-mode .notif-row.unread {
+      background: #0f172a;
+    }
+
+    .customer-module.dark-mode .muted {
+      color: #94a3b8;
+    }
+
+    .customer-module.dark-mode .customer-table th,
+    .customer-module.dark-mode .customer-table td {
+      border-bottom-color: #2d3642;
+      color: #e2e8f0;
+    }
   </style>
 
   <div class="customer-shell" id="customerShell">
     <aside class="customer-sidebar">
       <div class="customer-profile-mini">
-        <div class="customer-avatar" id="customerAvatar">KH</div>
+        <div class="customer-avatar-wrap">
+          <button type="button" class="customer-avatar" id="customerAvatar" title="Cập nhật ảnh đại diện">
+            <span class="customer-avatar-text" id="customerAvatarText">KH</span>
+            <img class="customer-avatar-image" id="customerAvatarImage" alt="Ảnh đại diện khách hàng">
+          </button>
+          <button type="button" class="customer-avatar-edit-badge" id="customerAvatarEditBtn" title="Đổi ảnh đại diện">
+            <i data-feather="camera"></i>
+          </button>
+          <input type="file" id="customerAvatarInput" accept="image/jpeg,image/png,image/webp" hidden>
+        </div>
         <div>
           <div id="sidebarProfileName" style="font-size: 15px; font-weight: 700; color: #0f172a;">Khách hàng</div>
           <div class="muted" id="sidebarProfileEmail">customer@example.com</div>
@@ -457,6 +668,7 @@
         <button class="customer-menu-btn active" data-pane="dashboard"><i data-feather="grid"></i>Tổng quan</button>
         <button class="customer-menu-btn" data-pane="profile"><i data-feather="user"></i>Hồ sơ</button>
         <button class="customer-menu-btn" data-pane="orders"><i data-feather="package"></i>Đơn hàng</button>
+        <button class="customer-menu-btn" data-pane="service-bookings"><i data-feather="calendar"></i>Lịch sử dịch vụ</button>
         <button class="customer-menu-btn" data-pane="tracking"><i data-feather="truck"></i>Theo dõi đơn</button>
         <button class="customer-menu-btn" data-pane="reviews"><i data-feather="star"></i>Đánh giá</button>
         <button class="customer-menu-btn" data-pane="addresses"><i data-feather="map-pin"></i>Địa chỉ</button>
@@ -556,6 +768,17 @@
         <div class="customer-card" id="orderDetailCard">
           <h4 style="margin-top:0;">Chi tiết đơn hàng</h4>
           <div id="orderDetailContent" class="muted">Chọn một đơn hàng để xem chi tiết sản phẩm, giá, số lượng và trạng thái.</div>
+        </div>
+      </section>
+
+      <section id="pane-service-bookings" class="customer-pane">
+        <div class="customer-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+            <h3 style="margin:0;">Lịch sử đặt dịch vụ</h3>
+            <button type="button" class="btn-primary" data-action="go-services">Đặt lịch mới</button>
+          </div>
+          <p class="muted" id="serviceBookingSummary">Quản lý các lịch đã đặt từ trang Dịch vụ.</p>
+          <div id="serviceBookingList"></div>
         </div>
       </section>
 
@@ -726,6 +949,7 @@
       const KEYS = {
         profile: 'userProfile',
         orders: 'userOrders',
+        serviceBookings: 'serviceBookings',
         notifications: 'userNotifications',
         reviews: 'userReviews',
         addresses: 'userAddresses',
@@ -755,6 +979,44 @@
       const parsePrice = (text) => Number(String(text || '').replace(/[^0-9]/g, '') || 0);
       const nowText = () => new Date().toLocaleString('vi-VN');
       const idGen = (prefix) => `${prefix}${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      const AVATAR_MAX_SIZE_MB = 5;
+
+      const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Không thể đọc tệp ảnh.'));
+        reader.readAsDataURL(file);
+      });
+
+      const optimizeAvatarImage = (dataUrl, size = 320, quality = 0.88) => new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Không thể xử lý ảnh.'));
+            return;
+          }
+
+          const sourceWidth = image.naturalWidth || image.width;
+          const sourceHeight = image.naturalHeight || image.height;
+          const minSide = Math.min(sourceWidth, sourceHeight);
+          const sx = Math.floor((sourceWidth - minSide) / 2);
+          const sy = Math.floor((sourceHeight - minSide) / 2);
+
+          ctx.drawImage(image, sx, sy, minSide, minSide, 0, 0, size, size);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        image.onerror = () => reject(new Error('Định dạng ảnh không hợp lệ.'));
+        image.src = dataUrl;
+      });
+
+      const isSupportedAvatarType = (file) => {
+        const mime = String(file?.type || '').toLowerCase();
+        return ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(mime);
+      };
 
       const STATUS_META = {
         pending: { label: 'Chờ xác nhận', cls: 'chip-pending' },
@@ -871,7 +1133,24 @@
         document.getElementById('sidebarProfileName').textContent = profile.name || 'Khách hàng';
         document.getElementById('sidebarProfileEmail').textContent = profile.email || 'customer@example.com';
         const initials = (profile.name || 'KH').split(' ').filter(Boolean).slice(-2).map((p) => p[0]).join('').toUpperCase();
-        document.getElementById('customerAvatar').textContent = initials || 'KH';
+        const avatarButton = document.getElementById('customerAvatar');
+        const avatarText = document.getElementById('customerAvatarText');
+        const avatarImage = document.getElementById('customerAvatarImage');
+        const avatarUrl = String(profile.avatar || '').trim();
+
+        if (avatarText) {
+          avatarText.textContent = initials || 'KH';
+        }
+
+        if (!avatarButton || !avatarImage) return;
+
+        if (avatarUrl) {
+          avatarImage.src = avatarUrl;
+          avatarButton.classList.add('has-image');
+        } else {
+          avatarImage.removeAttribute('src');
+          avatarButton.classList.remove('has-image');
+        }
       };
 
       const renderDashboard = () => {
@@ -938,6 +1217,71 @@
             </td>
           </tr>
         `).join('');
+      };
+
+      const renderServiceBookings = () => {
+        const wrap = document.getElementById('serviceBookingList');
+        const summary = document.getElementById('serviceBookingSummary');
+        if (!wrap || !summary) return;
+
+        const bookings = store.get(KEYS.serviceBookings, []);
+
+        if (!Array.isArray(bookings) || !bookings.length) {
+          summary.textContent = 'Bạn chưa có lịch dịch vụ nào.';
+          wrap.innerHTML = '<div class="muted">Các lịch bạn đặt ở trang Dịch vụ sẽ hiển thị tại đây.</div>';
+          return;
+        }
+
+        const sorted = [...bookings].sort((a, b) => {
+          const at = new Date(a?.createdAt || a?.date || 0).getTime();
+          const bt = new Date(b?.createdAt || b?.date || 0).getTime();
+          return bt - at;
+        });
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcomingCount = sorted.filter((item) => {
+          const d = new Date(item?.date || 0);
+          return !Number.isNaN(d.getTime()) && d.getTime() >= today.getTime();
+        }).length;
+
+        summary.textContent = `Tổng ${sorted.length} lịch hẹn • ${upcomingCount} lịch sắp tới`;
+
+        const formatDisplayDate = (value) => {
+          const d = new Date(value || 0);
+          if (Number.isNaN(d.getTime())) return value || 'Chưa có ngày';
+          return d.toLocaleDateString('vi-VN');
+        };
+
+        const formatCreatedAt = (value) => {
+          const d = new Date(value || 0);
+          if (Number.isNaN(d.getTime())) return value || 'Không rõ thời gian';
+          return d.toLocaleString('vi-VN');
+        };
+
+        wrap.innerHTML = sorted.map((item, index) => {
+          const serviceName = item?.service || 'Dịch vụ thú cưng';
+          const price = item?.price || 'Liên hệ để biết giá';
+          const name = item?.name || 'Khách hàng';
+          const phone = item?.phone || '---';
+          const date = formatDisplayDate(item?.date);
+          const createdAt = formatCreatedAt(item?.createdAt);
+          const status = new Date(item?.date || 0).getTime() < today.getTime() ? 'Đã sử dụng / đã qua lịch' : 'Đã đặt lịch';
+          const statusClass = status.includes('qua lịch') ? 'chip-cancelled' : 'chip-delivered';
+
+          return `
+            <div class="ticket-item">
+              <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                <strong>#DV${String(index + 1).padStart(3, '0')} • ${serviceName}</strong>
+                <span class="status-chip ${statusClass}">${status}</span>
+              </div>
+              <div class="muted" style="margin-top:4px;">Ngày hẹn: ${date} • Giá: ${price}</div>
+              <div style="margin-top:6px;">Khách đặt: <strong>${name}</strong> • SĐT: ${phone}</div>
+              <div class="muted" style="margin-top:6px;">Tạo lịch: ${createdAt}</div>
+            </div>
+          `;
+        }).join('');
       };
 
       const renderOrderDetail = (orderId) => {
@@ -1035,11 +1379,14 @@
 
       const renderReviewOptions = () => {
         const select = document.getElementById('reviewProductSelect');
+        const submitBtn = document.querySelector('#reviewForm button[type="submit"]');
         const products = getReviewableProducts();
         if (!products.length) {
           select.innerHTML = '<option value="">Chưa có sản phẩm đủ điều kiện đánh giá</option>';
+          if (submitBtn) submitBtn.disabled = true;
           return;
         }
+        if (submitBtn) submitBtn.disabled = false;
         select.innerHTML = products.map((p) => `<option value="${p.key}">#${p.orderId} - ${p.productName}</option>`).join('');
       };
 
@@ -1271,9 +1618,56 @@
           switchPane(btn.dataset.pane);
         });
 
+        const avatarButton = document.getElementById('customerAvatar');
+        const avatarEditButton = document.getElementById('customerAvatarEditBtn');
+        const avatarInput = document.getElementById('customerAvatarInput');
+
+        const openAvatarPicker = () => {
+          avatarInput?.click();
+        };
+
+        avatarButton?.addEventListener('click', openAvatarPicker);
+        avatarEditButton?.addEventListener('click', openAvatarPicker);
+
+        avatarInput?.addEventListener('change', async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+
+          const isAllowed = isSupportedAvatarType(file);
+          const maxSizeBytes = AVATAR_MAX_SIZE_MB * 1024 * 1024;
+
+          if (!isAllowed) {
+            alert('Vui lòng chọn ảnh JPG, PNG hoặc WEBP.');
+            event.target.value = '';
+            return;
+          }
+
+          if (file.size > maxSizeBytes) {
+            alert(`Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn ${AVATAR_MAX_SIZE_MB}MB.`);
+            event.target.value = '';
+            return;
+          }
+
+          try {
+            const rawDataUrl = await readFileAsDataUrl(file);
+            const optimizedDataUrl = await optimizeAvatarImage(rawDataUrl);
+            const profile = store.get(KEYS.profile, {});
+            profile.avatar = optimizedDataUrl;
+            store.set(KEYS.profile, profile);
+            renderSidebarProfile();
+            pushNotification('Ảnh đại diện đã được cập nhật.', 'profile');
+          } catch (error) {
+            alert('Không thể cập nhật ảnh đại diện. Vui lòng thử lại.');
+          } finally {
+            event.target.value = '';
+          }
+        });
+
         document.getElementById('profileForm').addEventListener('submit', (e) => {
           e.preventDefault();
+          const currentProfile = store.get(KEYS.profile, {});
           const profile = {
+            ...currentProfile,
             name: document.getElementById('profileNameInput').value.trim(),
             email: document.getElementById('profileEmailInput').value.trim(),
             phone: document.getElementById('profilePhoneInput').value.trim(),
@@ -1337,6 +1731,24 @@
             refreshGlobalBadges();
             pushNotification(`Đã thêm lại sản phẩm từ đơn #${id} vào giỏ hàng.`, 'order');
             alert('Đã thêm sản phẩm vào giỏ hàng.');
+          }
+        });
+
+        document.getElementById('serviceBookingList')?.addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-action="go-services"]');
+          if (!btn) return;
+          if (typeof window.routeToPage === 'function') {
+            window.routeToPage('services');
+          } else if (typeof window.loadPage === 'function') {
+            window.loadPage('services');
+          }
+        });
+
+        document.querySelector('#pane-service-bookings button[data-action="go-services"]')?.addEventListener('click', () => {
+          if (typeof window.routeToPage === 'function') {
+            window.routeToPage('services');
+          } else if (typeof window.loadPage === 'function') {
+            window.loadPage('services');
           }
         });
 
@@ -1516,7 +1928,9 @@
           if (!btn) return;
           const code = btn.dataset.code;
           if (navigator.clipboard) {
-            navigator.clipboard.writeText(code).then(() => alert(`Đã sao chép mã ${code}`));
+            navigator.clipboard.writeText(code)
+              .then(() => alert(`Đã sao chép mã ${code}`))
+              .catch(() => alert(`Mã voucher: ${code}`));
           } else {
             alert(`Mã voucher: ${code}`);
           }
@@ -1625,6 +2039,15 @@
           document.getElementById('notificationPanel').classList.toggle('open');
         });
 
+        document.addEventListener('click', (e) => {
+          const panel = document.getElementById('notificationPanel');
+          const bell = document.getElementById('notificationBell');
+          if (!panel || !bell) return;
+          if (!panel.contains(e.target) && !bell.contains(e.target)) {
+            panel.classList.remove('open');
+          }
+        });
+
         document.getElementById('markAllReadBtn').addEventListener('click', () => {
           const list = store.get(KEYS.notifications, []);
           list.forEach((n) => { n.read = true; });
@@ -1649,6 +2072,7 @@
         renderDashboard();
         renderProfile();
         renderOrders();
+        renderServiceBookings();
         const firstOrder = store.get(KEYS.orders, [])[0];
         if (firstOrder) renderOrderDetail(firstOrder.id);
         renderTracking();
