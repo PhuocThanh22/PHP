@@ -169,12 +169,136 @@ function app_column_exists(mysqli $conn, string $table, string $column): bool
     return $exists;
 }
 
+function app_starts_with(string $text, string $prefix): bool
+{
+    return strncmp($text, $prefix, strlen($prefix)) === 0;
+}
+
+function app_service_default_image_path(string $serviceName, int $serviceId): string
+{
+    $name = mb_strtolower(trim($serviceName), 'UTF-8');
+
+    if (strpos($name, 'spa') !== false || strpos($name, 'tạo kiểu') !== false) {
+        return 'Giao Diện/user/anhdata/pet_011.jpg';
+    }
+
+    if (strpos($name, 'khách sạn') !== false || strpos($name, 'lưu trú') !== false) {
+        return 'Giao Diện/user/anhdata/pet_012.jpg';
+    }
+
+    if (strpos($name, 'tắm') !== false || strpos($name, 'sấy') !== false) {
+        return 'Giao Diện/user/anhdata/pet_013.jpg';
+    }
+
+    if (strpos($name, 'vệ sinh tai') !== false || strpos($name, 'tai') !== false) {
+        return 'Giao Diện/user/anhdata/pet_014.jpg';
+    }
+
+    if (strpos($name, 'cắt móng') !== false || strpos($name, 'móng') !== false) {
+        return 'Giao Diện/user/anhdata/pet_015.jpg';
+    }
+
+    $index = 16 + ($serviceId % 10);
+    return 'Giao Diện/user/anhdata/pet_' . str_pad((string) $index, 3, '0', STR_PAD_LEFT) . '.jpg';
+}
+
+function app_to_public_image_url(string $imagePath): string
+{
+    $path = trim(str_replace('\\', '/', $imagePath));
+    if ($path === '') {
+        return '';
+    }
+
+    if (preg_match('~^(?:https?:)?//~i', $path) || app_starts_with($path, 'data:') || app_starts_with($path, '/')) {
+        return $path;
+    }
+
+    if (app_starts_with($path, './')) {
+        $path = substr($path, 2);
+    }
+
+    if (app_starts_with($path, 'anhdata/')) {
+        $path = 'Giao Diện/user/' . $path;
+    } elseif (app_starts_with($path, 'user/anhdata/')) {
+        $path = 'Giao Diện/' . $path;
+    }
+
+    $basePath = app_base_path();
+    $encodedPath = str_replace(' ', '%20', ltrim($path, '/'));
+    return ($basePath !== '' ? $basePath : '') . '/' . $encodedPath;
+}
+
+function app_ensure_dichvu_image_column(mysqli $conn): bool
+{
+    if (app_column_exists($conn, 'dichvu', 'hinhanhdichvu')) {
+        return true;
+    }
+
+    $alterSql = "ALTER TABLE dichvu ADD COLUMN hinhanhdichvu VARCHAR(255) NULL AFTER trangthaidichvu";
+    return (bool) $conn->query($alterSql);
+}
+
+function app_seed_dichvu_image_column(mysqli $conn): void
+{
+    if (!app_ensure_dichvu_image_column($conn)) {
+        return;
+    }
+
+    $missingSql = "
+        SELECT id, tendichvu
+        FROM dichvu
+        WHERE TRIM(COALESCE(hinhanhdichvu, '')) = ''
+        ORDER BY id ASC
+        LIMIT 1000
+    ";
+
+    $missingResult = $conn->query($missingSql);
+    if (!$missingResult) {
+        return;
+    }
+
+    $update = $conn->prepare('UPDATE dichvu SET hinhanhdichvu = ? WHERE id = ?');
+    if (!$update) {
+        $missingResult->free();
+        return;
+    }
+
+    while ($row = $missingResult->fetch_assoc()) {
+        $serviceId = (int) ($row['id'] ?? 0);
+        $serviceName = (string) ($row['tendichvu'] ?? '');
+        if ($serviceId <= 0) {
+            continue;
+        }
+
+        $imagePath = app_service_default_image_path($serviceName, $serviceId);
+        $update->bind_param('si', $imagePath, $serviceId);
+        $update->execute();
+    }
+
+    $update->close();
+    $missingResult->free();
+}
+
 $api = $_GET['api'] ?? '';
 if ($api !== '') {
     $conn = app_db_connect();
 
     if ($api === 'get_services') {
-        $sql = 'SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, ngaytaodichvu FROM dichvu ORDER BY id ASC LIMIT 100';
+        app_seed_dichvu_image_column($conn);
+
+        $sql = "
+            SELECT
+                d.id,
+                d.tendichvu,
+                d.giadichvu,
+                d.thoigiandichvu,
+                d.trangthaidichvu,
+                d.ngaytaodichvu,
+                COALESCE(NULLIF(TRIM(d.hinhanhdichvu), ''), '') AS hinhanh
+            FROM dichvu d
+            ORDER BY d.id ASC
+            LIMIT 100
+        ";
         $result = $conn->query($sql);
 
         if (!$result) {
@@ -195,6 +319,7 @@ if ($api !== '') {
                 'thoigiandichvu' => (int) $row['thoigiandichvu'],
                 'trangthaidichvu' => (string) $row['trangthaidichvu'],
                 'ngaytaodichvu' => (string) $row['ngaytaodichvu'],
+                'hinhanh' => app_to_public_image_url((string) ($row['hinhanh'] ?? '')),
             ];
         }
 

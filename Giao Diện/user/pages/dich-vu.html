@@ -101,12 +101,49 @@
 }
 
 .unified-services-page .service-filter-wrap { display: flex; flex-wrap: wrap; gap: 10px; }
-.unified-services-page .service-filter-btn { border: 1px solid #1F8F4D; background: #fff; color: #1F8F4D; border-radius: 999px; padding: 9px 16px; font-weight: 600; transition: all 0.2s ease; }
+.unified-services-page .service-filter-btn {
+    border: 1px solid #1F8F4D;
+    background: #fff;
+    color: #1F8F4D;
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
 .unified-services-page .service-filter-btn:hover,
 .unified-services-page .service-filter-btn.active { background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); color: #fff; border-color: transparent; }
+.unified-services-page .service-filter-thumb {
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    background-size: cover;
+    background-position: center;
+    background-color: #e5e7eb;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(17, 24, 39, 0.18);
+}
 .unified-services-page .service-card { border: none; border-radius: 12px; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; }
 .unified-services-page .service-card:hover { transform: translateY(-8px); box-shadow: 0 8px 24px rgba(31, 143, 77, 0.15) !important; }
 .unified-services-page .service-icon-bg { background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); height: 180px; display: flex; align-items: center; justify-content: center; color: #fff; }
+.unified-services-page .service-icon-bg.has-photo {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+}
+.unified-services-page .service-icon-bg.has-photo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(17,24,39,0.15) 0%, rgba(17,24,39,0.45) 100%);
+}
+.unified-services-page .service-icon-bg.has-photo i,
+.unified-services-page .service-icon-bg.has-photo svg {
+    display: none;
+}
 .unified-services-page .service-icon-bg i,
 .unified-services-page .service-icon-bg svg {
     width: 72px;
@@ -121,10 +158,144 @@
 <script>
 (function () {
     const validCategories = ["spa", "hotel", "bath-dry", "ear-cleaning", "nail-trimming"];
+    const categoryLabelMap = {
+        spa: 'Spa - Cắt tạo kiểu',
+        hotel: 'Khách sạn - Lưu trú',
+        'bath-dry': 'Tắm & Sấy',
+        'ear-cleaning': 'Vệ sinh tai',
+        'nail-trimming': 'Cắt móng'
+    };
 
     const normalizeCategory = (category) => {
         if (!category || typeof category !== "string") return "spa";
         return validCategories.includes(category) ? category : "spa";
+    };
+
+    const normalizeServiceName = (name) => {
+        return String(name || '').replace(/^\s*\[[^\]]+\]\s*/u, '').trim();
+    };
+
+    const resolveCategoryFromServiceName = (serviceName) => {
+        const lower = String(serviceName || '').toLowerCase();
+
+        if (lower.includes('spa') || lower.includes('tạo kiểu')) return 'spa';
+        if (lower.includes('khách sạn') || lower.includes('lưu trú')) return 'hotel';
+        if (lower.includes('tắm') || lower.includes('sấy')) return 'bath-dry';
+        if (lower.includes('vệ sinh tai') || lower.includes('tai')) return 'ear-cleaning';
+        if (lower.includes('cắt móng') || lower.includes('móng')) return 'nail-trimming';
+
+        return 'spa';
+    };
+
+    const formatCurrencyVND = (value) => {
+        const amount = Number(value || 0);
+        if (!Number.isFinite(amount) || amount <= 0) return 'Liên hệ';
+        return `${new Intl.NumberFormat('vi-VN').format(Math.round(amount))}₫`;
+    };
+
+    const setServiceFilterButtonThumbs = (servicesByCategory) => {
+        document.querySelectorAll('.service-filter-btn').forEach((button) => {
+            const category = button.getAttribute('data-category') || '';
+            const bucket = servicesByCategory[category] || [];
+            const firstImage = String(bucket[0]?.hinhanh || '').trim();
+
+            const label = categoryLabelMap[category] || button.textContent.trim();
+            button.innerHTML = '';
+
+            if (firstImage) {
+                const thumb = document.createElement('span');
+                thumb.className = 'service-filter-thumb';
+                thumb.style.backgroundImage = `url('${firstImage.replace(/'/g, "\\'")}')`;
+                button.appendChild(thumb);
+            }
+
+            const text = document.createElement('span');
+            text.textContent = label;
+            button.appendChild(text);
+        });
+    };
+
+    const bindServicesToCards = (servicesByCategory) => {
+        validCategories.forEach((category) => {
+            const cards = document.querySelectorAll(`.service-category-block[data-category="${category}"] .service-card`);
+            const bucket = servicesByCategory[category] || [];
+            if (cards.length === 0 || bucket.length === 0) return;
+
+            cards.forEach((card, index) => {
+                const service = bucket[index % bucket.length];
+                if (!service) return;
+
+                const titleEl = card.querySelector('.card-title');
+                if (titleEl) {
+                    titleEl.textContent = normalizeServiceName(service.tendichvu);
+                }
+
+                const priceEl = card.querySelector('.service-price');
+                if (priceEl) {
+                    priceEl.textContent = formatCurrencyVND(service.giadichvu);
+                }
+
+                const bookingBtn = card.querySelector('.service-booking-btn');
+                if (bookingBtn) {
+                    bookingBtn.dataset.serviceName = normalizeServiceName(service.tendichvu);
+                    bookingBtn.dataset.servicePrice = formatCurrencyVND(service.giadichvu);
+                }
+
+                const imageBox = card.querySelector('.service-icon-bg');
+                if (imageBox && service.hinhanh) {
+                    imageBox.classList.add('has-photo');
+                    imageBox.style.backgroundImage = `url('${String(service.hinhanh).replace(/'/g, "\\'")}')`;
+                }
+            });
+        });
+
+        if (typeof window.feather !== 'undefined') {
+            window.feather.replace();
+        }
+    };
+
+    const getServiceApiCandidates = () => {
+        const list = [];
+
+        const pathname = decodeURIComponent(window.location.pathname || '');
+        const marker = '/Giao Diện/';
+        const markerIndex = pathname.indexOf(marker);
+        const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '';
+
+        if (projectBase) {
+            list.push(`${projectBase}/index.php?api=get_services`);
+        }
+
+        list.push('../../index.php?api=get_services');
+        list.push('../../admin/get_services.php?api=get_services');
+        list.push('../../staff/get_services.php?api=get_services');
+        list.push('/PHPCHINH/index.php?api=get_services');
+        list.push('/phuocthanh/PHPCHINH/index.php?api=get_services');
+        list.push('/index.php?api=get_services');
+
+        try {
+            list.push(new URL('../../index.php?api=get_services', window.location.href).toString());
+            list.push(new URL('../../admin/get_services.php?api=get_services', window.location.href).toString());
+            list.push(new URL('../../staff/get_services.php?api=get_services', window.location.href).toString());
+        } catch (err) {}
+
+        return Array.from(new Set(list));
+    };
+
+    const fetchServiceData = async () => {
+        const candidates = getServiceApiCandidates();
+
+        for (const url of candidates) {
+            try {
+                const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                if (!res.ok) continue;
+                const payload = await res.json();
+                if (!payload || payload.ok !== true || !Array.isArray(payload.data)) continue;
+                return payload.data;
+            } catch (error) {}
+        }
+
+        return [];
     };
 
     const applyCategory = (category) => {
@@ -146,6 +317,31 @@
     });
 
     applyCategory(window.currentServiceCategory);
+
+    fetchServiceData().then((rows) => {
+        if (!Array.isArray(rows) || rows.length === 0) return;
+
+        const servicesByCategory = {
+            spa: [],
+            hotel: [],
+            'bath-dry': [],
+            'ear-cleaning': [],
+            'nail-trimming': []
+        };
+
+        rows.forEach((row) => {
+            const key = resolveCategoryFromServiceName(row?.tendichvu || '');
+            const normalized = {
+                ...row,
+                tendichvu: normalizeServiceName(row?.tendichvu || ''),
+                hinhanh: String(row?.hinhanh || row?.hinhanhdichvu || '').trim()
+            };
+            servicesByCategory[key].push(normalized);
+        });
+
+        setServiceFilterButtonThumbs(servicesByCategory);
+        bindServicesToCards(servicesByCategory);
+    });
 })();
 </script>
 

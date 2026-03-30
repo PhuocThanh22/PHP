@@ -40,14 +40,28 @@
         <div class="shop-layout">
             <aside class="shop-category-sidebar" id="shopCategorySidebar">
                 <h3 class="shop-category-title">Danh mục</h3>
-                <button type="button" class="shop-category-btn active" data-category="">Tất cả sản phẩm</button>
-                <button type="button" class="shop-category-btn" data-category="Thức ăn">Thức ăn</button>
-                <button type="button" class="shop-category-btn" data-category="Phụ kiện">Phụ kiện</button>
-                <button type="button" class="shop-category-btn" data-category="Nội thất">Nội thất</button>
-                <button type="button" class="shop-category-btn" data-category="Túi xách">Túi xách</button>
-                <button type="button" class="shop-category-btn has-children" data-category="Giống chó">Giống chó</button>
+                <button type="button" class="shop-category-btn active" data-category="">
+                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_001.jpg" alt="Tất cả sản phẩm"><span>Tất cả sản phẩm</span></span>
+                </button>
+                <button type="button" class="shop-category-btn" data-category="Thức ăn">
+                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_002.jpg" alt="Thức ăn"><span>Thức ăn</span></span>
+                </button>
+                <button type="button" class="shop-category-btn" data-category="Phụ kiện">
+                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_003.jpg" alt="Phụ kiện"><span>Phụ kiện</span></span>
+                </button>
+                <button type="button" class="shop-category-btn" data-category="Nội thất">
+                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_004.jpg" alt="Nội thất"><span>Nội thất</span></span>
+                </button>
+                <button type="button" class="shop-category-btn" data-category="Túi xách">
+                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_005.jpg" alt="Túi xách"><span>Túi xách</span></span>
+                </button>
+                <button type="button" class="shop-category-btn has-children" data-category="Giống chó">
+                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_006.jpg" alt="Giống chó"><span>Giống chó</span></span>
+                </button>
                 <div id="dogBreedSubmenu" class="shop-subcategory-list" aria-label="Danh sách giống chó"></div>
-                <button type="button" class="shop-category-btn" data-category="Giống mèo">Giống mèo</button>
+                <button type="button" class="shop-category-btn" data-category="Giống mèo">
+                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_007.jpg" alt="Giống mèo"><span>Giống mèo</span></span>
+                </button>
             </aside>
 
             <div class="shop-main-content">
@@ -239,7 +253,7 @@
         background: transparent;
         width: 100%;
         text-align: left;
-        padding: 10px 12px;
+        padding: 8px 12px;
         border-radius: 10px;
         color: #4b5563;
         font-size: 14px;
@@ -248,6 +262,23 @@
         align-items: center;
         justify-content: space-between;
         transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .shop-category-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .shop-category-thumb {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        object-fit: cover;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.16);
+        flex-shrink: 0;
+        background: #f3f4f6;
     }
 
     .shop-category-btn::after {
@@ -296,7 +327,20 @@
         font-size: 13px;
         font-weight: 600;
         line-height: 1.3;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .shop-subcategory-thumb {
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        object-fit: cover;
+        box-shadow: 0 2px 5px rgba(15, 23, 42, 0.14);
+        flex-shrink: 0;
+        background: #f3f4f6;
     }
 
     .shop-subcategory-btn:hover {
@@ -1698,8 +1742,8 @@
 </style>
 
 <script>
-    // Product Database
-    const products = [
+    // Product Database (fallback cứng; sẽ được ghi đè từ API nếu lấy được)
+    let products = [
         {
             id: 1,
             name: "Thức ăn cho chó cao cấp",
@@ -1977,6 +2021,121 @@
     let currentDogBreedView = '';
     let keepMainSidebarOnDogBreedView = false;
 
+    const normalizeTextKey = (value) => {
+        return String(value || '')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    };
+
+    const resolveProductImageUrl = (rawPath) => {
+        const fallbackImage = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&h=400&fit=crop';
+        const path = String(rawPath || '').trim().replace(/\\/g, '/');
+
+        if (!path) return fallbackImage;
+        if (/^(?:https?:)?\/\//i.test(path) || path.startsWith('data:')) return path;
+
+        let normalizedPath = path.replace(/^\.\//, '');
+        normalizedPath = normalizedPath.replace(/^Giao Diện\/user\//i, '');
+        normalizedPath = normalizedPath.replace(/^Giao%20Diện\/user\//i, '');
+        normalizedPath = normalizedPath.replace(/^user\//i, '');
+
+        try {
+            return new URL(normalizedPath, window.location.href).toString();
+        } catch (error) {
+            return fallbackImage;
+        }
+    };
+
+    const mapApiProductToUiProduct = (item) => {
+        const id = parseInt(item?.id, 10) || 0;
+        const name = String(item?.tensanpham || '').trim() || `Sản phẩm #${id}`;
+        const category = String(item?.tendanhmuc || '').trim() || 'Chưa phân loại';
+        const priceNumber = Number(item?.giasanpham || 0);
+        const price = Number.isFinite(priceNumber) && priceNumber > 0
+            ? new Intl.NumberFormat('vi-VN').format(Math.round(priceNumber))
+            : '0';
+
+        const quantity = parseInt(item?.soluongsanpham, 10) || 0;
+        const badge = quantity > 0 && quantity <= 10 ? 'sale' : null;
+
+        return {
+            id,
+            name,
+            category,
+            price,
+            image: resolveProductImageUrl(item?.hinhanhsanpham),
+            description: String(item?.masanpham || '').trim() || `Sản phẩm thuộc danh mục ${category}`,
+            badge,
+        };
+    };
+
+    const getProductsApiCandidates = () => {
+        const base = window.location.href;
+        const candidates = [];
+
+        const safePush = (builder) => {
+            try {
+                const value = builder();
+                if (value && !candidates.includes(value)) {
+                    candidates.push(value);
+                }
+            } catch (error) {
+                // bỏ qua endpoint lỗi
+            }
+        };
+
+        safePush(() => new URL('home_api.php?api=get_products', base).toString());
+        safePush(() => new URL('../../index.php?api=get_products', base).toString());
+        safePush(() => new URL('/PHPCHINH/index.php?api=get_products', base).toString());
+        safePush(() => new URL('/index.php?api=get_products', base).toString());
+
+        const pathname = String(window.location.pathname || '');
+        const markerIndexRaw = pathname.indexOf('/Giao Diện/');
+        const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
+        const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
+
+        if (markerIndex > 0) {
+            const projectBase = pathname.slice(0, markerIndex);
+            safePush(() => `${window.location.origin}${projectBase}/index.php?api=get_products`);
+        }
+
+        return candidates;
+    };
+
+    const loadProductsFromApi = async () => {
+        const candidates = getProductsApiCandidates();
+
+        for (const endpoint of candidates) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) continue;
+
+                const payload = await response.json();
+                if (!payload?.ok || !Array.isArray(payload.data)) continue;
+
+                const mappedProducts = payload.data
+                    .map(mapApiProductToUiProduct)
+                    .filter((item) => item.id > 0);
+
+                if (mappedProducts.length > 0) {
+                    products = mappedProducts;
+                    return true;
+                }
+            } catch (error) {
+                // thử endpoint kế tiếp
+            }
+        }
+
+        return false;
+    };
+
     const updateShopHeroByCategory = () => {
         const categorySelect = document.getElementById('categoryFilter');
         const selectedCategory = (categorySelect?.value || '').trim().toLowerCase();
@@ -2038,8 +2197,18 @@
             )
         ).sort((a, b) => a.localeCompare(b, 'vi'));
 
+        const getBreedThumbByIndex = (index) => {
+            const imageIndex = String(index + 8).padStart(3, '0');
+            return `anhdata/pet_${imageIndex}.jpg`;
+        };
+
         submenu.innerHTML = uniqueBreeds
-            .map((breed) => `<button type="button" class="shop-subcategory-btn" data-breed="${breed.replace(/"/g, '&quot;')}">${breed}</button>`)
+            .map((breed, index) => `
+                <button type="button" class="shop-subcategory-btn" data-breed="${breed.replace(/"/g, '&quot;')}">
+                    <img class="shop-subcategory-thumb" src="${getBreedThumbByIndex(index)}" alt="${breed.replace(/"/g, '&quot;')}">
+                    <span>${breed}</span>
+                </button>
+            `)
             .join('');
     };
 
@@ -2674,8 +2843,8 @@
 
             // Category filter - case insensitive
             if (categoryValue) {
-                const productCategoryLower = product.category.trim().toLowerCase();
-                if (productCategoryLower !== categoryValue) {
+                const productCategoryLower = normalizeTextKey(product.category);
+                if (productCategoryLower !== normalizeTextKey(categoryValue)) {
                     console.log('Filter out:', product.name, '- product category:', productCategoryLower, '!== filter:', categoryValue);
                     return false;
                 }
@@ -3023,11 +3192,13 @@
     };
 
     // Initialize - render products on page load
-    const initShopPage = () => {
+    const initShopPage = async () => {
         console.log('Shop page initialized');
         buildDogBreedSubmenu();
         setupDelegatedEvents();
         setupCustomSelectEvents();
+
+        await loadProductsFromApi();
 
         const hasPendingCategory = applyPendingCategoryFilter();
         if (!hasPendingCategory) {

@@ -5525,8 +5525,8 @@ html {
             height: 62px;
             border: none;
             border-radius: 14px;
-            background: #f7b844;
-            color: #fff;
+            background: #1F8F4D !important;
+            color: #fff !important;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -5546,7 +5546,7 @@ html {
         }
 
         .scroll-top-btn:hover {
-            background: #111;
+            background: #166b3f !important;
         }
 
         .scroll-top-btn i,
@@ -5563,6 +5563,45 @@ html {
             padding: 34px 0 12px;
             overflow: hidden;
             margin-top: 0;
+        }
+
+        .footer-rising-icon-wrap {
+            position: absolute;
+            left: 18px;
+            bottom: -86px;
+            width: 146px;
+            color: #0d2c6f;
+            opacity: 0;
+            transform: translateY(100px) scale(0.9);
+            transform-origin: bottom left;
+            pointer-events: none;
+            z-index: 2;
+            filter: drop-shadow(0 10px 16px rgba(13, 44, 111, 0.18));
+        }
+
+        .pet-footer.is-icon-visible .footer-rising-icon-wrap {
+            animation: footerIconRise 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .footer-rising-icon {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        @keyframes footerIconRise {
+            0% {
+                opacity: 0;
+                transform: translateY(110px) scale(0.86);
+            }
+            70% {
+                opacity: 1;
+                transform: translateY(-4px) scale(1.03);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .pet-footer::before {
@@ -5776,6 +5815,12 @@ html {
         @media (max-width: 768px) {
             .pet-footer {
                 padding: 34px 0 14px;
+            }
+
+            .footer-rising-icon-wrap {
+                left: 10px;
+                width: 118px;
+                bottom: -72px;
             }
 
             .pet-footer-top {

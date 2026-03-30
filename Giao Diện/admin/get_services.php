@@ -173,6 +173,15 @@ function app_column_exists(mysqli $conn, string $table, string $column): bool
 	return $exists;
 }
 
+function app_ensure_dichvu_image_column(mysqli $conn): bool
+{
+	if (app_column_exists($conn, 'dichvu', 'hinhanhdichvu')) {
+		return true;
+	}
+
+	return (bool) $conn->query("ALTER TABLE dichvu ADD COLUMN hinhanhdichvu VARCHAR(255) NULL AFTER trangthaidichvu");
+}
+
 function app_resolve_category_id(mysqli $conn, string $categoryName, int $fallback = 0): int
 {
 	$name = trim($categoryName);
@@ -237,24 +246,27 @@ if ($entity === '') {
 $conn = app_db_connect();
 
 if ($entity === 'services') {
+	app_ensure_dichvu_image_column($conn);
+
 	if ($action === 'create') {
 		$name = trim((string) ($input['tendichvu'] ?? ''));
 		$price = (float) ($input['giadichvu'] ?? 0);
 		$duration = (int) ($input['thoigiandichvu'] ?? 0);
 		$status = trim((string) ($input['trangthaidichvu'] ?? 'hoatdong'));
+		$image = trim((string) ($input['hinhanhdichvu'] ?? ''));
 
 		if ($name === '' || $duration <= 0) {
 			$conn->close();
 			app_json_response(['ok' => false, 'message' => 'Du lieu dich vu khong hop le'], 400);
 		}
 
-		$stmt = $conn->prepare('INSERT INTO dichvu (tendichvu, giadichvu, thoigiandichvu, trangthaidichvu) VALUES (?, ?, ?, ?)');
+		$stmt = $conn->prepare('INSERT INTO dichvu (tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu) VALUES (?, ?, ?, ?, ?)');
 		if (!$stmt) {
 			$conn->close();
 			app_json_response(['ok' => false, 'message' => 'Khong the them dich vu', 'error' => $conn->error], 500);
 		}
 
-		$stmt->bind_param('sdis', $name, $price, $duration, $status);
+		$stmt->bind_param('sdiss', $name, $price, $duration, $status, $image);
 		$ok = $stmt->execute();
 		$newId = (int) $conn->insert_id;
 		$stmt->close();
@@ -264,7 +276,7 @@ if ($entity === 'services') {
 			app_json_response(['ok' => false, 'message' => 'Them dich vu that bai', 'error' => $conn->error], 500);
 		}
 
-		$rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, ngaytaodichvu FROM dichvu WHERE id = ' . $newId . ' LIMIT 1');
+		$rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, ngaytaodichvu FROM dichvu WHERE id = ' . $newId . ' LIMIT 1');
 		$row = $rowResult ? $rowResult->fetch_assoc() : null;
 		if ($rowResult) $rowResult->free();
 		$conn->close();
@@ -277,19 +289,20 @@ if ($entity === 'services') {
 		$price = (float) ($input['giadichvu'] ?? 0);
 		$duration = (int) ($input['thoigiandichvu'] ?? 0);
 		$status = trim((string) ($input['trangthaidichvu'] ?? 'hoatdong'));
+		$image = trim((string) ($input['hinhanhdichvu'] ?? ''));
 
 		if ($id <= 0 || $name === '' || $duration <= 0) {
 			$conn->close();
 			app_json_response(['ok' => false, 'message' => 'Du lieu cap nhat dich vu khong hop le'], 400);
 		}
 
-		$stmt = $conn->prepare('UPDATE dichvu SET tendichvu = ?, giadichvu = ?, thoigiandichvu = ?, trangthaidichvu = ? WHERE id = ?');
+		$stmt = $conn->prepare('UPDATE dichvu SET tendichvu = ?, giadichvu = ?, thoigiandichvu = ?, trangthaidichvu = ?, hinhanhdichvu = ? WHERE id = ?');
 		if (!$stmt) {
 			$conn->close();
 			app_json_response(['ok' => false, 'message' => 'Khong the cap nhat dich vu', 'error' => $conn->error], 500);
 		}
 
-		$stmt->bind_param('sdisi', $name, $price, $duration, $status, $id);
+		$stmt->bind_param('sdissi', $name, $price, $duration, $status, $image, $id);
 		$ok = $stmt->execute();
 		$stmt->close();
 		if (!$ok) {
@@ -297,7 +310,7 @@ if ($entity === 'services') {
 			app_json_response(['ok' => false, 'message' => 'Cap nhat dich vu that bai', 'error' => $conn->error], 500);
 		}
 
-		$rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, ngaytaodichvu FROM dichvu WHERE id = ' . $id . ' LIMIT 1');
+		$rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, ngaytaodichvu FROM dichvu WHERE id = ' . $id . ' LIMIT 1');
 		$row = $rowResult ? $rowResult->fetch_assoc() : null;
 		if ($rowResult) $rowResult->free();
 		$conn->close();

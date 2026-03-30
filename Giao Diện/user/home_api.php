@@ -81,6 +81,76 @@ function user_api_db_has_tables(mysqli $conn, string $dbName): bool
     return (int) ($row['matched'] ?? 0) >= 1;
 }
 
+function user_api_table_exists(mysqli $conn, string $tableName): bool
+{
+    $tableEsc = $conn->real_escape_string($tableName);
+    $result = $conn->query("SHOW TABLES LIKE '{$tableEsc}'");
+    if (!$result) {
+        return false;
+    }
+
+    $exists = $result->num_rows > 0;
+    $result->free();
+    return $exists;
+}
+
+function user_api_column_exists(mysqli $conn, string $tableName, string $columnName): bool
+{
+    $tableEsc = $conn->real_escape_string($tableName);
+    $columnEsc = $conn->real_escape_string($columnName);
+    $result = $conn->query("SHOW COLUMNS FROM `{$tableEsc}` LIKE '{$columnEsc}'");
+    if (!$result) {
+        return false;
+    }
+
+    $exists = $result->num_rows > 0;
+    $result->free();
+    return $exists;
+}
+
+function user_api_input(): array
+{
+    $rawBody = (string) file_get_contents('php://input');
+    $json = json_decode($rawBody, true);
+    if (is_array($json)) {
+        return $json;
+    }
+
+    return $_POST;
+}
+
+function user_api_lower(string $value): string
+{
+    return function_exists('mb_strtolower')
+        ? mb_strtolower($value, 'UTF-8')
+        : strtolower($value);
+}
+
+function user_api_password_verify(string $plain, string $stored): bool
+{
+    if ($plain === '' || $stored === '') {
+        return false;
+    }
+
+    if (hash_equals($stored, $plain)) {
+        return true;
+    }
+
+    if (strlen($stored) >= 60 && substr($stored, 0, 2) === '$2') {
+        return password_verify($plain, $stored);
+    }
+
+    if (preg_match('/^[a-f0-9]{32}$/i', $stored) === 1) {
+        return hash_equals(strtolower($stored), md5($plain));
+    }
+
+    if (preg_match('/^[a-f0-9]{40}$/i', $stored) === 1) {
+        return hash_equals(strtolower($stored), sha1($plain));
+    }
+
+    return false;
+}
+
 function user_api_resolve_db_name(mysqli $serverConn, string $preferredDb): string
 {
     if ($preferredDb !== '' && user_api_db_has_tables($serverConn, $preferredDb)) {
@@ -159,6 +229,156 @@ if ($api === '') {
 
 $conn = user_api_db_connect();
 
+if ($api === 'login_user') {
+    $input = user_api_input();
+    $identifier = trim((string) ($input['identifier'] ?? $input['username'] ?? $input['email'] ?? ''));
+    $password = (string) ($input['password'] ?? '');
+
+    if ($identifier === '' || $password === '') {
+        $conn->close();
+        user_api_json([
+            'ok' => false,
+            'message' => 'Vui long nhap tai khoan va mat khau',
+        ], 400);
+    }
+
+    $identifierLower = user_api_lower($identifier);
+
+    // 1) Ưu tiên bảng taikhoan (nếu có)
+    if (user_api_table_exists($conn, 'taikhoan')) {
+        $columns = [
+            'id' => user_api_column_exists($conn, 'taikhoan', 'id'),
+            'hoten' => user_api_column_exists($conn, 'taikhoan', 'hoten'),
+            'tenhienthi' => user_api_column_exists($conn, 'taikhoan', 'tenhienthi'),
+            'role' => user_api_column_exists($conn, 'taikhoan', 'role'),
+            'vaitro' => user_api_column_exists($conn, 'taikhoan', 'vaitro'),
+            'matkhau' => user_api_column_exists($conn, 'taikhoan', 'matkhau'),
+            'password' => user_api_column_exists($conn, 'taikhoan', 'password'),
+            'tendangnhap' => user_api_column_exists($conn, 'taikhoan', 'tendangnhap'),
+            'username' => user_api_column_exists($conn, 'taikhoan', 'username'),
+            'email' => user_api_column_exists($conn, 'taikhoan', 'email'),
+            'sodienthoai' => user_api_column_exists($conn, 'taikhoan', 'sodienthoai'),
+            'trangthai' => user_api_column_exists($conn, 'taikhoan', 'trangthai'),
+        ];
+
+        $accountFields = [];
+        if ($columns['tendangnhap']) $accountFields[] = 'LOWER(tendangnhap) = ?';
+        if ($columns['username']) $accountFields[] = 'LOWER(username) = ?';
+        if ($columns['email']) $accountFields[] = 'LOWER(email) = ?';
+        if ($columns['sodienthoai']) $accountFields[] = 'LOWER(sodienthoai) = ?';
+
+        $passwordField = $columns['matkhau'] ? 'matkhau' : ($columns['password'] ? 'password' : '');
+
+        if (count($accountFields) > 0 && $passwordField !== '') {
+            $nameExpr = $columns['hoten']
+                ? 'hoten'
+                : ($columns['tenhienthi'] ? 'tenhienthi' : 'COALESCE(tendangnhap, username, email, sodienthoai, "Nguoi dung")');
+            $roleExpr = $columns['role'] ? 'role' : ($columns['vaitro'] ? 'vaitro' : '"user"');
+            $idExpr = $columns['id'] ? 'id' : '0';
+
+            $whereSql = '(' . implode(' OR ', $accountFields) . ')';
+            if ($columns['trangthai']) {
+                $whereSql .= " AND (trangthai IS NULL OR LOWER(trangthai) IN ('active', 'hoatdong', '1'))";
+            }
+
+            $sql = "
+                SELECT {$idExpr} AS id, {$nameExpr} AS tennguoidung, {$roleExpr} AS role, {$passwordField} AS matkhau
+                FROM taikhoan
+                WHERE {$whereSql}
+                LIMIT 1
+            ";
+
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $bindTypes = str_repeat('s', count($accountFields));
+                $bindValues = array_fill(0, count($accountFields), $identifierLower);
+                $stmt->bind_param($bindTypes, ...$bindValues);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $row = $result ? $result->fetch_assoc() : null;
+                if ($result) {
+                    $result->free();
+                }
+                $stmt->close();
+
+                if (is_array($row) && user_api_password_verify($password, (string) ($row['matkhau'] ?? ''))) {
+                    $conn->close();
+                    user_api_json([
+                        'ok' => true,
+                        'message' => 'Dang nhap thanh cong',
+                        'user' => [
+                            'id' => (int) ($row['id'] ?? 0),
+                            'name' => (string) ($row['tennguoidung'] ?? $identifier),
+                            'identifier' => $identifier,
+                            'role' => (string) ($row['role'] ?? 'user'),
+                        ],
+                    ]);
+                }
+            }
+        }
+    }
+
+    // 2) Fallback bảng khachhang (mật khẩu mặc định: 123456)
+    if (user_api_table_exists($conn, 'khachhang')) {
+        $sql = "
+            SELECT id, tenkhachhang, emailkhachhang, sodienthoaikhachhang
+            FROM khachhang
+            WHERE LOWER(COALESCE(emailkhachhang, '')) = ?
+               OR LOWER(COALESCE(sodienthoaikhachhang, '')) = ?
+               OR LOWER(COALESCE(tenkhachhang, '')) = ?
+            LIMIT 1
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param('sss', $identifierLower, $identifierLower, $identifierLower);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result ? $result->fetch_assoc() : null;
+            if ($result) {
+                $result->free();
+            }
+            $stmt->close();
+
+            if (is_array($row) && $password === '123456') {
+                $conn->close();
+                user_api_json([
+                    'ok' => true,
+                    'message' => 'Dang nhap thanh cong',
+                    'user' => [
+                        'id' => (int) ($row['id'] ?? 0),
+                        'name' => (string) ($row['tenkhachhang'] ?? 'Khach hang'),
+                        'identifier' => $identifier,
+                        'role' => 'user',
+                    ],
+                    'note' => 'Dang dung mat khau mac dinh cho khachhang: 123456',
+                ]);
+            }
+        }
+    }
+
+    // 3) Demo account
+    if ($identifierLower === 'thucung' && $password === '123456') {
+        $conn->close();
+        user_api_json([
+            'ok' => true,
+            'message' => 'Dang nhap thanh cong',
+            'user' => [
+                'id' => 0,
+                'name' => 'Thucung Demo',
+                'identifier' => 'thucung',
+                'role' => 'user',
+            ],
+        ]);
+    }
+
+    $conn->close();
+    user_api_json([
+        'ok' => false,
+        'message' => 'Sai tai khoan hoac mat khau',
+    ], 401);
+}
+
 if ($api === 'get_home_categories') {
     $sql = "
         SELECT
@@ -229,6 +449,58 @@ if ($api === 'get_home_categories') {
         'count' => count($data),
         'signature' => $signature,
         'updated_at' => date(DATE_ATOM),
+        'data' => $data,
+    ]);
+}
+
+if ($api === 'get_products') {
+    $sql = "
+        SELECT
+            s.id,
+            s.tensanpham,
+            s.danhmuc_id,
+            COALESCE(NULLIF(TRIM(d.tendanhmuc), ''), 'Chua phan loai') AS tendanhmuc,
+            s.masanpham,
+            s.giasanpham,
+            s.soluongsanpham,
+            s.trangthaisanpham,
+            COALESCE(NULLIF(TRIM(s.hinhanhsanpham), ''), '') AS hinhanhsanpham
+        FROM sanpham s
+        LEFT JOIN danhmuc d ON d.id = s.danhmuc_id
+        ORDER BY s.id DESC
+        LIMIT 1000
+    ";
+
+    $result = $conn->query($sql);
+    if (!$result) {
+        $conn->close();
+        user_api_json([
+            'ok' => false,
+            'message' => 'Truy van sanpham that bai',
+            'error' => $conn->error,
+        ], 500);
+    }
+
+    $data = [];
+    while ($row = $result->fetch_assoc()) {
+        $data[] = [
+            'id' => (int) ($row['id'] ?? 0),
+            'tensanpham' => (string) ($row['tensanpham'] ?? ''),
+            'danhmuc_id' => (int) ($row['danhmuc_id'] ?? 0),
+            'tendanhmuc' => (string) ($row['tendanhmuc'] ?? 'Chua phan loai'),
+            'masanpham' => (string) ($row['masanpham'] ?? ''),
+            'giasanpham' => (float) ($row['giasanpham'] ?? 0),
+            'soluongsanpham' => (int) ($row['soluongsanpham'] ?? 0),
+            'trangthaisanpham' => (string) ($row['trangthaisanpham'] ?? ''),
+            'hinhanhsanpham' => (string) ($row['hinhanhsanpham'] ?? ''),
+        ];
+    }
+    $result->free();
+
+    $conn->close();
+    user_api_json([
+        'ok' => true,
+        'count' => count($data),
         'data' => $data,
     ]);
 }
