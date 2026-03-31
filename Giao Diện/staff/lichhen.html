@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch Hẹn Dịch Vụ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="staff-style.css">
+    <style>
+        .booking-table td { vertical-align: top; }
+        .status-chip {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .status-pending { background: #fff7ed; color: #c2410c; }
+        .status-approved { background: #ecfdf5; color: #166534; }
+        .status-rejected { background: #fef2f2; color: #b91c1c; }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+    <div class="top-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h2><i class="bi bi-calendar-check text-success me-2"></i>Lịch Hẹn Dịch Vụ</h2>
+        <button id="refreshBtn" class="btn btn-success btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</button>
+    </div>
+
+    <div class="content-section mb-3">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Từ khóa</label>
+                <input id="keywordInput" class="form-control" placeholder="Tên KH, SĐT, dịch vụ...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Trạng thái</label>
+                <select id="statusInput" class="form-select">
+                    <option value="">Tất cả</option>
+                    <option value="choduyet">Chờ duyệt</option>
+                    <option value="hoanthanh">Đã duyệt</option>
+                    <option value="huy">Đã hủy</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button id="filterBtn" class="btn btn-primary w-100">Lọc</button>
+            </div>
+            <div class="col-md-3 text-md-end">
+                <small id="summaryText" class="text-muted"></small>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-section">
+        <div class="section-header"><h3><i class="bi bi-list-check text-success me-2"></i>Danh sách lịch hẹn</h3></div>
+        <div class="table-responsive">
+            <table class="table table-hover booking-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Mã lịch</th>
+                        <th>Khách hàng</th>
+                        <th>Dịch vụ</th>
+                        <th>Ngày hẹn</th>
+                        <th>Trạng thái</th>
+                        <th>Ghi chú</th>
+                        <th style="min-width: 190px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="bookingTableBody">
+                    <tr><td colspan="7" class="text-muted">Đang tải dữ liệu...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const bodyEl = document.getElementById('bookingTableBody');
+    const keywordInput = document.getElementById('keywordInput');
+    const statusInput = document.getElementById('statusInput');
+    const summaryText = document.getElementById('summaryText');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const filterBtn = document.getElementById('filterBtn');
+
+    const statusMeta = {
+        choduyet: { label: 'Chờ duyệt', cls: 'status-pending' },
+        hoanthanh: { label: 'Đã duyệt', cls: 'status-approved' },
+        huy: { label: 'Đã hủy', cls: 'status-rejected' }
+    };
+
+    const toDisplayDate = (value) => {
+        const date = new Date(value || 0);
+        if (Number.isNaN(date.getTime())) return String(value || '');
+        return date.toLocaleString('vi-VN');
+    };
+
+    const safeText = (value) => String(value || '').replace(/[<>&]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch]));
+
+    const getApiCandidates = (api, query = '') => {
+        const suffix = query ? '&' + query : '';
+        return [
+            new URL(`../../index.php?api=${api}${suffix}`, window.location.href).toString(),
+            new URL(`/phuocthanh/PHPCHINH/index.php?api=${api}${suffix}`, window.location.origin).toString(),
+            new URL(`/PHPCHINH/index.php?api=${api}${suffix}`, window.location.origin).toString(),
+            new URL(`/index.php?api=${api}${suffix}`, window.location.origin).toString()
+        ];
+    };
+
+    const fetchBookings = async () => {
+        const keyword = encodeURIComponent(String(keywordInput.value || '').trim());
+        const status = encodeURIComponent(String(statusInput.value || '').trim());
+        const query = `keyword=${keyword}&status=${status}&limit=300`;
+
+        let lastMessage = 'Không thể tải lịch hẹn.';
+
+        for (const url of getApiCandidates('get_service_bookings', query)) {
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok || !Array.isArray(data.data)) {
+                    lastMessage = data.message || `Lỗi ${response.status}`;
+                    continue;
+                }
+                return { ok: true, data: data.data };
+            } catch (error) {
+                lastMessage = 'Không thể kết nối máy chủ.';
+            }
+        }
+
+        return { ok: false, message: lastMessage };
+    };
+
+    const updateStatus = async (id, status) => {
+        const authUser = (() => {
+            try {
+                const raw = sessionStorage.getItem('authUser') || localStorage.getItem('authUser');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        })();
+
+        const payload = {
+            id,
+            status,
+            staff_id: Number(authUser?.id || 0),
+            staff_note: ''
+        };
+
+        let lastMessage = 'Không thể cập nhật trạng thái.';
+
+        for (const url of getApiCandidates('update_service_booking_status')) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(payload),
+                    cache: 'no-store'
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) {
+                    lastMessage = data.message || `Lỗi ${response.status}`;
+                    continue;
+                }
+                return { ok: true };
+            } catch (error) {
+                lastMessage = 'Không thể kết nối máy chủ.';
+            }
+        }
+
+        return { ok: false, message: lastMessage };
+    };
+
+    const renderRows = (rows) => {
+        if (!rows.length) {
+            bodyEl.innerHTML = '<tr><td colspan="7" class="text-muted">Không có lịch hẹn phù hợp.</td></tr>';
+            summaryText.textContent = '0 lịch hẹn';
+            return;
+        }
+
+        const pendingCount = rows.filter((row) => row.trangthai === 'choduyet').length;
+        summaryText.textContent = `${rows.length} lịch hẹn • ${pendingCount} chờ duyệt`;
+
+        bodyEl.innerHTML = rows.map((row) => {
+            const meta = statusMeta[row.trangthai] || statusMeta.choduyet;
+            return `
+                <tr>
+                    <td><strong>${safeText(row.malichhen)}</strong></td>
+                    <td>
+                        <div><strong>${safeText(row.tenkhachhang)}</strong></div>
+                        <div class="text-muted small">${safeText(row.sodienthoai || '---')}</div>
+                    </td>
+                    <td>
+                        <div>${safeText(row.tendichvu)}</div>
+                        <div class="text-muted small">${safeText(row.ten_thu_cung || '')} ${row.loai_thu_cung ? `(${safeText(row.loai_thu_cung)})` : ''}</div>
+                    </td>
+                    <td>
+                        <div>${safeText(toDisplayDate(row.thoigianhen))}</div>
+                        <div class="text-muted small">${safeText(row.khunggio || '')}</div>
+                    </td>
+                    <td><span class="status-chip ${meta.cls}">${meta.label}</span></td>
+                    <td>${safeText(row.ghichu || '-')}</td>
+                    <td>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-success" data-action="approve" data-id="${row.id}">Duyệt</button>
+                            <button class="btn btn-sm btn-outline-secondary" data-action="pending" data-id="${row.id}">Chờ duyệt</button>
+                            <button class="btn btn-sm btn-outline-danger" data-action="reject" data-id="${row.id}">Từ chối</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    const loadData = async () => {
+        bodyEl.innerHTML = '<tr><td colspan="7" class="text-muted">Đang tải dữ liệu...</td></tr>';
+        const result = await fetchBookings();
+        if (!result.ok) {
+            bodyEl.innerHTML = `<tr><td colspan="7" class="text-danger">${safeText(result.message || 'Không thể tải dữ liệu.')}</td></tr>`;
+            summaryText.textContent = 'Lỗi tải dữ liệu';
+            return;
+        }
+
+        renderRows(result.data);
+    };
+
+    bodyEl.addEventListener('click', async (event) => {
+        const trigger = event.target.closest('button[data-action][data-id]');
+        if (!trigger) return;
+
+        const id = Number(trigger.getAttribute('data-id') || 0);
+        const action = String(trigger.getAttribute('data-action') || '');
+        if (id <= 0) return;
+
+        let status = 'choduyet';
+        if (action === 'approve') status = 'hoanthanh';
+        if (action === 'reject') status = 'huy';
+
+        trigger.disabled = true;
+        const result = await updateStatus(id, status);
+        trigger.disabled = false;
+
+        if (!result.ok) {
+            alert(result.message || 'Cập nhật thất bại.');
+            return;
+        }
+
+        await loadData();
+    });
+
+    filterBtn.addEventListener('click', loadData);
+    refreshBtn.addEventListener('click', loadData);
+    keywordInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            loadData();
+        }
+    });
+
+    loadData();
+})();
+</script>
+</body>
+</html>

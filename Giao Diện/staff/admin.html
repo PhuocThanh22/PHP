@@ -13,6 +13,34 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="staff-style.css">
+    <style>
+        .sidebar-menu .has-submenu {
+            position: relative;
+        }
+
+        .sidebar-menu .submenu {
+            list-style: none;
+            margin: 6px 0 0 44px;
+            padding: 0;
+            display: none;
+        }
+
+        .sidebar-menu .has-submenu:hover .submenu,
+        .sidebar-menu .has-submenu.open .submenu {
+            display: block;
+        }
+
+        .sidebar-menu .submenu a {
+            font-size: 13px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: inherit;
+            text-decoration: none;
+        }
+    </style>
 </head>
 <body>
     <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Mở menu"><span class="emoji-icon" aria-hidden="true">☰</span></button>
@@ -29,8 +57,16 @@
                 <li><a href="#" data-page="sanpham.html"><span class="emoji-icon" aria-hidden="true">📦</span><span>Sản Phẩm</span></a></li>
                 <li><a href="#" data-page="khachhang.html"><span class="emoji-icon" aria-hidden="true">👥</span><span>Khách Hàng</span></a></li>
                 <li><a href="#" data-page="thucung.html"><span class="emoji-icon" aria-hidden="true">🐾</span><span>Thú Cưng</span></a></li>
+                <li><a href="#" data-page="lichhen.html"><span class="emoji-icon" aria-hidden="true">📅</span><span>Lịch Hẹn</span></a></li>
                 <li><a href="#" data-page="donhang.html"><span class="emoji-icon" aria-hidden="true">🛒</span><span>Đơn Hàng</span></a></li>
-                <li><a href="#" data-page="sell.html"><span class="emoji-icon" aria-hidden="true">💳</span><span>Bán Hàng</span></a></li>
+                <li class="has-submenu">
+                    <a href="#" data-page="sell.html"><span class="emoji-icon" aria-hidden="true">💳</span><span>Bán Hàng</span></a>
+                    <ul class="submenu">
+                        <li><a href="#" data-page="sell.html"><span class="emoji-icon" aria-hidden="true">•</span><span>Bán Hàng Tại Quầy</span></a></li>
+                        <li><a href="#" data-page="sell-online.html"><span class="emoji-icon" aria-hidden="true">•</span><span>Bán Hàng Online</span></a></li>
+                    </ul>
+                </li>
+                <li><a href="#" data-app-action="logout"><span class="emoji-icon" aria-hidden="true">🚪</span><span>Đăng Xuất</span></a></li>
             </ul>
         </aside>
 
@@ -39,7 +75,13 @@
         </main>
     </div>
 
+    <script src="../common/app-session-realtime.js"></script>
     <script>
+        if (window.AppSessionRealtime) {
+            window.AppSessionRealtime.requireRole(['staff', 'admin']);
+            window.AppSessionRealtime.bindDefaultActions(document);
+        }
+
         const sidebar = document.getElementById('sidebar');
         const desktopMenuBtn = document.getElementById('desktopMenuBtn');
         const menuToggleBtn = document.getElementById('menuToggleBtn');
@@ -82,11 +124,66 @@
             return `${page}${separator}v=${PAGE_VERSION}&_=${CACHE_BUSTER}`;
         }
 
+        function refreshActiveFrame() {
+            if (!frame) return;
+            const activeLink = document.querySelector('.sidebar-menu a.active[data-page]');
+            const activePage = activeLink ? activeLink.dataset.page : 'trangchu.html';
+            frame.src = buildFrameUrl(activePage);
+        }
+
+        function bindFrameRealtimeBridge() {
+            if (!frame || !frame.contentWindow || !window.AppSessionRealtime) return;
+
+            const frameWin = frame.contentWindow;
+            if (frameWin.__realtimeFetchPatched === true) return;
+
+            const nativeFetch = frameWin.fetch ? frameWin.fetch.bind(frameWin) : null;
+            if (!nativeFetch) return;
+
+            frameWin.fetch = async (...args) => {
+                const response = await nativeFetch(...args);
+
+                try {
+                    const requestUrl = String(args[0] || '');
+                    const watchApi =
+                        requestUrl.includes('api=manage_entity') ||
+                        requestUrl.includes('api=update_online_order_status') ||
+                        requestUrl.includes('api=create_online_order') ||
+                        requestUrl.includes('api=create_service_booking') ||
+                        requestUrl.includes('api=update_service_booking_status');
+
+                    if (watchApi) {
+                        const cloned = response.clone();
+                        const payload = await cloned.json().catch(() => null);
+                        if (payload && payload.ok) {
+                            const eventType = requestUrl.includes('update_online_order_status')
+                                ? 'order_status_changed'
+                                : 'entity_changed';
+                            window.AppSessionRealtime.publish(eventType, {
+                                url: requestUrl,
+                                at: Date.now()
+                            });
+                        }
+                    }
+                } catch (e) {
+                    // ignore bridge errors to keep UI stable
+                }
+
+                return response;
+            };
+
+            frameWin.__realtimeFetchPatched = true;
+        }
+
         links.forEach((link) => {
             link.addEventListener('click', (event) => {
                 event.preventDefault();
                 const page = link.dataset.page;
                 if (!page || !frame) return;
+
+                document.querySelectorAll('.has-submenu').forEach((item) => item.classList.remove('open'));
+                const submenuParent = link.closest('.has-submenu');
+                if (submenuParent) submenuParent.classList.add('open');
 
                 frame.src = buildFrameUrl(page);
                 links.forEach((item) => item.classList.remove('active'));
@@ -102,7 +199,28 @@
         window.addEventListener('resize', syncMenuButtons);
         if (frame) {
             frame.src = buildFrameUrl('trangchu.html');
+            frame.addEventListener('load', bindFrameRealtimeBridge);
         }
+
+        if (window.AppSessionRealtime) {
+            window.AppSessionRealtime.subscribe((event) => {
+                if (!event || !event.type) return;
+
+                if (event.type === 'auth_logout') {
+                    window.location.href = '../dang-nhap.html';
+                    return;
+                }
+
+                if (
+                    event.type === 'entity_changed' ||
+                    event.type === 'order_status_changed' ||
+                    event.type === 'manual_refresh'
+                ) {
+                    refreshActiveFrame();
+                }
+            });
+        }
+
         syncMenuButtons();
     </script>
 </body>

@@ -350,8 +350,8 @@
     function getApiCandidates(path) {
         const candidates = [];
         const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-        candidates.push(`${protocol}//127.0.0.1/PHP/index.php?api=${path}`);
-        candidates.push(`${protocol}//localhost/PHP/index.php?api=${path}`);
+        candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=${path}`);
+        candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=${path}`);
         candidates.push(new URL(`../../index.php?api=${path}`, window.location.href).toString());
 
         const marker = '/admin/';
@@ -364,7 +364,7 @@
             if (detectedBase) candidates.push(`${detectedBase}/index.php?api=${path}`);
         }
 
-        candidates.push(`/PHP/index.php?api=${path}`);
+        candidates.push(`/PHPCHINH/index.php?api=${path}`);
         candidates.push(`/index.php?api=${path}`);
 
         return Array.from(new Set(candidates));
@@ -731,5 +731,6 @@
 </script>
 </body>
 </html>
+
 
 

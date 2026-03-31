@@ -38,21 +38,56 @@
   }
 
   .checkout-premium-page .checkout-shell {
-    max-width: 1040px !important;
+    max-width: 1120px !important;
   }
 
   .checkout-premium-page h2 {
-    font-size: clamp(30px, 3.2vw, 40px) !important;
+    font-size: clamp(28px, 2.5vw, 34px) !important;
     letter-spacing: -0.02em;
   }
 
   .checkout-premium-page h3 {
-    font-size: clamp(28px, 2.7vw, 36px) !important;
+    font-size: clamp(24px, 2.2vw, 30px) !important;
     letter-spacing: -0.02em;
   }
 
+  .checkout-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .checkout-panel {
+    background: #ffffff;
+    border: 1px solid #dde4ee;
+    border-radius: 16px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    padding: 22px;
+  }
+
+  .checkout-summary-panel {
+    position: sticky;
+    top: 88px;
+  }
+
+  .checkout-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .checkout-field {
+    margin-bottom: 14px;
+  }
+
+  .checkout-field label {
+    display: block;
+    margin-bottom: 8px;
+  }
+
   .checkout-premium-page label {
-    font-size: 14px !important;
+    font-size: 12px !important;
     font-weight: 600;
     color: #657083 !important;
   }
@@ -63,14 +98,14 @@
     border: 1px solid #dde4ee !important;
     background: #f8fafc !important;
     border-radius: 12px !important;
-    font-size: 15px !important;
+    font-size: 13px !important;
     color: #1f2937 !important;
     transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
   }
 
   .checkout-premium-page input:not([type="checkbox"]):not([type="radio"]),
   .checkout-premium-page select {
-    height: 48px !important;
+    height: 44px !important;
     padding: 0 14px !important;
   }
 
@@ -119,14 +154,135 @@
 
   .checkout-premium-page th,
   .checkout-premium-page td {
-    font-size: 15px !important;
-    padding-top: 14px !important;
-    padding-bottom: 14px !important;
+    font-size: 12px !important;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
   }
 
   .checkout-premium-page #checkoutTotal,
   .checkout-premium-page tfoot td[style*="font-size: 34px"] {
-    font-size: 28px !important;
+    font-size: 30px !important;
+  }
+
+  .checkout-summary-panel table {
+    table-layout: fixed;
+  }
+
+  .checkout-summary-panel th:nth-child(2),
+  .checkout-summary-panel td:nth-child(2),
+  #checkoutSubtotal,
+  #checkoutTotal {
+    white-space: nowrap;
+  }
+
+  #checkoutSubtotal,
+  #checkoutTotal {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .checkout-payment-note {
+    margin: 14px 0 0;
+    font-size: 13px;
+    line-height: 1.65;
+    color: #64748b;
+  }
+
+  @media (max-width: 992px) {
+    .checkout-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .checkout-summary-panel {
+      position: static;
+    }
+
+    .checkout-grid-2 {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .checkout-summary-panel th,
+    .checkout-summary-panel td {
+      font-size: 13px !important;
+      padding: 10px 12px !important;
+    }
+
+    #checkoutTotal {
+      font-size: 22px !important;
+    }
+  }
+
+  .checkout-success-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 12000;
+    padding: 20px;
+  }
+
+  .checkout-success-modal.open {
+    display: flex;
+  }
+
+  .checkout-success-card {
+    width: min(620px, 100%);
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 42px rgba(15, 23, 42, 0.24);
+    border: 1px solid #d9e2ef;
+    overflow: hidden;
+  }
+
+  .checkout-success-head {
+    background: linear-gradient(135deg, #22a35a 0%, #168f4a 100%);
+    color: #ffffff;
+    padding: 16px 20px;
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .checkout-success-body {
+    padding: 18px 20px;
+    color: #1f2937;
+  }
+
+  .checkout-success-detail {
+    margin: 10px 0;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    line-height: 1.7;
+  }
+
+  .checkout-success-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding: 0 20px 20px;
+    flex-wrap: wrap;
+  }
+
+  .checkout-success-actions button {
+    border: none;
+    border-radius: 999px;
+    padding: 11px 18px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  #continueShoppingBtn {
+    background: #0f172a;
+    color: #ffffff;
+  }
+
+  #goHomeAfterOrderBtn {
+    background: #22a35a;
+    color: #ffffff;
   }
 </style>
 
@@ -149,113 +305,301 @@
       </div>
     </div>
 
-    <div class="checkout-shell" style="max-width: 1180px; margin: 0 auto;">
-      <!-- Billing Form (theo mẫu) -->
-      <div style="background: transparent; border-radius: 12px; padding: 0; box-shadow: none;">
-        <div id="checkoutValidationErrors" style="display: none; margin: 0 0 22px 0; background: #d8e5f2; border-radius: 12px; padding: 22px 40px; color: #3b6ea5;"></div>
+    <div class="checkout-shell" style="max-width: 1120px; margin: 0 auto;">
+      <div class="checkout-layout">
+        <div class="checkout-panel">
+          <div id="checkoutValidationErrors" style="display: none; margin: 0 0 18px 0; background: #d8e5f2; border-radius: 12px; padding: 16px 20px; color: #3b6ea5;"></div>
 
-        <h2 style="font-size: 52px; font-weight: 700; margin: 0 0 26px 0; color: #131e2e; line-height: 1.1;">Thông tin thanh toán</h2>
+          <h2 style="font-size: 32px; font-weight: 700; margin: 0 0 18px 0; color: #131e2e; line-height: 1.2;">Thông tin thanh toán</h2>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 18px;">
-          <div>
-            <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Tên *</label>
-            <input id="checkoutFirstName" type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+          <div class="checkout-grid-2">
+            <div class="checkout-field">
+              <label>Tên *</label>
+              <input id="checkoutFirstName" type="text" style="width: 100%;">
+            </div>
+            <div class="checkout-field">
+              <label>Họ *</label>
+              <input id="checkoutLastName" type="text" style="width: 100%;">
+            </div>
           </div>
-          <div>
-            <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Họ *</label>
-            <input id="checkoutLastName" type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+
+          <div class="checkout-field">
+            <label>Tên công ty (tùy chọn)</label>
+            <input type="text" style="width: 100%;">
+          </div>
+
+          <div class="checkout-field">
+            <label>Quốc gia/Khu vực *</label>
+            <select style="width: 100%;">
+              <option selected>Việt Nam</option>
+            </select>
+          </div>
+
+          <div class="checkout-field">
+            <label>Tỉnh / Thành phố *</label>
+            <select id="checkoutProvince" style="width: 100%;">
+              <option value="">Chọn tỉnh / thành phố</option>
+            </select>
+          </div>
+
+          <div class="checkout-grid-2">
+            <div class="checkout-field">
+              <label>Quận / Huyện *</label>
+              <select id="checkoutDistrict" style="width: 100%;" disabled>
+                <option value="">Chọn quận / huyện</option>
+              </select>
+            </div>
+            <div class="checkout-field">
+              <label>Phường / Xã *</label>
+              <select id="checkoutWard" style="width: 100%;" disabled>
+                <option value="">Chọn phường / xã</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="checkout-field">
+            <label>Số nhà / Địa chỉ chi tiết *</label>
+            <input id="checkoutAddressDetail" type="text" placeholder="Ví dụ: 120 Nguyễn Trãi, chung cư A2" style="width: 100%;">
+          </div>
+
+          <div class="checkout-grid-2">
+            <div class="checkout-field">
+              <label>Mã bưu điện (tùy chọn)</label>
+              <input type="text" style="width: 100%;">
+            </div>
+            <div class="checkout-field"></div>
+          </div>
+
+          <div class="checkout-grid-2">
+            <div class="checkout-field">
+              <label>Số điện thoại *</label>
+              <input id="checkoutPhone" type="tel" style="width: 100%;">
+            </div>
+            <div class="checkout-field">
+              <label>Địa chỉ email *</label>
+              <input id="checkoutEmail" type="email" style="width: 100%;">
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px; margin: 4px 0 12px;">
+            <input id="shipOtherAddress" type="checkbox" style="width: 16px; height: 16px; cursor: pointer;">
+            <label for="shipOtherAddress" style="margin: 0; color: #334155; font-size: 14px; font-weight: 600; cursor: pointer;">Giao hàng tới địa chỉ khác?</label>
+          </div>
+
+          <div class="checkout-field" style="margin-bottom: 0;">
+            <label>Ghi chú đơn hàng</label>
+            <textarea rows="4" placeholder="Ghi chú về đơn hàng, ví dụ: thời gian hay chỉ dẫn địa điểm giao hàng chi tiết hơn." style="width: 100%; resize: vertical;"></textarea>
           </div>
         </div>
 
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Tên công ty (tùy chọn)</label>
-          <input type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
-        </div>
+        <div class="checkout-panel checkout-summary-panel">
+          <h3 style="font-size: 28px; font-weight: 700; margin: 0 0 14px 0; color: #131e2e; line-height: 1.2;">Đơn hàng của bạn</h3>
 
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Quốc gia/Khu vực *</label>
-          <select style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #6e7884;">
-            <option selected>Việt Nam</option>
-          </select>
-        </div>
+          <table style="width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e7eb;">
+            <thead>
+              <tr>
+                <th style="text-align: left; padding: 12px 14px; border: 1px solid #e5e7eb; color: #131e2e;">Sản phẩm</th>
+                <th style="text-align: left; padding: 12px 14px; border: 1px solid #e5e7eb; color: #131e2e; width: 44%;">Tạm tính</th>
+              </tr>
+            </thead>
+            <tbody id="checkoutOrderRows"></tbody>
+            <tfoot>
+              <tr>
+                <td style="padding: 12px 14px; border: 1px solid #e5e7eb; font-weight: 700; color: #131e2e;">Tạm tính</td>
+                <td id="checkoutSubtotal" style="padding: 12px 14px; border: 1px solid #e5e7eb; color: #475569;">0 ₫</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 14px; border: 1px solid #e5e7eb; font-weight: 700; color: #131e2e;">Giao hàng</td>
+                <td style="padding: 12px 14px; border: 1px solid #e5e7eb; color: #64748b;">Giao hàng miễn phí</td>
+              </tr>
+              <tr>
+                <td style="padding: 14px; border: 1px solid #e5e7eb; font-size: 24px; font-weight: 800; color: #131e2e;">Tổng</td>
+                <td id="checkoutTotal" style="padding: 14px; border: 1px solid #e5e7eb; font-size: 26px; font-weight: 800; color: #131e2e;">0 ₫</td>
+              </tr>
+            </tfoot>
+          </table>
 
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Địa chỉ *</label>
-          <input id="checkoutAddress1" type="text" placeholder="Địa chỉ" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a; margin-bottom: 12px;">
-          <input type="text" placeholder="Căn hộ, dãy phòng, căn hộ, v.v. (tùy chọn)" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
-        </div>
+          <p style="margin: 14px 0 8px; font-size: 16px; color: #334155; font-weight: 700;">Chuyển khoản ngân hàng</p>
+          <p class="checkout-payment-note">
+            Thực hiện thanh toán vào tài khoản ngân hàng của chúng tôi và ghi rõ mã đơn hàng trong nội dung chuyển khoản.
+          </p>
+          <p class="checkout-payment-note">
+            Dữ liệu cá nhân của bạn sẽ được dùng để xử lý đơn hàng và hỗ trợ trải nghiệm mua sắm theo chính sách riêng tư.
+          </p>
 
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Mã bưu điện (tùy chọn)</label>
-          <input type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
+          <button id="checkoutPlaceOrderBtn" type="button" style="width: 100%; margin-top: 14px;" onmouseover="this.style.background='#000'" onmouseout="this.style.background='#22A35A'">Đặt hàng</button>
         </div>
-
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Tỉnh / Thành phố *</label>
-          <input id="checkoutCity" type="text" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
-        </div>
-
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Số điện thoại *</label>
-          <input id="checkoutPhone" type="tel" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
-        </div>
-
-        <div style="margin-bottom: 24px;">
-          <label style="display: block; margin: 0 0 10px 0; color: #6e7884; font-size: 16px; line-height: 1.2;">Địa chỉ email *</label>
-          <input id="checkoutEmail" type="email" style="width: 100%; height: 58px; border: none; border-radius: 10px; background: #eeece9; padding: 0 16px; font-size: 16px; color: #2a2a2a;">
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-          <input id="shipOtherAddress" type="checkbox" style="width: 18px; height: 18px; cursor: pointer;">
-          <label for="shipOtherAddress" style="margin: 0; color: #131e2e; font-size: 20px; font-weight: 700; cursor: pointer;">Giao hàng tới địa chỉ khác?</label>
-        </div>
-
-        <textarea rows="4" placeholder="Ghi chú về đơn hàng, ví dụ: thời gian hay chỉ dẫn địa điểm giao hàng chi tiết hơn." style="width: 100%; border: none; border-radius: 10px; background: #eeece9; padding: 14px 16px; font-size: 16px; color: #2a2a2a; resize: vertical; margin-bottom: 16px;"></textarea>
       </div>
-
-      <div style="margin-top: 34px;">
-        <h3 style="font-size: 46px; font-weight: 700; margin: 0 0 20px 0; color: #131e2e; line-height: 1.1;">Đơn hàng của bạn</h3>
-
-        <table style="width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e7eb;">
-          <thead>
-            <tr>
-              <th style="text-align: left; padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 18px; color: #131e2e;">Sản phẩm</th>
-              <th style="text-align: left; padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 18px; color: #131e2e; width: 34%;">Tạm tính</th>
-            </tr>
-          </thead>
-          <tbody id="checkoutOrderRows"></tbody>
-          <tfoot>
-            <tr>
-              <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 20px; font-weight: 700; color: #131e2e;">Tạm tính</td>
-              <td id="checkoutSubtotal" style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 20px; color: #3f4a59;">0 ₫</td>
-            </tr>
-            <tr>
-              <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 20px; font-weight: 700; color: #131e2e;">Giao hàng</td>
-              <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 20px; color: #6b7280;">•&nbsp; Giao hàng miễn phí</td>
-            </tr>
-            <tr>
-              <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 34px; font-weight: 700; color: #131e2e;">Tổng</td>
-              <td id="checkoutTotal" style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 34px; font-weight: 700; color: #131e2e;">0 ₫</td>
-            </tr>
-          </tfoot>
-        </table>
-
-        <p style="margin: 18px 4px 10px; font-size: 23px; color: #6e7884; font-weight: 600;">Chuyển khoản ngân hàng</p>
-        <p style="margin: 0 4px 20px; font-size: 16px; line-height: 1.7; color: #8a94a3; max-width: 980px;">
-          Thực hiện thanh toán vào ngay tài khoản ngân hàng của chúng tôi. Vui lòng sử dụng Mã đơn hàng của bạn trong phần Nội dung thanh toán. Đơn hàng sẽ được giao sau khi tiền đã chuyển.
-        </p>
-        <p style="margin: 0 4px 24px; font-size: 16px; line-height: 1.7; color: #8a94a3; max-width: 980px;">
-          Dữ liệu cá nhân của bạn sẽ được sử dụng để xử lý đơn đặt hàng của bạn, hỗ trợ trải nghiệm của bạn trên toàn bộ trang web này và cho các mục đích khác được mô tả trong chính sách riêng tư của chúng tôi.
-        </p>
-
-        <button id="checkoutPlaceOrderBtn" type="button" style="background: #22A35A; color: #fff; border: none; border-radius: 999px; padding: 12px 22px; font-size: 18px; font-weight: 700; cursor: pointer; transition: background-color 0.25s ease;" onmouseover="this.style.background='#000'" onmouseout="this.style.background='#22A35A'">Đặt hàng</button>
-      </div>
-
     </div>
   </div>
 </section>
 
+<div id="checkoutSuccessModal" class="checkout-success-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutSuccessTitle">
+  <div class="checkout-success-card">
+    <div id="checkoutSuccessTitle" class="checkout-success-head">Đặt hàng thành công</div>
+    <div class="checkout-success-body">
+      <p style="margin:0 0 8px 0;">Đơn hàng của bạn đã được ghi nhận thành công.</p>
+      <div id="checkoutSuccessDetail" class="checkout-success-detail"></div>
+    </div>
+    <div class="checkout-success-actions">
+      <button id="continueShoppingBtn" type="button">Tiếp tục mua sắm</button>
+      <button id="goHomeAfterOrderBtn" type="button">Quay về trang chủ</button>
+    </div>
+  </div>
+</div>
+
 <script>
+  (function bindAddressSelectors() {
+    const provinceEl = document.getElementById('checkoutProvince');
+    const districtEl = document.getElementById('checkoutDistrict');
+    const wardEl = document.getElementById('checkoutWard');
+
+    if (!provinceEl || !districtEl || !wardEl) return;
+
+    const allProvinces = [
+      'An Giang',
+      'Bà Rịa - Vũng Tàu',
+      'Bắc Giang',
+      'Bắc Kạn',
+      'Bạc Liêu',
+      'Bắc Ninh',
+      'Bến Tre',
+      'Bình Định',
+      'Bình Dương',
+      'Bình Phước',
+      'Bình Thuận',
+      'Cà Mau',
+      'Cần Thơ',
+      'Cao Bằng',
+      'Đà Nẵng',
+      'Đắk Lắk',
+      'Đắk Nông',
+      'Điện Biên',
+      'Đồng Nai',
+      'Đồng Tháp',
+      'Gia Lai',
+      'Hà Giang',
+      'Hà Nam',
+      'Hà Nội',
+      'Hà Tĩnh',
+      'Hải Dương',
+      'Hải Phòng',
+      'Hậu Giang',
+      'Hòa Bình',
+      'Hưng Yên',
+      'Khánh Hòa',
+      'Kiên Giang',
+      'Kon Tum',
+      'Lai Châu',
+      'Lâm Đồng',
+      'Lạng Sơn',
+      'Lào Cai',
+      'Long An',
+      'Nam Định',
+      'Nghệ An',
+      'Ninh Bình',
+      'Ninh Thuận',
+      'Phú Thọ',
+      'Phú Yên',
+      'Quảng Bình',
+      'Quảng Nam',
+      'Quảng Ngãi',
+      'Quảng Ninh',
+      'Quảng Trị',
+      'Sóc Trăng',
+      'Sơn La',
+      'Tây Ninh',
+      'Thái Bình',
+      'Thái Nguyên',
+      'Thanh Hóa',
+      'Thừa Thiên Huế',
+      'Tiền Giang',
+      'TP Hồ Chí Minh',
+      'Trà Vinh',
+      'Tuyên Quang',
+      'Vĩnh Long',
+      'Vĩnh Phúc',
+      'Yên Bái'
+    ];
+
+    const vnAddressData = {
+      'Hà Nội': {
+        'Quận Hoàn Kiếm': ['Phường Hàng Bạc', 'Phường Cửa Đông', 'Phường Tràng Tiền'],
+        'Quận Cầu Giấy': ['Phường Dịch Vọng', 'Phường Nghĩa Tân', 'Phường Quan Hoa'],
+        'Quận Hà Đông': ['Phường Mộ Lao', 'Phường Nguyễn Trãi', 'Phường Văn Quán']
+      },
+      'TP Hồ Chí Minh': {
+        'Quận 1': ['Phường Bến Nghé', 'Phường Bến Thành', 'Phường Đa Kao'],
+        'Quận 7': ['Phường Tân Phong', 'Phường Tân Hưng', 'Phường Phú Mỹ'],
+        'Thành phố Thủ Đức': ['Phường Hiệp Bình Chánh', 'Phường Linh Đông', 'Phường An Phú']
+      },
+      'Đà Nẵng': {
+        'Quận Hải Châu': ['Phường Hải Châu I', 'Phường Hải Châu II', 'Phường Hòa Cường Bắc'],
+        'Quận Sơn Trà': ['Phường An Hải Bắc', 'Phường Mân Thái', 'Phường Thọ Quang'],
+        'Quận Thanh Khê': ['Phường Thanh Khê Đông', 'Phường Thanh Khê Tây', 'Phường Xuân Hà']
+      },
+      'Cần Thơ': {
+        'Quận Ninh Kiều': ['Phường Tân An', 'Phường An Cư', 'Phường Xuân Khánh'],
+        'Quận Bình Thủy': ['Phường Bình Thủy', 'Phường Trà Nóc', 'Phường Long Hòa'],
+        'Quận Cái Răng': ['Phường Hưng Phú', 'Phường Lê Bình', 'Phường Phú Thứ']
+      },
+      'Hải Phòng': {
+        'Quận Hồng Bàng': ['Phường Sở Dầu', 'Phường Thượng Lý', 'Phường Hạ Lý'],
+        'Quận Lê Chân': ['Phường Dư Hàng', 'Phường An Biên', 'Phường Trại Cau'],
+        'Quận Ngô Quyền': ['Phường Lạch Tray', 'Phường Máy Chai', 'Phường Cầu Đất']
+      }
+    };
+
+    const getDistrictMap = (province) => {
+      if (!province) return {};
+      if (vnAddressData[province]) return vnAddressData[province];
+      return {
+        'Quận/Huyện trung tâm': ['Phường/Xã trung tâm', 'Phường/Xã 1', 'Phường/Xã 2']
+      };
+    };
+
+    const fillOptions = (selectEl, values, placeholder) => {
+      selectEl.innerHTML = '';
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = placeholder;
+      selectEl.appendChild(defaultOption);
+
+      values.forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        selectEl.appendChild(option);
+      });
+    };
+
+    fillOptions(provinceEl, allProvinces, 'Chọn tỉnh / thành phố');
+    fillOptions(districtEl, [], 'Chọn quận / huyện');
+    fillOptions(wardEl, [], 'Chọn phường / xã');
+
+    provinceEl.addEventListener('change', () => {
+      const province = provinceEl.value;
+      const districtMap = getDistrictMap(province);
+      const districts = province ? Object.keys(districtMap) : [];
+
+      fillOptions(districtEl, districts, 'Chọn quận / huyện');
+      fillOptions(wardEl, [], 'Chọn phường / xã');
+
+      districtEl.disabled = districts.length === 0;
+      wardEl.disabled = true;
+    });
+
+    districtEl.addEventListener('change', () => {
+      const province = provinceEl.value;
+      const district = districtEl.value;
+      const districtMap = getDistrictMap(province);
+      const wards = province && district ? (districtMap[district] || []) : [];
+
+      fillOptions(wardEl, wards, 'Chọn phường / xã');
+      wardEl.disabled = wards.length === 0;
+    });
+  })();
+
   (function renderCheckoutOrder() {
     const cart = JSON.parse(localStorage.getItem('cart')) || [];
     const rowsEl = document.getElementById('checkoutOrderRows');
@@ -348,19 +692,274 @@
   (function bindCheckoutValidation() {
     const placeOrderBtn = document.getElementById('checkoutPlaceOrderBtn');
     const errorBox = document.getElementById('checkoutValidationErrors');
+    const successModal = document.getElementById('checkoutSuccessModal');
+    const successTitle = document.getElementById('checkoutSuccessTitle');
+    const successDetail = document.getElementById('checkoutSuccessDetail');
+    const continueShoppingBtn = document.getElementById('continueShoppingBtn');
+    const goHomeAfterOrderBtn = document.getElementById('goHomeAfterOrderBtn');
 
     if (!placeOrderBtn || !errorBox) return;
+
+    const toMoney = (value) => Number(value || 0).toLocaleString('vi-VN') + ' ₫';
+  const parsePrice = (value) => Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
+
+    const getCurrentAuthUser = () => {
+      try {
+        const raw = sessionStorage.getItem('authUser') || localStorage.getItem('authUser');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const showSuccessPopup = (orderInfo) => {
+      if (!successModal || !successDetail) return;
+      if (successTitle) {
+        successTitle.textContent = 'Đặt hàng thành công';
+      }
+
+      continueShoppingBtn?.style.setProperty('display', 'inline-block');
+      goHomeAfterOrderBtn?.style.setProperty('display', 'inline-block');
+
+      successDetail.innerHTML = `
+        <div><strong>Mã đơn:</strong> #${orderInfo.id}</div>
+        <div><strong>Khách hàng:</strong> ${orderInfo.customerName}</div>
+        <div><strong>Số điện thoại:</strong> ${orderInfo.phone || '---'}</div>
+        <div><strong>Tổng thanh toán:</strong> ${toMoney(orderInfo.total)}</div>
+        <div><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</div>
+      `;
+      successModal.classList.add('open');
+    };
+
+    const showFailurePopup = (message) => {
+      if (!successModal || !successDetail) return;
+
+      if (successTitle) {
+        successTitle.textContent = 'Đặt hàng thất bại';
+      }
+
+      continueShoppingBtn?.style.setProperty('display', 'none');
+      goHomeAfterOrderBtn?.style.setProperty('display', 'inline-block');
+
+      successDetail.innerHTML = `
+        <div><strong>Không thể tạo đơn online.</strong></div>
+        <div style="margin-top: 8px; color: #b91c1c;">${String(message || 'Vui lòng thử lại sau.')}</div>
+        <div style="margin-top: 10px;">Thời gian: ${new Date().toLocaleString('vi-VN')}</div>
+      `;
+
+      successModal.classList.add('open');
+    };
+
+    const closeSuccessPopup = () => {
+      successModal?.classList.remove('open');
+    };
+
+    continueShoppingBtn?.addEventListener('click', () => {
+      closeSuccessPopup();
+      if (typeof window.routeToPage === 'function') {
+        window.routeToPage('shop');
+      } else if (typeof window.loadPage === 'function') {
+        window.loadPage('shop');
+      } else {
+        window.location.href = 'home.html';
+      }
+    });
+
+    goHomeAfterOrderBtn?.addEventListener('click', () => {
+      closeSuccessPopup();
+      if (typeof window.resetToHome === 'function') {
+        window.resetToHome();
+      } else {
+        window.location.href = 'home.html';
+      }
+    });
+
+    successModal?.addEventListener('click', (event) => {
+      if (event.target === successModal) {
+        closeSuccessPopup();
+      }
+    });
 
     const requiredFields = [
       { id: 'checkoutFirstName', label: 'Tên' },
       { id: 'checkoutLastName', label: 'Họ' },
-      { id: 'checkoutAddress1', label: 'Địa chỉ' },
-      { id: 'checkoutCity', label: 'Tỉnh / Thành phố' },
+      { id: 'checkoutProvince', label: 'Tỉnh / Thành phố' },
+      { id: 'checkoutDistrict', label: 'Quận / Huyện' },
+      { id: 'checkoutWard', label: 'Phường / Xã' },
+      { id: 'checkoutAddressDetail', label: 'Số nhà / Địa chỉ chi tiết' },
       { id: 'checkoutPhone', label: 'Số điện thoại' },
       { id: 'checkoutEmail', label: 'Địa chỉ email' }
     ];
+    const ONLINE_ORDER_SYNC_KEY = 'onlineOrderSyncSignal';
 
-    placeOrderBtn.addEventListener('click', () => {
+    const emitOnlineOrderSync = (payload = {}) => {
+      const eventPayload = {
+        ...payload,
+        type: payload.type || 'order_created',
+        timestamp: Date.now()
+      };
+
+      try {
+        localStorage.setItem(ONLINE_ORDER_SYNC_KEY, JSON.stringify(eventPayload));
+      } catch (e) {
+        // ignore sync key write errors
+      }
+
+      if (window.AppSessionRealtime && typeof window.AppSessionRealtime.publish === 'function') {
+        window.AppSessionRealtime.publish(eventPayload.type, eventPayload);
+      }
+
+      if ('BroadcastChannel' in window) {
+        try {
+          const channel = new BroadcastChannel('online-order-sync');
+          channel.postMessage(eventPayload);
+          channel.close();
+        } catch (e) {
+          // ignore channel errors
+        }
+      }
+    };
+
+    const getOrderApiCandidates = () => {
+      const pathname = window.location.pathname || '';
+      const matched = pathname.match(/^(.*?\/PHPCHINH)(?:\/|$)/i);
+      const projectBase = matched ? matched[1] : '/phuocthanh/PHPCHINH';
+      const candidates = [
+        window.location.origin + projectBase + '/index.php?api=create_online_order',
+        projectBase + '/index.php?api=create_online_order',
+        new URL('../../index.php?api=create_online_order', window.location.href).toString(),
+        '/phuocthanh/PHPCHINH/index.php?api=create_online_order',
+        '/PHPCHINH/index.php?api=create_online_order'
+      ];
+
+      return Array.from(new Set(candidates));
+    };
+
+    async function createOnlineOrder(payload) {
+      let lastError = new Error('Không thể gửi đơn online');
+      for (const url of getOrderApiCandidates()) {
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const responseText = await response.text();
+          let data = null;
+          try {
+            data = JSON.parse(responseText);
+          } catch (parseError) {
+            lastError = new Error('API tra ve du lieu khong phai JSON tu ' + url);
+            continue;
+          }
+
+          if (!response.ok || !data.ok) {
+            lastError = new Error(data.message || ('HTTP ' + response.status));
+            continue;
+          }
+
+          return data;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError;
+    }
+
+    function saveOrderToCustomerCenter(orderCode, cartList, total, customerInfo) {
+      const userOrdersKey = 'userOrders';
+      const userProfileKey = 'userProfile';
+      const userNotificationsKey = 'userNotifications';
+
+      const paymentInput = document.querySelector('input[name="paymentMethod"]:checked');
+      const paymentMethod = String(paymentInput?.value || 'COD').toUpperCase();
+
+      let orders = [];
+      try {
+        const rawOrders = localStorage.getItem(userOrdersKey);
+        const parsedOrders = rawOrders ? JSON.parse(rawOrders) : [];
+        orders = Array.isArray(parsedOrders) ? parsedOrders : [];
+      } catch (e) {
+        orders = [];
+      }
+
+      const normalizedOrderId = String(orderCode || '').trim() || `ONL${Date.now()}`;
+      const authUser = getCurrentAuthUser();
+      const authUserId = Number(authUser?.id || 0);
+      const authUserEmail = String(authUser?.emailnguoidung || authUser?.identifier || '').trim();
+      const exists = orders.some((order) => String(order?.id || '') === normalizedOrderId);
+      if (!exists) {
+        const info = customerInfo || {};
+        const localOrder = {
+          id: normalizedOrderId,
+          createdAt: new Date().toLocaleString('vi-VN'),
+          status: 'pending',
+          userId: authUserId > 0 ? authUserId : null,
+          userEmail: String(info.email || authUserEmail || '').trim(),
+          userPhone: String(info.phone || '').trim(),
+          customerName: (String(info.lastName || '') + ' ' + String(info.firstName || '')).trim() || String(authUser?.tennguoidung || 'Khách hàng'),
+          paymentMethod,
+          paymentStatus: paymentMethod === 'COD' ? 'Thanh toán khi nhận hàng' : 'Đã thanh toán',
+          items: (Array.isArray(cartList) ? cartList : []).map((item) => ({
+            name: String(item?.name || 'Sản phẩm'),
+            qty: Number(item?.quantity || 1),
+            price: Number(parsePrice(item?.price || 0)),
+            image: String(item?.image || '')
+          }))
+        };
+
+        orders.unshift(localOrder);
+        localStorage.setItem(userOrdersKey, JSON.stringify(orders));
+      }
+
+      try {
+        const profileRaw = localStorage.getItem(userProfileKey);
+        const profile = profileRaw ? JSON.parse(profileRaw) : {};
+        const info = customerInfo || {};
+        profile.name = (String(info.lastName || '') + ' ' + String(info.firstName || '')).trim() || profile.name || 'Khách hàng';
+        profile.email = String(info.email || '') || profile.email || '';
+        profile.phone = String(info.phone || '') || profile.phone || '';
+        profile.address = [
+          String(info.addressDetail || ''),
+          String(info.ward || ''),
+          String(info.district || ''),
+          String(info.province || '')
+        ].filter(Boolean).join(', ') || profile.address || '';
+        localStorage.setItem(userProfileKey, JSON.stringify(profile));
+      } catch (e) {
+        // Ignore invalid profile JSON and continue.
+      }
+
+      try {
+        const notiRaw = localStorage.getItem(userNotificationsKey);
+        const notifications = notiRaw ? JSON.parse(notiRaw) : [];
+        const list = Array.isArray(notifications) ? notifications : [];
+        list.unshift({
+          id: `n${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          message: `Đơn #${normalizedOrderId} đã được tạo thành công.`,
+          type: 'order',
+          time: new Date().toLocaleString('vi-VN'),
+          read: false
+        });
+        localStorage.setItem(userNotificationsKey, JSON.stringify(list));
+      } catch (e) {
+        // Ignore invalid notifications JSON and continue.
+      }
+    }
+
+    placeOrderBtn.addEventListener('click', async () => {
+      const authUser = getCurrentAuthUser();
+      if (!authUser || Number(authUser.id || 0) <= 0) {
+        showFailurePopup('Vui lòng đăng nhập tài khoản để đặt hàng online.');
+        if (typeof window.openAuthModal === 'function') {
+          window.openAuthModal('login', 'Vui lòng đăng nhập để thanh toán đơn hàng.');
+        }
+        return;
+      }
+
       const missingFields = [];
 
       requiredFields.forEach((field) => {
@@ -385,7 +984,91 @@
       }
 
       errorBox.style.display = 'none';
-      alert('Đặt hàng thành công!');
+
+      const firstName = (document.getElementById('checkoutFirstName')?.value || '').trim();
+      const lastName = (document.getElementById('checkoutLastName')?.value || '').trim();
+      const phone = (document.getElementById('checkoutPhone')?.value || '').trim();
+      const email = (document.getElementById('checkoutEmail')?.value || '').trim();
+      const province = (document.getElementById('checkoutProvince')?.value || '').trim();
+      const district = (document.getElementById('checkoutDistrict')?.value || '').trim();
+      const ward = (document.getElementById('checkoutWard')?.value || '').trim();
+      const addressDetail = (document.getElementById('checkoutAddressDetail')?.value || '').trim();
+      const note = (document.querySelector('textarea')?.value || '').trim();
+
+      const cartRaw = localStorage.getItem('cart');
+      const cartItems = cartRaw ? JSON.parse(cartRaw) : [];
+      const cartList = Array.isArray(cartItems) ? cartItems : [];
+      const total = cartList.reduce((sum, item) => {
+        const price = parsePrice(item.price);
+        const quantity = Number(item.quantity || 1);
+        return sum + (price * quantity);
+      }, 0);
+
+      const orderPayload = {
+        customer_name: (lastName + ' ' + firstName).trim(),
+        customer_phone: phone,
+        customer_email: email,
+        address: [addressDetail, ward, district, province].filter(Boolean).join(', '),
+        note,
+        total,
+        items: cartList.map((item) => ({
+          id: item.id || 0,
+          name: item.name || '',
+          price: parsePrice(item.price),
+          quantity: Number(item.quantity || 1)
+        }))
+      };
+
+      try {
+        const authUserRaw = sessionStorage.getItem('authUser') || localStorage.getItem('authUser');
+        if (authUserRaw) {
+          const authPayload = JSON.parse(authUserRaw);
+          orderPayload.user_id = Number(authPayload.id || 0);
+          if (!orderPayload.customer_email && authPayload.emailnguoidung) {
+            orderPayload.customer_email = String(authPayload.emailnguoidung);
+          }
+          if (!orderPayload.customer_name && authPayload.tennguoidung) {
+            orderPayload.customer_name = String(authPayload.tennguoidung);
+          }
+        }
+      } catch (e) {
+        // Ignore invalid local session data and continue with entered checkout values.
+      }
+
+      placeOrderBtn.disabled = true;
+      placeOrderBtn.textContent = 'Đang gửi đơn...';
+      try {
+        const created = await createOnlineOrder(orderPayload);
+        const createdCode = String(created.data?.madonhang || '');
+        localStorage.setItem('lastOnlineOrderCode', createdCode);
+        saveOrderToCustomerCenter(createdCode, cartList, total, {
+          firstName,
+          lastName,
+          phone,
+          email,
+          province,
+          district,
+          ward,
+          addressDetail
+        });
+        emitOnlineOrderSync({
+          type: 'order_created',
+          orderCode: createdCode,
+          total
+        });
+        localStorage.removeItem('cart');
+        showSuccessPopup({
+          id: createdCode,
+          customerName: (lastName + ' ' + firstName).trim(),
+          phone,
+          total
+        });
+      } catch (error) {
+        showFailurePopup(String(error.message || error));
+      } finally {
+        placeOrderBtn.disabled = false;
+        placeOrderBtn.textContent = 'Đặt hàng';
+      }
     });
   })();
 </script>

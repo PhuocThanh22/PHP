@@ -31,6 +31,7 @@
                 <li><a href="#" data-page="doanhthu.html"><i class="bi bi-graph-up"></i><span>Doanh Thu</span></a></li>
                 <li><a href="#" data-page="thucung.html"><i class="bi bi-heart-fill"></i><span>Thú Cưng</span></a></li>
                 <li><a href="#" data-page="donhang.html"><i class="bi bi-cart-fill"></i><span>Đơn Hàng</span></a></li>
+                <li><a href="#" data-app-action="logout"><i class="bi bi-box-arrow-right"></i><span>Đăng Xuất</span></a></li>
             </ul>
         </aside>
 
@@ -39,7 +40,13 @@
         </main>
     </div>
 
+    <script src="../common/app-session-realtime.js"></script>
     <script>
+        if (window.AppSessionRealtime) {
+            window.AppSessionRealtime.requireRole(['admin']);
+            window.AppSessionRealtime.bindDefaultActions(document);
+        }
+
         const sidebar = document.getElementById('sidebar');
         const desktopMenuBtn = document.getElementById('desktopMenuBtn');
         const menuToggleBtn = document.getElementById('menuToggleBtn');
@@ -82,6 +89,55 @@
             return `${page}${separator}v=${PAGE_VERSION}&_=${CACHE_BUSTER}`;
         }
 
+        function refreshActiveFrame() {
+            if (!frame) return;
+            const activeLink = document.querySelector('.sidebar-menu a.active[data-page]');
+            const activePage = activeLink ? activeLink.dataset.page : 'trangchu.html';
+            frame.src = buildFrameUrl(activePage);
+        }
+
+        function bindFrameRealtimeBridge() {
+            if (!frame || !frame.contentWindow || !window.AppSessionRealtime) return;
+
+            const frameWin = frame.contentWindow;
+            if (frameWin.__realtimeFetchPatched === true) return;
+
+            const nativeFetch = frameWin.fetch ? frameWin.fetch.bind(frameWin) : null;
+            if (!nativeFetch) return;
+
+            frameWin.fetch = async (...args) => {
+                const response = await nativeFetch(...args);
+
+                try {
+                    const requestUrl = String(args[0] || '');
+                    const watchApi =
+                        requestUrl.includes('api=manage_entity') ||
+                        requestUrl.includes('api=update_online_order_status') ||
+                        requestUrl.includes('api=create_online_order');
+
+                    if (watchApi) {
+                        const cloned = response.clone();
+                        const payload = await cloned.json().catch(() => null);
+                        if (payload && payload.ok) {
+                            const eventType = requestUrl.includes('update_online_order_status')
+                                ? 'order_status_changed'
+                                : 'entity_changed';
+                            window.AppSessionRealtime.publish(eventType, {
+                                url: requestUrl,
+                                at: Date.now()
+                            });
+                        }
+                    }
+                } catch (e) {
+                    // ignore bridge errors to keep UI stable
+                }
+
+                return response;
+            };
+
+            frameWin.__realtimeFetchPatched = true;
+        }
+
         links.forEach((link) => {
             link.addEventListener('click', (event) => {
                 event.preventDefault();
@@ -102,7 +158,28 @@
         window.addEventListener('resize', syncMenuButtons);
         if (frame) {
             frame.src = buildFrameUrl('trangchu.html');
+            frame.addEventListener('load', bindFrameRealtimeBridge);
         }
+
+        if (window.AppSessionRealtime) {
+            window.AppSessionRealtime.subscribe((event) => {
+                if (!event || !event.type) return;
+
+                if (event.type === 'auth_logout') {
+                    window.location.href = '../dang-nhap.html';
+                    return;
+                }
+
+                if (
+                    event.type === 'entity_changed' ||
+                    event.type === 'order_status_changed' ||
+                    event.type === 'manual_refresh'
+                ) {
+                    refreshActiveFrame();
+                }
+            });
+        }
+
         syncMenuButtons();
     </script>
 </body>

@@ -1,0 +1,545 @@
+<script>
+(function () {
+    const styles = [
+        { key: 'bootstrap.min.css', href: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' },
+        { key: 'giao-dien-nguoi-dung.css', href: '../giao-dien-nguoi-dung.css' }
+    ];
+
+    styles.forEach((style) => {
+        if (!document.querySelector(`link[href*="${style.key}"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = style.href;
+            document.head.appendChild(link);
+        }
+    });
+})();
+</script>
+
+<style>
+.booking-service-page {
+    background:
+        radial-gradient(circle at 12% 10%, rgba(34, 197, 94, 0.18) 0, rgba(34, 197, 94, 0) 38%),
+        radial-gradient(circle at 88% 16%, rgba(22, 163, 74, 0.16) 0, rgba(22, 163, 74, 0) 35%),
+        linear-gradient(180deg, #f3fbf5 0%, #e8f5ec 100%);
+    padding: 32px 0 70px;
+}
+
+.booking-service-shell {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.booking-service-heading {
+    margin-bottom: 20px;
+}
+
+.booking-service-heading h2 {
+    margin: 0 0 8px;
+    color: #0e3a21;
+    font-size: clamp(24px, 2.2vw, 32px);
+    letter-spacing: -0.02em;
+}
+
+.booking-service-heading p {
+    margin: 0;
+    color: #3f5e4f;
+    font-size: 14px;
+}
+
+.booking-service-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.booking-card {
+    background: #ffffff;
+    border: 1px solid #d2e9d9;
+    border-radius: 16px;
+    box-shadow: 0 14px 34px rgba(16, 78, 45, 0.1);
+    padding: 20px;
+}
+
+.booking-card h3 {
+    margin: 0 0 14px;
+    font-size: 20px;
+    color: #146834;
+}
+
+.booking-field {
+    margin-bottom: 12px;
+}
+
+.booking-field label {
+    display: block;
+    margin-bottom: 6px;
+    color: #4a6355;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.booking-form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.booking-service-page input,
+.booking-service-page select,
+.booking-service-page textarea {
+    width: 100%;
+    border: 1px solid #d7e3da;
+    border-radius: 12px;
+    background: #f8fbf9;
+    color: #1f2f26;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 10px 12px;
+}
+
+.booking-service-page input,
+.booking-service-page select {
+    height: 40px;
+}
+
+.booking-service-page textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.booking-service-page input:focus,
+.booking-service-page select:focus,
+.booking-service-page textarea:focus {
+    outline: none;
+    border-color: #3d9d63;
+    box-shadow: 0 0 0 3px rgba(61, 157, 99, 0.16);
+    background: #ffffff;
+}
+
+.booking-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.booking-btn {
+    border: none;
+    border-radius: 999px;
+    height: 42px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.booking-btn.primary {
+    background: linear-gradient(135deg, #16a34a 0%, #0f7a3d 100%);
+    color: #ffffff;
+    box-shadow: 0 10px 20px rgba(22, 163, 74, 0.25);
+}
+
+.booking-btn.secondary {
+    background: #edf3ef;
+    color: #1c3529;
+    border: 1px solid #cfddcf;
+}
+
+.booking-summary-price {
+    font-size: 24px;
+    font-weight: 800;
+    color: #102d21;
+    white-space: nowrap;
+}
+
+.booking-summary-list {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.booking-summary-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px dashed #dce6de;
+    font-size: 13px;
+    color: #345544;
+}
+
+.booking-error-box,
+.booking-success-box {
+    display: none;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 13px;
+}
+
+.booking-error-box {
+    background: #ffe8e8;
+    border: 1px solid #fecaca;
+    color: #9f1239;
+}
+
+.booking-success-box {
+    background: #e8f9ef;
+    border: 1px solid #b7e4c7;
+    color: #166534;
+}
+
+@media (max-width: 992px) {
+    .booking-service-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .booking-form-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<section class="booking-service-page">
+    <div class="booking-service-shell">
+        <div class="booking-service-heading">
+            <h2>Đặt Lịch Dịch Vụ</h2>
+            <p>Điền nhanh thông tin để cửa hàng xác nhận lịch chăm sóc phù hợp cho bé cưng.</p>
+        </div>
+
+        <div class="booking-service-grid">
+            <div class="booking-card">
+                <h3>Thông tin đặt lịch</h3>
+                <div id="bookingErrorBox" class="booking-error-box"></div>
+                <div id="bookingSuccessBox" class="booking-success-box"></div>
+
+                <div class="booking-form-grid-2">
+                    <div class="booking-field">
+                        <label>Họ và tên *</label>
+                        <input id="bookingCustomerName" type="text" placeholder="Nguyễn Văn A">
+                    </div>
+                    <div class="booking-field">
+                        <label>Số điện thoại *</label>
+                        <input id="bookingCustomerPhone" type="tel" placeholder="09xxxxxxxx">
+                    </div>
+                </div>
+
+                <div class="booking-form-grid-2">
+                    <div class="booking-field">
+                        <label>Tên thú cưng *</label>
+                        <input id="bookingPetName" type="text" placeholder="Bé Miu">
+                    </div>
+                    <div class="booking-field">
+                        <label>Loài *</label>
+                        <select id="bookingPetType">
+                            <option value="">Chọn loài</option>
+                            <option value="Chó">Chó</option>
+                            <option value="Mèo">Mèo</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="booking-form-grid-2">
+                    <div class="booking-field">
+                        <label>Ngày hẹn *</label>
+                        <input id="bookingDate" type="date">
+                    </div>
+                    <div class="booking-field">
+                        <label>Khung giờ *</label>
+                        <select id="bookingTimeSlot">
+                            <option value="">Chọn giờ</option>
+                            <option value="08:00 - 10:00">08:00 - 10:00</option>
+                            <option value="10:00 - 12:00">10:00 - 12:00</option>
+                            <option value="13:00 - 15:00">13:00 - 15:00</option>
+                            <option value="15:00 - 17:00">15:00 - 17:00</option>
+                            <option value="17:00 - 19:00">17:00 - 19:00</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="booking-field">
+                    <label>Dịch vụ *</label>
+                    <input id="bookingServiceName" type="text" readonly>
+                </div>
+
+                <div class="booking-field" style="margin-bottom: 0;">
+                    <label>Ghi chú thêm</label>
+                    <textarea id="bookingNote" placeholder="Ví dụ: Bé nhát người lạ, cần cắt móng nhẹ tay..."></textarea>
+                </div>
+
+                <div class="booking-actions">
+                    <button id="bookingSubmitBtn" class="booking-btn primary" type="button">Xác nhận đặt lịch</button>
+                    <button id="bookingBackBtn" class="booking-btn secondary" type="button">Quay lại dịch vụ</button>
+                </div>
+            </div>
+
+            <div class="booking-card">
+                <h3>Tóm tắt dịch vụ</h3>
+                <div id="bookingSummaryService" style="font-size: 16px; font-weight: 700; color: #173829;">Dịch vụ thú cưng</div>
+                <div id="bookingSummaryPrice" class="booking-summary-price">Liên hệ</div>
+
+                <ul class="booking-summary-list">
+                    <li><span>Mã lịch dự kiến</span><strong id="bookingPreviewCode">DV---</strong></li>
+                    <li><span>Thời gian tiếp nhận</span><strong>Trong giờ làm việc</strong></li>
+                    <li><span>Hình thức xác nhận</span><strong>Điện thoại</strong></li>
+                </ul>
+
+                <p style="margin: 14px 0 0; font-size: 13px; line-height: 1.6; color: #4a6355;">
+                    Sau khi gửi yêu cầu, cửa hàng sẽ gọi xác nhận và sắp xếp khung giờ cụ thể cho bạn.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+(function () {
+    const bookingErrorBox = document.getElementById('bookingErrorBox');
+    const bookingSuccessBox = document.getElementById('bookingSuccessBox');
+    const bookingSubmitBtn = document.getElementById('bookingSubmitBtn');
+    const bookingBackBtn = document.getElementById('bookingBackBtn');
+    const isPopupMode = /(?:\?|&)popup=1(?:&|$)/.test(String(window.location.search || '')) || window.top !== window.self;
+
+    const formatDateISO = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const parseSelection = () => {
+        try {
+            const raw = localStorage.getItem('selectedServiceBooking');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    const selected = parseSelection() || {};
+    const authUser = (() => {
+        try {
+            const raw = sessionStorage.getItem('authUser') || localStorage.getItem('authUser');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    })();
+    const profile = (() => {
+        try {
+            const raw = localStorage.getItem('userProfile');
+            return raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            return {};
+        }
+    })();
+
+    const serviceName = String(selected.service || '').trim() || 'Dịch vụ thú cưng';
+    const servicePrice = String(selected.price || '').trim() || 'Liên hệ';
+
+    const serviceNameInput = document.getElementById('bookingServiceName');
+    const summaryService = document.getElementById('bookingSummaryService');
+    const summaryPrice = document.getElementById('bookingSummaryPrice');
+    const previewCode = document.getElementById('bookingPreviewCode');
+    const dateInput = document.getElementById('bookingDate');
+
+    if (serviceNameInput) serviceNameInput.value = serviceName;
+    if (summaryService) summaryService.textContent = serviceName;
+    if (summaryPrice) summaryPrice.textContent = servicePrice;
+    if (previewCode) previewCode.textContent = `DV${Date.now().toString().slice(-6)}`;
+    if (dateInput) {
+        const minDate = new Date();
+        minDate.setDate(minDate.getDate() + 1);
+        dateInput.min = formatDateISO(minDate);
+        dateInput.value = formatDateISO(minDate);
+    }
+
+    const customerNameEl = document.getElementById('bookingCustomerName');
+    const customerPhoneEl = document.getElementById('bookingCustomerPhone');
+
+    if (customerNameEl) {
+        customerNameEl.value = String(profile.name || authUser?.tennguoidung || '').trim();
+    }
+
+    if (customerPhoneEl) {
+        customerPhoneEl.value = String(profile.phone || '').trim();
+    }
+
+    const showError = (message) => {
+        if (!bookingErrorBox) return;
+        bookingErrorBox.textContent = message;
+        bookingErrorBox.style.display = 'block';
+        if (bookingSuccessBox) bookingSuccessBox.style.display = 'none';
+    };
+
+    const showSuccess = (message) => {
+        if (!bookingSuccessBox) return;
+        bookingSuccessBox.textContent = message;
+        bookingSuccessBox.style.display = 'block';
+        if (bookingErrorBox) bookingErrorBox.style.display = 'none';
+    };
+
+    const getBookingApiCandidates = () => {
+        const base = window.location.href;
+        return [
+            new URL('../../index.php?api=create_service_booking', base).toString(),
+            new URL('/phuocthanh/PHPCHINH/index.php?api=create_service_booking', window.location.origin).toString(),
+            new URL('/PHPCHINH/index.php?api=create_service_booking', window.location.origin).toString(),
+            new URL('/index.php?api=create_service_booking', window.location.origin).toString()
+        ];
+    };
+
+    const submitBookingToApi = async (payload) => {
+        let lastMessage = 'Không thể kết nối hệ thống đặt lịch.';
+
+        for (const url of getBookingApiCandidates()) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
+                    cache: 'no-store'
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) {
+                    lastMessage = data.message || `Lỗi hệ thống (${response.status})`;
+                    continue;
+                }
+
+                return { ok: true, data };
+            } catch (error) {
+                lastMessage = 'Không thể kết nối hệ thống đặt lịch.';
+            }
+        }
+
+        return { ok: false, message: lastMessage };
+    };
+
+    bookingBackBtn?.addEventListener('click', () => {
+        if (isPopupMode) {
+            window.parent?.postMessage({ type: 'closeDatLichPopup', source: 'dat-lich-dich-vu' }, '*');
+            return;
+        }
+
+        if (typeof window.routeToPage === 'function') {
+            window.routeToPage('services');
+        } else if (typeof window.loadPage === 'function') {
+            window.loadPage('services');
+        } else {
+            window.location.href = '../home.html';
+        }
+    });
+
+    if (isPopupMode && bookingBackBtn) {
+        bookingBackBtn.textContent = 'Đóng';
+    }
+
+    bookingSubmitBtn?.addEventListener('click', async () => {
+        if (!authUser || Number(authUser.id || 0) <= 0) {
+            showError('Vui lòng đăng nhập tài khoản để đặt lịch dịch vụ.');
+            if (typeof window.openAuthModal === 'function') {
+                window.openAuthModal('login', 'Vui lòng đăng nhập để đặt lịch dịch vụ.');
+            } else if (window.parent && typeof window.parent.openAuthModal === 'function') {
+                window.parent.openAuthModal('login', 'Vui lòng đăng nhập để đặt lịch dịch vụ.');
+            }
+            return;
+        }
+
+        const name = String(document.getElementById('bookingCustomerName')?.value || '').trim();
+        const phone = String(document.getElementById('bookingCustomerPhone')?.value || '').trim();
+        const petName = String(document.getElementById('bookingPetName')?.value || '').trim();
+        const petType = String(document.getElementById('bookingPetType')?.value || '').trim();
+        const date = String(document.getElementById('bookingDate')?.value || '').trim();
+        const timeSlot = String(document.getElementById('bookingTimeSlot')?.value || '').trim();
+        const note = String(document.getElementById('bookingNote')?.value || '').trim();
+
+        if (!name || !phone || !petName || !petType || !date || !timeSlot) {
+            showError('Vui lòng điền đầy đủ các trường bắt buộc có dấu *.');
+            return;
+        }
+
+        if (!/^0\d{9,10}$/.test(phone)) {
+            showError('Số điện thoại chưa đúng định dạng.');
+            return;
+        }
+
+        bookingSubmitBtn.disabled = true;
+
+        const authUserId = Number(authUser?.id || 0);
+        const authEmail = String(authUser?.emailnguoidung || authUser?.identifier || profile.email || '').trim();
+        const result = await submitBookingToApi({
+            customer_name: name,
+            customer_phone: phone,
+            customer_email: authEmail,
+            service_name: serviceName,
+            service_price: servicePrice,
+            pet_name: petName,
+            pet_type: petType,
+            date: date,
+            time_slot: timeSlot,
+            note: note,
+            user_id: authUserId
+        });
+
+        bookingSubmitBtn.disabled = false;
+
+        if (!result.ok) {
+            showError(result.message || 'Đặt lịch thất bại.');
+            return;
+        }
+
+        const bookingCode = String(result.data?.data?.malichhen || `LH${Date.now()}`);
+
+        try {
+            const rawProfile = localStorage.getItem('userProfile');
+            const nextProfile = rawProfile ? JSON.parse(rawProfile) : {};
+            nextProfile.name = name || nextProfile.name || '';
+            nextProfile.phone = phone || nextProfile.phone || '';
+            localStorage.setItem('userProfile', JSON.stringify(nextProfile));
+        } catch (e) {
+            // ignore malformed profile storage
+        }
+
+        try {
+            const rawNoti = localStorage.getItem('userNotifications');
+            const notifications = rawNoti ? JSON.parse(rawNoti) : [];
+            const list = Array.isArray(notifications) ? notifications : [];
+            list.unshift({
+                id: `n${Date.now()}${Math.floor(Math.random() * 1000)}`,
+                message: `Đã đặt lịch ${serviceName} cho ${petName} vào ${date} (${timeSlot}).`,
+                type: 'service',
+                time: new Date().toLocaleString('vi-VN'),
+                read: false
+            });
+            localStorage.setItem('userNotifications', JSON.stringify(list));
+        } catch (e) {
+            // ignore malformed notification storage
+        }
+
+        showSuccess(`Đặt lịch thành công với mã ${bookingCode}. Cửa hàng sẽ liên hệ xác nhận sớm.`);
+
+        setTimeout(() => {
+            if (isPopupMode) {
+                window.parent?.postMessage({ type: 'closeDatLichPopup', source: 'dat-lich-dich-vu', bookingCode }, '*');
+                return;
+            }
+
+            if (typeof window.routeToPage === 'function') {
+                window.routeToPage('services');
+            } else if (typeof window.loadPage === 'function') {
+                window.loadPage('services');
+            }
+        }, 1200);
+    });
+})();
+</script>

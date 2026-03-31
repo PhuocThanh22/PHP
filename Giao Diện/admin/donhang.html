@@ -7,34 +7,155 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="admin-style.css">
+    <style>
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+        .status-cho_duyet { background: #fff7dd; color: #946200; }
+        .status-da_duyet { background: #e8f8ef; color: #136f3a; }
+        .status-tu_choi { background: #ffe9e9; color: #b42318; }
+    </style>
 </head>
 <body>
 <div class="page-wrap">
-    <div class="top-header"><h2>Quản Lý Đơn Hàng</h2></div>
+    <div class="top-header d-flex justify-content-between align-items-center">
+        <h2>Quản Lý Đơn Hàng Online</h2>
+        <button id="btnReload" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Tải lại</button>
+    </div>
     <div class="module-grid">
-        <div class="module-card"><div class="module-title"><i class="bi bi-hourglass-split"></i><span>Đang Xử Lý</span></div><div class="module-value">23</div><div class="module-desc">Đơn chờ xác nhận</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-truck"></i><span>Đang Giao</span></div><div class="module-value">45</div><div class="module-desc">Đơn trên đường vận chuyển</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-check2-circle"></i><span>Hoàn Thành</span></div><div class="module-value">257</div><div class="module-desc">Đơn giao thành công</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-hourglass-split"></i><span>Chờ Duyệt</span></div><div class="module-value" id="sumChoDuyet">0</div><div class="module-desc">Đơn chờ xác nhận</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-check2-circle"></i><span>Đã Duyệt</span></div><div class="module-value" id="sumDaDuyet">0</div><div class="module-desc">Đơn đã xác nhận</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-x-circle"></i><span>Từ Chối</span></div><div class="module-value" id="sumTuChoi">0</div><div class="module-desc">Đơn bị từ chối</div></div>
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-cart-check text-success me-2"></i>Đơn Hàng Gần Đây</h3></div>
+        <div class="section-header"><h3><i class="bi bi-cart-check text-success me-2"></i>Đơn Hàng Online Gần Đây</h3></div>
         <div class="quick-stats">
-            <div class="quick-stat-item"><span class="number">23</span><span class="label">Đang xử lý</span></div>
-            <div class="quick-stat-item"><span class="number">45</span><span class="label">Đã giao</span></div>
-            <div class="quick-stat-item"><span class="number">2</span><span class="label">Đã hủy</span></div>
+            <div class="quick-stat-item"><span class="number" id="statTotal">0</span><span class="label">Tổng đơn online</span></div>
+            <div class="quick-stat-item"><span class="number" id="statApproved">0</span><span class="label">Đã duyệt</span></div>
+            <div class="quick-stat-item"><span class="number" id="statRejected">0</span><span class="label">Từ chối</span></div>
         </div>
+        <div id="statusText" class="small text-muted mb-2"></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Mã ĐH</th><th>Khách Hàng</th><th>Ngày Đặt</th><th>Tổng Tiền</th><th>Trạng Thái</th></tr></thead>
-                <tbody>
-                    <tr><td>#DH001</td><td>Nguyễn Văn A</td><td>03/02/2026</td><td>1,250,000 đ</td><td><span class="status-badge info">Đang xử lý</span></td></tr>
-                    <tr><td>#DH002</td><td>Trần Thị B</td><td>03/02/2026</td><td>850,000 đ</td><td><span class="status-badge success">Đã giao</span></td></tr>
-                </tbody>
+                <thead><tr><th>Mã ĐH</th><th>Khách Hàng</th><th>Số điện thoại</th><th>Ngày Đặt</th><th>Tổng Tiền</th><th>Trạng Thái</th></tr></thead>
+                <tbody id="ordersBody"></tbody>
             </table>
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const statusText = document.getElementById('statusText');
+    const ordersBody = document.getElementById('ordersBody');
+    const sumChoDuyet = document.getElementById('sumChoDuyet');
+    const sumDaDuyet = document.getElementById('sumDaDuyet');
+    const sumTuChoi = document.getElementById('sumTuChoi');
+    const statTotal = document.getElementById('statTotal');
+    const statApproved = document.getElementById('statApproved');
+    const statRejected = document.getElementById('statRejected');
+    const btnReload = document.getElementById('btnReload');
+
+    const statusLabelMap = {
+        cho_duyet: 'Chờ duyệt',
+        da_duyet: 'Đã duyệt',
+        tu_choi: 'Đã hủy'
+    };
+
+    function toMoney(value) {
+        return Number(value || 0).toLocaleString('vi-VN') + ' đ';
+    }
+
+    function getCandidates() {
+        return [
+            new URL('../../index.php?api=get_online_orders', window.location.href).toString(),
+            '/phuocthanh/PHPCHINH/index.php?api=get_online_orders',
+            '/PHPCHINH/index.php?api=get_online_orders',
+            '/index.php?api=get_online_orders'
+        ];
+    }
+
+    async function fetchOnlineOrders() {
+        let lastError = new Error('Không gọi được API');
+        for (const url of getCandidates()) {
+            try {
+                const sep = url.includes('?') ? '&' : '?';
+                const res = await fetch(url + sep + '_t=' + Date.now(), { cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    lastError = new Error(data.message || ('HTTP ' + res.status));
+                    continue;
+                }
+                return data;
+            } catch (err) {
+                lastError = err;
+            }
+        }
+        throw lastError;
+    }
+
+    function renderRows(rows) {
+        if (!Array.isArray(rows) || rows.length === 0) {
+            ordersBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có đơn online.</td></tr>';
+            return;
+        }
+
+        ordersBody.innerHTML = rows.map((item) => {
+            const status = String(item.trangthai || 'cho_duyet');
+            const statusLabel = statusLabelMap[status] || status;
+            return `
+                <tr>
+                    <td>${item.madonhang || ''}</td>
+                    <td>${item.tenkhachhang || ''}</td>
+                    <td>${item.sodienthoai || ''}</td>
+                    <td>${item.ngaytao || ''}</td>
+                    <td>${toMoney(item.tongtien)}</td>
+                    <td><span class="status-pill status-${status}">${statusLabel}</span></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function load() {
+        statusText.textContent = 'Đang tải dữ liệu đơn online...';
+        try {
+            const payload = await fetchOnlineOrders();
+            renderRows(payload.data || []);
+
+            const total = Number(payload.count || 0);
+            const approved = Number(payload.summary?.da_duyet || 0);
+            const rejected = Number(payload.summary?.tu_choi || 0);
+            const pending = Number(payload.summary?.cho_duyet || 0);
+
+            statTotal.textContent = String(total);
+            statApproved.textContent = String(approved);
+            statRejected.textContent = String(rejected);
+
+            sumChoDuyet.textContent = String(pending);
+            sumDaDuyet.textContent = String(approved);
+            sumTuChoi.textContent = String(rejected);
+
+            statusText.textContent = 'Đã tải ' + total + ' đơn online.';
+        } catch (err) {
+            ordersBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Lỗi tải dữ liệu: ' + String(err.message || err) + '</td></tr>';
+            statusText.textContent = 'Không thể tải dữ liệu đơn online.';
+        }
+    }
+
+    btnReload.addEventListener('click', load);
+    load();
+    setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            load();
+        }
+    }, 5000);
+})();
+</script>
 </body>
 </html>
 

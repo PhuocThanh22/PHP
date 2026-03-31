@@ -421,7 +421,7 @@
         <button id="themeToggle" class="theme-toggle" type="button">🌙 Dark mode</button>
 
         <section class="visual" aria-hidden="true">
-            <img src="anhdata/pet_019.jpg" alt="Ảnh thú cưng">
+            <img src="../anhdata/services/service_001.jpg" alt="Ảnh thú cưng">
             <div class="visual-copy">
                 <span class="tag">Premium Pet Experience</span>
                 <h1>Nâng tầm trải nghiệm mua sắm cho thú cưng của bạn.</h1>
@@ -432,7 +432,7 @@
         <section class="form-wrap">
             <form class="form-card" id="loginForm" novalidate>
                 <div class="brand">
-                    <img src="img/logo.png" alt="3 CHÚ CÚN CON" class="brand-logo">
+                    <img src="user/img/logo.png" alt="3 CHÚ CÚN CON" class="brand-logo">
                     <h2 class="brand-title">3 CHÚ CÚN CON</h2>
                 </div>
                 <p class="subtitle">Chăm sóc thú cưng của bạn tốt nhất</p>
@@ -480,10 +480,29 @@
             const statusText = document.getElementById('statusText');
             const submitBtn = document.getElementById('submitBtn');
             const themeToggle = document.getElementById('themeToggle');
+            const socialButtons = document.querySelectorAll('.social-btn');
 
             const STORAGE_KEY = 'userSession';
             const REMEMBER_KEY = 'userRemember';
             const THEME_KEY = 'loginThemeMode';
+
+            // Login page is always the source of truth: clear previous session to avoid auto-login.
+            localStorage.removeItem('authUser');
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.setItem('isLoggedIn', JSON.stringify(false));
+
+            const normalizeRole = (value) => {
+                const role = String(value || '').trim().toLowerCase();
+                if (['admin', 'administrator', 'quantri', 'quan tri', 'quan_tri'].includes(role)) {
+                    return 'admin';
+                }
+
+                if (['staff', 'nhanvien', 'nhan vien', 'nhan_vien'].includes(role)) {
+                    return 'staff';
+                }
+
+                return 'user';
+            };
 
             const applyTheme = (theme) => {
                 const isDark = theme === 'dark';
@@ -515,11 +534,33 @@
             const getApiCandidates = () => {
                 const base = window.location.href;
                 return [
-                    new URL('home_api.php?api=login_user', base).toString(),
-                    new URL('/PHPCHINH/Giao%20Diện/user/home_api.php?api=login_user', window.location.origin).toString(),
-                    new URL('/Giao%20Diện/user/home_api.php?api=login_user', window.location.origin).toString()
+                    new URL('../index.php?api=login_user', base).toString(),
+                    new URL('/phuocthanh/PHPCHINH/index.php?api=login_user', window.location.origin).toString(),
+                    new URL('/PHPCHINH/index.php?api=login_user', window.location.origin).toString(),
+                    new URL('/index.php?api=login_user', window.location.origin).toString(),
+                    new URL('user/home_api.php?api=login_user', base).toString()
                 ];
             };
+
+            const resolveRoleRoute = (role) => {
+                const normalized = normalizeRole(role);
+                const routes = {
+                    admin: './admin/admin.html',
+                    staff: './staff/admin.html',
+                    user: './user/home.html'
+                };
+
+                return routes[normalized] || './user/home.html';
+            };
+
+            // Keep users on the login page so they can switch accounts manually.
+            // Redirect to role pages only after a successful submit.
+
+            socialButtons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    setStatus('Tinh nang dang nhap mang xa hoi dang duoc cap nhat.');
+                });
+            });
 
             const submitLogin = async (identifier, password) => {
                 const payload = { identifier, password };
@@ -575,19 +616,40 @@
                     return;
                 }
 
+                const backendUser = result.data.data || {};
                 const user = result.data.user || {};
-                const session = {
-                    loggedIn: true,
-                    token: result.data.token || '',
-                    user,
-                    loggedAt: new Date().toISOString()
+                const role = normalizeRole(user.role || backendUser.vaitronguoidung || 'user');
+
+                const sessionUser = {
+                    id: Number(user.id || backendUser.id || 0),
+                    name: String(user.name || backendUser.tennguoidung || identifier),
+                    identifier: String(user.identifier || backendUser.emailnguoidung || identifier),
+                    role: role
                 };
 
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    loggedIn: true,
+                    token: result.data.token || '',
+                    user: sessionUser,
+                    loggedAt: new Date().toISOString()
+                }));
+
+                sessionStorage.setItem('authUser', JSON.stringify({
+                    id: sessionUser.id,
+                    tennguoidung: sessionUser.name,
+                    emailnguoidung: sessionUser.identifier,
+                    role: role,
+                    vaitronguoidung: role,
+                    identifier: sessionUser.identifier,
+                    loggedAt: new Date().toISOString()
+                }));
+                sessionStorage.setItem('isLoggedIn', JSON.stringify(true));
+                localStorage.setItem('isLoggedIn', JSON.stringify(true));
+
                 localStorage.setItem('userProfile', JSON.stringify({
-                    name: user.name || identifier,
-                    email: user.identifier || identifier,
-                    role: user.role || 'user'
+                    name: sessionUser.name,
+                    email: sessionUser.identifier,
+                    role: role
                 }));
 
                 if (rememberInput.checked) {
@@ -597,9 +659,8 @@
                 }
 
                 setStatus('Đăng nhập thành công. Đang chuyển trang...', true);
-                setTimeout(() => {
-                    window.location.href = 'home.html';
-                }, 650);
+                const nextPage = resolveRoleRoute(role);
+                window.location.replace(nextPage);
             });
         })();
     </script>

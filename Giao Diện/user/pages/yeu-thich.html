@@ -139,6 +139,8 @@
         }
     };
 
+    window.removeFromWishlist = removeFromWishlist;
+
     // Add to cart from favorites
     const addToCartFromFavorites = (productName, productPrice, productImage) => {
         const cart = JSON.parse(localStorage.getItem('cart')) || [];
@@ -165,6 +167,8 @@
             updateCartBadge();
         }
     };
+
+    window.addToCartFromFavorites = addToCartFromFavorites;
 
     // Initialize on page load
     renderFavoritesPage();

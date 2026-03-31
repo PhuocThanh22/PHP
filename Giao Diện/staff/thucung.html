@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thú Cưng</title>
+    <title>ThĂº CÆ°ng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="staff-style.css">
@@ -76,41 +76,41 @@
 <body>
 <div class="page-wrap">
     <div class="top-header d-flex justify-content-between align-items-center">
-        <h2>Quản Lý Thú Cưng</h2>
+        <h2>Quáº£n LĂ½ ThĂº CÆ°ng</h2>
         <div class="service-toolbar">
             <div class="service-search">
                 <i class="bi bi-search"></i>
-                <input id="petSearchInput" type="text" placeholder="Tìm theo tên thú cưng, chủ, loại, giống..." aria-label="Tìm thú cưng">
+                <input id="petSearchInput" type="text" placeholder="TĂ¬m theo tĂªn thĂº cÆ°ng, chá»§, loáº¡i, giá»‘ng..." aria-label="TĂ¬m thĂº cÆ°ng">
             </div>
             <div class="service-toolbar-actions">
-                <button class="btn btn-success" type="button" onclick="openAddPetModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+                <button class="btn btn-success" type="button" onclick="openAddPetModal()"><i class="bi bi-plus-lg me-1"></i>ThĂªm</button>
             </div>
         </div>
     </div>
 
     <div class="module-grid mb-3">
         <div class="module-card">
-            <div class="module-title"><i class="bi bi-heart"></i><span>Tổng Hồ Sơ Thú Cưng</span></div>
+            <div class="module-title"><i class="bi bi-heart"></i><span>Tá»•ng Há»“ SÆ¡ ThĂº CÆ°ng</span></div>
             <div class="module-value" id="petTotal">0</div>
-            <div class="module-desc">Số hồ sơ thú cưng hiện có</div>
+            <div class="module-desc">Sá»‘ há»“ sÆ¡ thĂº cÆ°ng hiá»‡n cĂ³</div>
         </div>
         <div class="module-card">
-            <div class="module-title"><i class="bi bi-shield-check"></i><span>Ổn Định Sức Khỏe</span></div>
+            <div class="module-title"><i class="bi bi-shield-check"></i><span>á»”n Äá»‹nh Sá»©c Khá»e</span></div>
             <div class="module-value" id="petHealthy">0</div>
-            <div class="module-desc">Trạng thái có chữ khỏe hoặc tiêm</div>
+            <div class="module-desc">Tráº¡ng thĂ¡i cĂ³ chá»¯ khá»e hoáº·c tiĂªm</div>
         </div>
         <div class="module-card">
-            <div class="module-title"><i class="bi bi-clipboard2-pulse"></i><span>Cần Theo Dõi</span></div>
+            <div class="module-title"><i class="bi bi-clipboard2-pulse"></i><span>Cáº§n Theo DĂµi</span></div>
             <div class="module-value" id="petFollowUp">0</div>
-            <div class="module-desc">Trường hợp còn lại cần chú ý</div>
+            <div class="module-desc">TrÆ°á»ng há»£p cĂ²n láº¡i cáº§n chĂº Ă½</div>
         </div>
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-heart-fill text-warning me-2"></i>Danh Sách Thú Cưng</h3></div>
+        <div class="section-header"><h3><i class="bi bi-heart-fill text-warning me-2"></i>Danh SĂ¡ch ThĂº CÆ°ng</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Tên Thú Cưng</th><th>Loại</th><th>Chủ Sở Hữu</th><th>Trạng Thái</th></tr></thead>
+                <thead><tr><th>TĂªn ThĂº CÆ°ng</th><th>Loáº¡i</th><th>Chá»§ Sá»Ÿ Há»¯u</th><th>Tráº¡ng ThĂ¡i</th></tr></thead>
                 <tbody id="petTableBody"></tbody>
             </table>
         </div>
@@ -120,25 +120,25 @@
 <div class="service-modal" id="petViewModal" aria-hidden="true">
     <div class="service-modal-dialog pet-view-dialog" role="dialog" aria-modal="true" aria-labelledby="petViewTitle">
         <div class="service-modal-header">
-            <h3 class="service-modal-title" id="petViewTitle">Chi Tiết Thú Cưng</h3>
-            <button type="button" class="service-modal-close" id="closePetViewModal" aria-label="Đóng">&times;</button>
+            <h3 class="service-modal-title" id="petViewTitle">Chi Tiáº¿t ThĂº CÆ°ng</h3>
+            <button type="button" class="service-modal-close" id="closePetViewModal" aria-label="ÄĂ³ng">&times;</button>
         </div>
         <div class="pet-view-body">
             <div class="pet-detail-grid">
                 <div class="pet-avatar" id="petDetailAvatar">TC</div>
                 <div class="pet-detail-meta">
-                    <div><b>Mã thú cưng:</b> <span id="petDetailId">-</span></div>
-                    <div><b>Tên thú cưng:</b> <span id="petDetailName">-</span></div>
-                    <div><b>Loại:</b> <span id="petDetailType">-</span></div>
-                    <div><b>Giống:</b> <span id="petDetailBreed">-</span></div>
-                    <div><b>Chủ sở hữu:</b> <span id="petDetailOwner">-</span></div>
-                    <div><b>Trạng thái:</b> <span id="petDetailStatus">-</span></div>
-                    <div><b>Ngày đăng ký:</b> <span id="petDetailDate">-</span></div>
+                    <div><b>MĂ£ thĂº cÆ°ng:</b> <span id="petDetailId">-</span></div>
+                    <div><b>TĂªn thĂº cÆ°ng:</b> <span id="petDetailName">-</span></div>
+                    <div><b>Loáº¡i:</b> <span id="petDetailType">-</span></div>
+                    <div><b>Giá»‘ng:</b> <span id="petDetailBreed">-</span></div>
+                    <div><b>Chá»§ sá»Ÿ há»¯u:</b> <span id="petDetailOwner">-</span></div>
+                    <div><b>Tráº¡ng thĂ¡i:</b> <span id="petDetailStatus">-</span></div>
+                    <div><b>NgĂ y Ä‘Äƒng kĂ½:</b> <span id="petDetailDate">-</span></div>
                 </div>
             </div>
         </div>
         <div class="pet-view-actions">
-            <button type="button" class="btn btn-warning text-white" id="editPetFromDetailBtn"><i class="bi bi-pencil-square me-1"></i>Chỉnh sửa</button>
+            <button type="button" class="btn btn-warning text-white" id="editPetFromDetailBtn"><i class="bi bi-pencil-square me-1"></i>Chá»‰nh sá»­a</button>
         </div>
     </div>
 </div>
@@ -146,8 +146,8 @@
 <div class="service-modal" id="petModal" aria-hidden="true">
     <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="petModalTitle">
         <div class="service-modal-header">
-            <h3 class="service-modal-title" id="petModalTitle">Chỉnh sửa thú cưng</h3>
-            <button type="button" class="service-modal-close" id="closePetModal" aria-label="Đóng">&times;</button>
+            <h3 class="service-modal-title" id="petModalTitle">Chá»‰nh sá»­a thĂº cÆ°ng</h3>
+            <button type="button" class="service-modal-close" id="closePetModal" aria-label="ÄĂ³ng">&times;</button>
         </div>
 
         <form id="petForm">
@@ -155,41 +155,41 @@
                 <input type="hidden" id="editPetId">
 
                 <div class="service-form-group full">
-                    <label for="editPetName">Tên thú cưng</label>
+                    <label for="editPetName">TĂªn thĂº cÆ°ng</label>
                     <input class="service-form-control" id="editPetName" type="text" required>
                 </div>
 
                 <div class="service-form-group">
-                    <label for="editPetType">Loại thú cưng</label>
+                    <label for="editPetType">Loáº¡i thĂº cÆ°ng</label>
                     <input class="service-form-control" id="editPetType" type="text" required>
                 </div>
 
                 <div class="service-form-group">
-                    <label for="editPetBreed">Giống</label>
+                    <label for="editPetBreed">Giá»‘ng</label>
                     <input class="service-form-control" id="editPetBreed" type="text" required>
                 </div>
 
                 <div class="service-form-group">
-                    <label for="editPetOwner">Tên chủ sở hữu</label>
+                    <label for="editPetOwner">TĂªn chá»§ sá»Ÿ há»¯u</label>
                     <select class="service-form-control" id="editPetOwner" required>
-                        <option value="">Chọn chủ sở hữu</option>
+                        <option value="">Chá»n chá»§ sá»Ÿ há»¯u</option>
                     </select>
                 </div>
 
                 <div class="service-form-group">
-                    <label for="editPetStatus">Trạng thái</label>
+                    <label for="editPetStatus">Tráº¡ng thĂ¡i</label>
                     <input class="service-form-control" id="editPetStatus" type="text" required>
                 </div>
 
                 <div class="service-form-group full">
-                    <label for="editPetDate">Ngày đăng ký</label>
+                    <label for="editPetDate">NgĂ y Ä‘Äƒng kĂ½</label>
                     <input class="service-form-control" id="editPetDate" type="date" required>
                 </div>
             </div>
 
             <div class="service-modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="cancelPetModal">Hủy</button>
-                <button type="submit" class="btn btn-warning text-white" id="savePetBtn">Lưu thay đổi</button>
+                <button type="button" class="btn btn-outline-secondary" id="cancelPetModal">Há»§y</button>
+                <button type="submit" class="btn btn-warning text-white" id="savePetBtn">LÆ°u thay Ä‘á»•i</button>
             </div>
         </form>
     </div>
@@ -221,18 +221,18 @@
     }
 
     function getErrorMessage(error) {
-        if (!error) return 'Lỗi không xác định';
+        if (!error) return 'Lá»—i khĂ´ng xĂ¡c Ä‘á»‹nh';
         if (typeof error === 'string') return error;
         if (error.message) return error.message;
-        return 'Lỗi không xác định';
+        return 'Lá»—i khĂ´ng xĂ¡c Ä‘á»‹nh';
     }
 
     let noticeTimer = null;
 
     function getNoticeTitle(type) {
-        if (type === 'error') return 'Thông báo lỗi';
-        if (type === 'warning') return 'Thông báo';
-        return 'Chúc mừng';
+        if (type === 'error') return 'ThĂ´ng bĂ¡o lá»—i';
+        if (type === 'warning') return 'ThĂ´ng bĂ¡o';
+        return 'ChĂºc má»«ng';
     }
 
     function getNoticeRestoreModalId() {
@@ -252,14 +252,14 @@
         modal.innerHTML = `
             <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
                 <div class="service-modal-header">
-                    <h3 class="service-modal-title" id="noticeModalTitle">Thông báo</h3>
+                    <h3 class="service-modal-title" id="noticeModalTitle">ThĂ´ng bĂ¡o</h3>
                     <button type="button" class="service-modal-close" id="noticeModalCloseBtn" aria-label="Dong">&times;</button>
                 </div>
                 <div class="service-modal-body">
                     <div id="noticeModalMessage" style="text-align:center; font-size:16px; font-weight:500;"></div>
                 </div>
                 <div class="service-modal-footer">
-                    <button type="button" class="btn btn-warning text-white" id="noticeModalOkBtn">Đóng</button>
+                    <button type="button" class="btn btn-warning text-white" id="noticeModalOkBtn">ÄĂ³ng</button>
                 </div>
             </div>
         `;
@@ -345,14 +345,14 @@
 
     function isHealthyLike(status) {
         const value = String(status || '').toLowerCase();
-        return value.includes('khoe') || value.includes('khỏe') || value.includes('tiem') || value.includes('tiêm');
+        return value.includes('khoe') || value.includes('khá»e') || value.includes('tiem') || value.includes('tiĂªm');
     }
 
     function getApiCandidates(path) {
         const candidates = [];
         const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-        candidates.push(`${protocol}//127.0.0.1/PHP/index.php?api=${path}`);
-        candidates.push(`${protocol}//localhost/PHP/index.php?api=${path}`);
+        candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=${path}`);
+        candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=${path}`);
         candidates.push(new URL(`../../index.php?api=${path}`, window.location.href).toString());
 
         const marker = '/admin/';
@@ -365,7 +365,7 @@
             if (detectedBase) candidates.push(`${detectedBase}/index.php?api=${path}`);
         }
 
-        candidates.push('/PHP/index.php?api=' + path);
+        candidates.push('/PHPCHINH/index.php?api=' + path);
         candidates.push('/index.php?api=' + path);
 
         return Array.from(new Set(candidates));
@@ -444,7 +444,7 @@
         if (!select) return;
 
         const selected = String(selectedOwnerId || '');
-        const options = ['<option value="">Chọn chủ sở hữu</option>'];
+        const options = ['<option value="">Chá»n chá»§ sá»Ÿ há»¯u</option>'];
 
         customerOptions.forEach((item) => {
             const id = String(item.id || '');
@@ -502,7 +502,7 @@
         if (!hasSelected) selectedPetId = '';
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="4">Không tìm thấy thú cưng phù hợp.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4">KhĂ´ng tĂ¬m tháº¥y thĂº cÆ°ng phĂ¹ há»£p.</td></tr>';
             hidePetDetail();
             return;
         }
@@ -511,13 +511,13 @@
             const healthy = isHealthyLike(row.trangthaithucung);
             const ownerText = row.tenchusohuu
                 ? String(row.tenchusohuu)
-                : (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định');
+                : (Number(row.chusohuu_id || 0) > 0 ? `KhĂ¡ch hĂ ng ID ${row.chusohuu_id}` : 'ChÆ°a xĂ¡c Ä‘á»‹nh');
             return `
                 <tr data-pet-id="${row.id}" class="${String(selectedPetId) === String(row.id) ? 'is-selected' : ''}" onclick="showPetDetail(${row.id})">
                     <td>${escapeHtml(row.tenthucung || '-')}</td>
                     <td>${escapeHtml(row.loaithucung || '-')}</td>
                     <td>${escapeHtml(ownerText)}</td>
-                    <td><span class="status-badge ${healthy ? 'success' : 'warning'}">${escapeHtml(row.trangthaithucung || 'Chưa cập nhật')}</span></td>
+                    <td><span class="status-badge ${healthy ? 'success' : 'warning'}">${escapeHtml(row.trangthaithucung || 'ChÆ°a cáº­p nháº­t')}</span></td>
                 </tr>
             `;
         }).join('');
@@ -528,7 +528,7 @@
         if (!tbody) return;
         if (tbody.dataset.loaded === '1' && !forceReload) return;
 
-        tbody.innerHTML = '<tr><td colspan="4">Đang tải dữ liệu thú cưng...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4">Äang táº£i dá»¯ liá»‡u thĂº cÆ°ng...</td></tr>';
 
         try {
             await loadCustomerOptions(forceReload);
@@ -541,7 +541,7 @@
             renderPets();
             tbody.dataset.loaded = '1';
         } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="4">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4">Lá»—i táº£i dá»¯ liá»‡u: ${escapeHtml(error.message)}</td></tr>`;
         }
     }
 
@@ -586,8 +586,8 @@
         name.textContent = petName;
         type.textContent = String(row.loaithucung || '-');
         breed.textContent = String(row.giongthucung || '-');
-        owner.textContent = String(row.tenchusohuu || (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định'));
-        status.textContent = String(row.trangthaithucung || 'Chưa cập nhật');
+        owner.textContent = String(row.tenchusohuu || (Number(row.chusohuu_id || 0) > 0 ? `KhĂ¡ch hĂ ng ID ${row.chusohuu_id}` : 'ChÆ°a xĂ¡c Ä‘á»‹nh'));
+        status.textContent = String(row.trangthaithucung || 'ChÆ°a cáº­p nháº­t');
         date.textContent = toDateText(row.ngaydangkythucung);
         return true;
     }
@@ -606,14 +606,14 @@
 
     function openAddPetModal() {
         petMode = 'create';
-        document.getElementById('petModalTitle').textContent = 'Thêm thú cưng mới';
-        document.getElementById('savePetBtn').textContent = 'Thêm mới';
+        document.getElementById('petModalTitle').textContent = 'ThĂªm thĂº cÆ°ng má»›i';
+        document.getElementById('savePetBtn').textContent = 'ThĂªm má»›i';
         document.getElementById('editPetId').value = '';
         document.getElementById('editPetName').value = '';
         document.getElementById('editPetType').value = '';
         document.getElementById('editPetBreed').value = '';
         renderOwnerSelectOptions('');
-        document.getElementById('editPetStatus').value = 'Khỏe mạnh';
+        document.getElementById('editPetStatus').value = 'Khá»e máº¡nh';
         document.getElementById('editPetDate').value = new Date().toISOString().slice(0, 10);
         openPetModal();
     }
@@ -623,8 +623,8 @@
         if (!row) return;
 
         petMode = 'update';
-        document.getElementById('petModalTitle').textContent = 'Chỉnh sửa thú cưng';
-        document.getElementById('savePetBtn').textContent = 'Lưu thay đổi';
+        document.getElementById('petModalTitle').textContent = 'Chá»‰nh sá»­a thĂº cÆ°ng';
+        document.getElementById('savePetBtn').textContent = 'LÆ°u thay Ä‘á»•i';
         document.getElementById('editPetId').value = row.id;
         document.getElementById('editPetName').value = row.tenthucung || '';
         document.getElementById('editPetType').value = row.loaithucung || '';
@@ -643,17 +643,17 @@
 
         const keyword = String(document.getElementById('petSearchInput')?.value || '').trim().toLowerCase();
         if (!keyword) {
-            showNotice('Nhập từ khóa để xóa thú cưng.', 'warning');
+            showNotice('Nháº­p tá»« khĂ³a Ä‘á»ƒ xĂ³a thĂº cÆ°ng.', 'warning');
             return;
         }
 
         const target = getFilteredPets()[0];
         if (!target) {
-            showNotice('Không tìm thấy thú cưng để xóa.', 'warning');
+            showNotice('KhĂ´ng tĂ¬m tháº¥y thĂº cÆ°ng Ä‘á»ƒ xĂ³a.', 'warning');
             return;
         }
 
-        if (!confirm(`Bạn có chắc muốn xóa hồ sơ thú cưng "${target.tenthucung}" (ID: ${target.id})?`)) return;
+        if (!confirm(`Báº¡n cĂ³ cháº¯c muá»‘n xĂ³a há»“ sÆ¡ thĂº cÆ°ng "${target.tenthucung}" (ID: ${target.id})?`)) return;
 
         try {
             await mutatePet('delete', { id: target.id });
@@ -667,9 +667,9 @@
 
             updatePetSummary();
             renderPets();
-            showNotice(`Xóa thú cưng "${target.tenthucung}" thành công.`, 'success');
+            showNotice(`XĂ³a thĂº cÆ°ng "${target.tenthucung}" thĂ nh cĂ´ng.`, 'success');
         } catch (error) {
-            showNotice('Xóa thú cưng thất bại: ' + getErrorMessage(error), 'error');
+            showNotice('XĂ³a thĂº cÆ°ng tháº¥t báº¡i: ' + getErrorMessage(error), 'error');
         }
     }
 
@@ -707,7 +707,7 @@
         const regDate = document.getElementById('editPetDate').value;
 
         if (!name || !type || !breed || !ownerId || !ownerName || !status || !regDate) {
-            showNotice('Vui lòng chọn chủ sở hữu từ danh sách khách hàng.', 'warning');
+            showNotice('Vui lĂ²ng chá»n chá»§ sá»Ÿ há»¯u tá»« danh sĂ¡ch khĂ¡ch hĂ ng.', 'warning');
             return;
         }
 
@@ -725,7 +725,7 @@
                 const created = res.data || {};
                 allPets.unshift(created);
                 petStore.set(String(created.id), created);
-                showNotice(`Thêm thú cưng "${created.tenthucung || name}" thành công.`, 'success');
+                showNotice(`ThĂªm thĂº cÆ°ng "${created.tenthucung || name}" thĂ nh cĂ´ng.`, 'success');
             } else {
                 const id = String(idRaw);
                 const res = await mutatePet('update', {
@@ -741,7 +741,7 @@
                 const updated = res.data || {};
                 petStore.set(id, updated);
                 allPets = allPets.map((item) => String(item.id) === id ? updated : item);
-                showNotice(`Cập nhật thú cưng "${updated.tenthucung || name}" thành công.`, 'success');
+                showNotice(`Cáº­p nháº­t thĂº cÆ°ng "${updated.tenthucung || name}" thĂ nh cĂ´ng.`, 'success');
             }
 
             updatePetSummary();
@@ -753,7 +753,7 @@
             }
             closePetModal();
         } catch (error) {
-            showNotice('Lưu thú cưng thất bại: ' + getErrorMessage(error), 'error');
+            showNotice('LÆ°u thĂº cÆ°ng tháº¥t báº¡i: ' + getErrorMessage(error), 'error');
         }
     });
 
@@ -774,3 +774,4 @@
 </script>
 </body>
 </html>
+

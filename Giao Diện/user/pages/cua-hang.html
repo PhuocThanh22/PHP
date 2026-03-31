@@ -41,27 +41,28 @@
             <aside class="shop-category-sidebar" id="shopCategorySidebar">
                 <h3 class="shop-category-title">Danh mục</h3>
                 <button type="button" class="shop-category-btn active" data-category="">
-                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_001.jpg" alt="Tất cả sản phẩm"><span>Tất cả sản phẩm</span></span>
+                    <span class="shop-category-label"><span>Tất cả sản phẩm</span></span>
                 </button>
                 <button type="button" class="shop-category-btn" data-category="Thức ăn">
-                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_002.jpg" alt="Thức ăn"><span>Thức ăn</span></span>
+                    <span class="shop-category-label"><span>Thức ăn</span></span>
                 </button>
                 <button type="button" class="shop-category-btn" data-category="Phụ kiện">
-                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_003.jpg" alt="Phụ kiện"><span>Phụ kiện</span></span>
+                    <span class="shop-category-label"><span>Phụ kiện</span></span>
                 </button>
                 <button type="button" class="shop-category-btn" data-category="Nội thất">
-                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_004.jpg" alt="Nội thất"><span>Nội thất</span></span>
+                    <span class="shop-category-label"><span>Nội thất</span></span>
                 </button>
                 <button type="button" class="shop-category-btn" data-category="Túi xách">
-                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_005.jpg" alt="Túi xách"><span>Túi xách</span></span>
+                    <span class="shop-category-label"><span>Túi xách</span></span>
                 </button>
                 <button type="button" class="shop-category-btn has-children" data-category="Giống chó">
-                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_006.jpg" alt="Giống chó"><span>Giống chó</span></span>
+                    <span class="shop-category-label"><span>Giống chó</span></span>
                 </button>
                 <div id="dogBreedSubmenu" class="shop-subcategory-list" aria-label="Danh sách giống chó"></div>
-                <button type="button" class="shop-category-btn" data-category="Giống mèo">
-                    <span class="shop-category-label"><img class="shop-category-thumb" src="anhdata/pet_007.jpg" alt="Giống mèo"><span>Giống mèo</span></span>
+                <button type="button" class="shop-category-btn has-children" data-category="Giống mèo">
+                    <span class="shop-category-label"><span>Giống mèo</span></span>
                 </button>
+                <div id="catBreedSubmenu" class="shop-subcategory-list" aria-label="Danh sách giống mèo"></div>
             </aside>
 
             <div class="shop-main-content">
@@ -2019,7 +2020,9 @@
     let currentQVProduct = null;
     const SHOP_CATEGORY_STORAGE_KEY = 'shopSelectedCategory';
     let currentDogBreedView = '';
+    let currentCatBreedView = '';
     let keepMainSidebarOnDogBreedView = false;
+    let currentSubcategoryFilter = '';
 
     const normalizeTextKey = (value) => {
         return String(value || '')
@@ -2029,6 +2032,84 @@
             .replace(/[\u0300-\u036f]/g, '');
     };
 
+    const detectProductSubcategory = ({ category, name, code, subcategory }) => {
+        const explicit = String(subcategory || '').trim();
+        if (explicit) return explicit;
+
+        const normalizedCategory = normalizeTextKey(category);
+        const normalizedName = `${normalizeTextKey(name)} ${normalizeTextKey(code)}`;
+
+        const pick = (rules, fallbackLabel = 'Khác') => {
+            const found = rules.find((rule) => rule.keys.some((keyword) => normalizedName.includes(keyword)));
+            return found ? found.label : fallbackLabel;
+        };
+
+        if (normalizedCategory === 'thuc an') {
+            return pick([
+                { label: 'Cho chó', keys: ['cho', 'dog', 'canine', 'puppy'] },
+                { label: 'Cho mèo', keys: ['meo', 'cat', 'feline', 'kitten'] },
+                { label: 'Snack & thưởng', keys: ['snack', 'thuong', 'treat', 'banh'] },
+                { label: 'Pate & đồ hộp', keys: ['pate', 'hop', 'can'] },
+            ]);
+        }
+
+        if (normalizedCategory === 'phu kien') {
+            return pick([
+                { label: 'Dây dắt & vòng cổ', keys: ['day', 'vong co', 'xich', 'leash', 'collar', 'harness'] },
+                { label: 'Đồ chơi', keys: ['do choi', 'toy', 'ball'] },
+                { label: 'Bát ăn', keys: ['bat', 'bowl', 'an'] },
+                { label: 'Vệ sinh', keys: ['ve sinh', 'shampoo', 'tam', 'cat litter', 'litter'] },
+            ]);
+        }
+
+        if (normalizedCategory === 'noi that') {
+            return pick([
+                { label: 'Nệm & giường', keys: ['nem', 'giuong', 'bed', 'cushion'] },
+                { label: 'Nhà & chuồng', keys: ['nha', 'chuong', 'kennel', 'crate', 'tent'] },
+                { label: 'Ghế & ổ nằm', keys: ['ghe', 'o nam', 'sofa'] },
+            ]);
+        }
+
+        if (normalizedCategory === 'tui xach') {
+            return pick([
+                { label: 'Túi đeo', keys: ['deo', 'shoulder', 'sling'] },
+                { label: 'Ba lô', keys: ['ba lo', 'backpack'] },
+                { label: 'Vali vận chuyển', keys: ['vali', 'carrier', 'transport'] },
+            ]);
+        }
+
+        if (normalizedCategory === 'giong cho') {
+            return pick([
+                { label: 'Poodle', keys: ['poodle'] },
+                { label: 'Golden', keys: ['golden'] },
+                { label: 'Husky', keys: ['husky'] },
+                { label: 'Beagle', keys: ['beagle'] },
+                { label: 'Samoyed', keys: ['samoyed'] },
+            ], 'Giống khác');
+        }
+
+        if (normalizedCategory === 'giong meo') {
+            return pick([
+                { label: 'Mèo Anh', keys: ['anh long ngan', 'british'] },
+                { label: 'Ba Tư', keys: ['ba tu', 'persian'] },
+                { label: 'Scottish Fold', keys: ['scottish'] },
+                { label: 'Maine Coon', keys: ['maine coon'] },
+                { label: 'Ragdoll', keys: ['ragdoll'] },
+            ], 'Giống khác');
+        }
+
+        return 'Khác';
+    };
+
+    const DEFAULT_CATEGORY_SUBCATEGORIES = {
+        'Thức ăn': ['Cho chó', 'Cho mèo', 'Snack & thưởng', 'Pate & đồ hộp'],
+        'Phụ kiện': ['Dây dắt & vòng cổ', 'Đồ chơi', 'Bát ăn', 'Vệ sinh'],
+        'Nội thất': ['Nệm & giường', 'Nhà & chuồng', 'Ghế & ổ nằm'],
+        'Túi xách': ['Túi đeo', 'Ba lô', 'Vali vận chuyển'],
+        'Giống chó': ['Poodle', 'Golden', 'Husky', 'Beagle', 'Samoyed', 'Giống khác'],
+        'Giống mèo': ['Mèo Anh', 'Ba Tư', 'Scottish Fold', 'Maine Coon', 'Ragdoll', 'Giống khác'],
+    };
+
     const resolveProductImageUrl = (rawPath) => {
         const fallbackImage = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&h=400&fit=crop';
         const path = String(rawPath || '').trim().replace(/\\/g, '/');
@@ -2036,22 +2117,142 @@
         if (!path) return fallbackImage;
         if (/^(?:https?:)?\/\//i.test(path) || path.startsWith('data:')) return path;
 
+        const pathname = String(window.location.pathname || '');
+        const markerIndexRaw = pathname.indexOf('/Giao Diện/');
+        const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
+        const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
+        const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '';
+
         let normalizedPath = path.replace(/^\.\//, '');
         normalizedPath = normalizedPath.replace(/^Giao Diện\/user\//i, '');
         normalizedPath = normalizedPath.replace(/^Giao%20Diện\/user\//i, '');
+        normalizedPath = normalizedPath.replace(/^Giao Diện\//i, '');
+        normalizedPath = normalizedPath.replace(/^Giao%20Diện\//i, '');
         normalizedPath = normalizedPath.replace(/^user\//i, '');
 
+        if (normalizedPath.startsWith('/')) {
+            return normalizedPath.replace(/ /g, '%20');
+        }
+
+        if (/^anhdata\//i.test(normalizedPath)) {
+            return `${window.location.origin}${projectBase}/${normalizedPath}`.replace(/ /g, '%20');
+        }
+
         try {
+            if (projectBase) {
+                return new URL(`${projectBase}/${normalizedPath}`.replace(/ /g, '%20'), window.location.origin).toString();
+            }
             return new URL(normalizedPath, window.location.href).toString();
         } catch (error) {
             return fallbackImage;
         }
     };
 
+    const buildImageFallbackCandidates = (src) => {
+        const source = String(src || '').trim();
+        if (!source) return [];
+
+        const candidates = [];
+        const pushUnique = (value) => {
+            const normalized = String(value || '').trim();
+            if (normalized && !candidates.includes(normalized)) {
+                candidates.push(normalized);
+            }
+        };
+
+        pushUnique(source);
+
+        try {
+            const parsed = new URL(source, window.location.href);
+            const pathname = parsed.pathname || '';
+
+            if (pathname.includes('/phuocthanh/PHPCHINH/')) {
+                const rest = pathname.split('/phuocthanh/PHPCHINH/')[1] || '';
+                if (rest) {
+                    pushUnique(`/PHPCHINH/${rest}`);
+                    pushUnique(`/${rest}`);
+                }
+            }
+
+            if (pathname.includes('/PHPCHINH/')) {
+                const rest = pathname.split('/PHPCHINH/')[1] || '';
+                if (rest) {
+                    pushUnique(`/${rest}`);
+                }
+            }
+
+            if (pathname.includes('/anhdata/')) {
+                const rest = pathname.split('/anhdata/')[1] || '';
+                if (rest) {
+                    pushUnique(`/anhdata/${rest}`);
+                    pushUnique(`/PHPCHINH/anhdata/${rest}`);
+                    pushUnique(`/phuocthanh/PHPCHINH/anhdata/${rest}`);
+                }
+            }
+
+            if (/\.jpg(\?|$)/i.test(source)) {
+                pushUnique(source.replace(/\.jpg(\?|$)/i, '.png$1'));
+            }
+            if (/\.png(\?|$)/i.test(source)) {
+                pushUnique(source.replace(/\.png(\?|$)/i, '.jpg$1'));
+            }
+        } catch (error) {
+            if (/\.jpg(\?|$)/i.test(source)) {
+                pushUnique(source.replace(/\.jpg(\?|$)/i, '.png$1'));
+            }
+            if (/\.png(\?|$)/i.test(source)) {
+                pushUnique(source.replace(/\.png(\?|$)/i, '.jpg$1'));
+            }
+        }
+
+        return candidates;
+    };
+
+    window.handleShopImageFallback = (imageElement) => {
+        if (!imageElement) return;
+
+        const fallbackImage = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&h=400&fit=crop';
+        const originalSrc = String(imageElement.getAttribute('src') || '').trim();
+        if (!originalSrc) {
+            imageElement.src = fallbackImage;
+            return;
+        }
+
+        if (!imageElement.dataset.fallbackQueueBuilt) {
+            const queue = buildImageFallbackCandidates(originalSrc).filter((candidate) => candidate !== originalSrc);
+            imageElement.dataset.fallbackQueue = JSON.stringify(queue);
+            imageElement.dataset.fallbackQueueBuilt = '1';
+            imageElement.dataset.fallbackIndex = '0';
+        }
+
+        let queue = [];
+        try {
+            queue = JSON.parse(imageElement.dataset.fallbackQueue || '[]');
+        } catch (error) {
+            queue = [];
+        }
+
+        const nextIndex = parseInt(imageElement.dataset.fallbackIndex || '0', 10);
+        if (Number.isFinite(nextIndex) && nextIndex < queue.length) {
+            imageElement.dataset.fallbackIndex = String(nextIndex + 1);
+            imageElement.src = queue[nextIndex];
+            return;
+        }
+
+        imageElement.src = fallbackImage;
+    };
+
     const mapApiProductToUiProduct = (item) => {
         const id = parseInt(item?.id, 10) || 0;
         const name = String(item?.tensanpham || '').trim() || `Sản phẩm #${id}`;
         const category = String(item?.tendanhmuc || '').trim() || 'Chưa phân loại';
+        const subcategory = detectProductSubcategory({
+            category,
+            name,
+            code: String(item?.masanpham || '').trim(),
+            subcategory: String(item?.danhmuccon || '').trim(),
+        });
+        const dbImageRaw = String(item?.hinhanhsanpham || '').trim();
         const priceNumber = Number(item?.giasanpham || 0);
         const price = Number.isFinite(priceNumber) && priceNumber > 0
             ? new Intl.NumberFormat('vi-VN').format(Math.round(priceNumber))
@@ -2064,11 +2265,24 @@
             id,
             name,
             category,
+            subcategory,
             price,
-            image: resolveProductImageUrl(item?.hinhanhsanpham),
+            image: resolveProductImageUrl(dbImageRaw || item?.hinhanhsanpham),
             description: String(item?.masanpham || '').trim() || `Sản phẩm thuộc danh mục ${category}`,
             badge,
         };
+    };
+
+    const normalizeFallbackProductsSubcategory = () => {
+        products = products.map((product) => ({
+            ...product,
+            subcategory: detectProductSubcategory({
+                category: product.category,
+                name: product.name,
+                code: '',
+                subcategory: product.subcategory,
+            }),
+        }));
     };
 
     const getProductsApiCandidates = () => {
@@ -2197,19 +2411,142 @@
             )
         ).sort((a, b) => a.localeCompare(b, 'vi'));
 
-        const getBreedThumbByIndex = (index) => {
-            const imageIndex = String(index + 8).padStart(3, '0');
-            return `anhdata/pet_${imageIndex}.jpg`;
-        };
-
         submenu.innerHTML = uniqueBreeds
-            .map((breed, index) => `
+            .map((breed) => `
                 <button type="button" class="shop-subcategory-btn" data-breed="${breed.replace(/"/g, '&quot;')}">
-                    <img class="shop-subcategory-thumb" src="${getBreedThumbByIndex(index)}" alt="${breed.replace(/"/g, '&quot;')}">
                     <span>${breed}</span>
                 </button>
             `)
             .join('');
+    };
+
+    const buildCatBreedSubmenu = () => {
+        const submenu = document.getElementById('catBreedSubmenu');
+        if (!submenu) return;
+
+        const uniqueBreeds = Array.from(
+            new Set(
+                catKittens
+                    .map((item) => String(item.breed || '').trim())
+                    .filter(Boolean)
+            )
+        ).sort((a, b) => a.localeCompare(b, 'vi'));
+
+        submenu.innerHTML = uniqueBreeds
+            .map((breed) => `
+                <button type="button" class="shop-subcategory-btn" data-breed="${breed.replace(/"/g, '&quot;')}">
+                    <span>${breed}</span>
+                </button>
+            `)
+            .join('');
+    };
+
+    const clearGenericCategorySubmenus = () => {
+        document.querySelectorAll('#shopCategorySidebar .shop-subcategory-list[data-generated="1"]').forEach((node) => node.remove());
+        document.querySelectorAll('#shopCategorySidebar .shop-category-btn[data-has-generic-submenu="1"]').forEach((button) => {
+            button.classList.remove('has-children', 'expanded');
+            delete button.dataset.hasGenericSubmenu;
+        });
+    };
+
+    const buildCategorySubmenuMap = () => {
+        const map = new Map();
+
+        Object.entries(DEFAULT_CATEGORY_SUBCATEGORIES).forEach(([categoryName, values]) => {
+            if (!map.has(categoryName)) {
+                map.set(categoryName, new Set());
+            }
+            values.forEach((value) => {
+                if (String(value || '').trim()) {
+                    map.get(categoryName).add(String(value).trim());
+                }
+            });
+        });
+
+        products.forEach((product) => {
+            const categoryName = String(product?.category || '').trim();
+            const subcategoryName = detectProductSubcategory({
+                category: categoryName,
+                name: String(product?.name || '').trim(),
+                code: String(product?.description || '').trim(),
+                subcategory: String(product?.subcategory || '').trim(),
+            });
+
+            if (!categoryName || !subcategoryName) return;
+            if (!map.has(categoryName)) {
+                map.set(categoryName, new Set());
+            }
+            map.get(categoryName).add(subcategoryName);
+        });
+
+        return map;
+    };
+
+    const buildGenericCategorySubmenus = () => {
+        const sidebar = document.getElementById('shopCategorySidebar');
+        if (!sidebar) return;
+
+        clearGenericCategorySubmenus();
+        const submenuMap = buildCategorySubmenuMap();
+
+        sidebar.querySelectorAll('.shop-category-btn').forEach((button) => {
+            const categoryName = String(button.dataset.category || '').trim();
+            const normalizedCategory = normalizeTextKey(categoryName);
+            if (!categoryName) return;
+            if (normalizedCategory === 'giong cho' || normalizedCategory === 'giong meo') return;
+
+            const values = Array.from(submenuMap.get(categoryName) || []).sort((a, b) => a.localeCompare(b, 'vi'));
+            if (values.length <= 1) return;
+
+            const submenu = document.createElement('div');
+            submenu.className = 'shop-subcategory-list';
+            submenu.dataset.generated = '1';
+            submenu.dataset.parentCategory = categoryName;
+            submenu.setAttribute('aria-label', `Danh mục con ${categoryName}`);
+
+            submenu.innerHTML = values
+                .map((sub) => {
+                    const safeText = sub.replace(/"/g, '&quot;');
+                    return `<button type="button" class="shop-subcategory-btn" data-category="${categoryName.replace(/"/g, '&quot;')}" data-subcategory="${safeText}"><span>${sub}</span></button>`;
+                })
+                .join('');
+
+            button.insertAdjacentElement('afterend', submenu);
+            button.classList.add('has-children');
+            button.dataset.hasGenericSubmenu = '1';
+        });
+    };
+
+    const closeAllCategorySubmenus = () => {
+        document.querySelectorAll('#shopCategorySidebar .shop-subcategory-list.open').forEach((node) => node.classList.remove('open'));
+        document.querySelectorAll('#shopCategorySidebar .shop-category-btn.expanded').forEach((button) => button.classList.remove('expanded'));
+    };
+
+    const openCategorySubmenu = (categoryButton) => {
+        if (!categoryButton) return;
+
+        const categoryName = String(categoryButton.dataset.category || '').trim();
+        if (!categoryName) return;
+
+        const sidebar = document.getElementById('shopCategorySidebar');
+        if (!sidebar) return;
+
+        let submenu = null;
+        if (normalizeTextKey(categoryName) === 'giong cho') {
+            submenu = document.getElementById('dogBreedSubmenu');
+        } else if (normalizeTextKey(categoryName) === 'giong meo') {
+            submenu = document.getElementById('catBreedSubmenu');
+        } else {
+            submenu = Array.from(sidebar.querySelectorAll('.shop-subcategory-list[data-parent-category]')).find((node) => {
+                return String(node.dataset.parentCategory || '') === categoryName;
+            }) || null;
+        }
+
+        if (!submenu) return;
+
+        closeAllCategorySubmenus();
+        categoryButton.classList.add('expanded');
+        submenu.classList.add('open');
     };
 
     const syncCategorySidebarState = () => {
@@ -2218,7 +2555,11 @@
         const sidebarButtons = document.querySelectorAll('#shopCategorySidebar .shop-category-btn');
         const sidebarTitle = document.querySelector('#shopCategorySidebar .shop-category-title');
         const dogSubmenuButtons = document.querySelectorAll('#dogBreedSubmenu .shop-subcategory-btn');
+        const catSubmenuButtons = document.querySelectorAll('#catBreedSubmenu .shop-subcategory-btn');
+        const genericSubmenuButtons = document.querySelectorAll('#shopCategorySidebar .shop-subcategory-list[data-generated="1"] .shop-subcategory-btn');
         const currentBreed = String(currentDogBreedView || '').trim().toLowerCase();
+        const currentCatBreed = String(currentCatBreedView || '').trim().toLowerCase();
+        const activeSubcategory = String(currentSubcategoryFilter || '').trim().toLowerCase();
 
         sidebarButtons.forEach((button) => {
             const buttonCategory = String(button.dataset.category || '').trim().toLowerCase();
@@ -2228,6 +2569,17 @@
         dogSubmenuButtons.forEach((button) => {
             const buttonBreed = String(button.dataset.breed || '').trim().toLowerCase();
             button.classList.toggle('active', currentBreed && buttonBreed === currentBreed);
+        });
+
+        catSubmenuButtons.forEach((button) => {
+            const buttonBreed = String(button.dataset.breed || '').trim().toLowerCase();
+            button.classList.toggle('active', currentCatBreed && buttonBreed === currentCatBreed);
+        });
+
+        genericSubmenuButtons.forEach((button) => {
+            const buttonSubcategory = String(button.dataset.subcategory || '').trim().toLowerCase();
+            const buttonCategory = String(button.dataset.category || '').trim().toLowerCase();
+            button.classList.toggle('active', !!activeSubcategory && buttonSubcategory === activeSubcategory && buttonCategory === activeCategory);
         });
 
         if (sidebarTitle) {
@@ -2394,7 +2746,7 @@
         grid.innerHTML = productsToRender.map(product => `
             <div class="product-card">
                 <div class="product-image">
-                    <img src="${product.image}" alt="${product.name}">
+                    <img src="${product.image}" alt="${product.name}" onerror="handleShopImageFallback(this)">
                     ${product.badge ? `<div class="product-badge ${product.badge === 'new' ? 'new' : ''}">${product.badge === 'sale' ? '🔥 Sale' : '✨ Mới'}</div>` : ''}
                     <button class="product-heart-btn ${wishlistNames.has(product.name) ? 'liked' : ''}" data-action="toggle-wishlist" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Yêu thích">
                         <i data-feather="heart" style="width: 18px; height: 18px;"></i>
@@ -2427,8 +2779,6 @@
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
 
-        currentDogBreedView = '';
-
         setShopFilterPanelVisible(true);
         setMainCategorySidebarVisible(true);
 
@@ -2447,18 +2797,28 @@
         updateResultsSummary(breedsToRender.length, dogBreeds.length, 'giống chó');
 
         grid.innerHTML = breedsToRender.map(breed => `
-            <div class="breed-card">
-                <div class="breed-image-wrap">
-                    <img src="${breed.image}" alt="${breed.name}" class="breed-image" loading="lazy" onerror="handleBreedImageFallback(this, 'dog')">
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="${breed.image}" alt="${breed.name}" loading="lazy" onerror="handleBreedImageFallback(this, 'dog')">
+                    <div class="product-badge new">🐶 Giống chó</div>
+                    <button class="product-heart-btn" data-action="toggle-wishlist" data-name="${breed.name.replace(/"/g, '&quot;')}" data-price="${getBreedPriceLabel('dog', breed.name)}" data-image="${breed.image}" title="Yêu thích">
+                        <i data-feather="heart" style="width: 18px; height: 18px;"></i>
+                    </button>
                 </div>
-                <div class="breed-content">
-                    <h3 class="breed-title">${breed.name}</h3>
-                    <div class="breed-line"></div>
-                    <p class="breed-text">${breed.description}</p>
-                    <button class="breed-btn" type="button" data-action="breed-quick-view" data-breed-name="${breed.name.replace(/"/g, '&quot;')}" data-breed-image="${breed.image}" data-breed-type="dog" data-breed-price="${getBreedPriceLabel('dog', breed.name)}" data-breed-description="${breed.description.replace(/"/g, '&quot;')}">Xem thêm</button>
+
+                <div class="product-info">
+                    <h3 class="product-name">${breed.name}</h3>
+                    <p class="product-category">Giống chó</p>
+                    <p class="product-price">${getBreedPriceLabel('dog', breed.name)}</p>
+                    <div class="product-corner-actions">
+                        <button class="product-corner-btn buy" data-action="add-cart" data-name="${breed.name.replace(/"/g, '&quot;')}" data-price="${getBreedPriceLabel('dog', breed.name)}" data-image="${breed.image}" title="Mua ngay">Mua</button>
+                        <button class="product-corner-btn detail" data-action="breed-quick-view" data-breed-name="${breed.name.replace(/"/g, '&quot;')}" data-breed-image="${breed.image}" data-breed-type="dog" data-breed-price="${getBreedPriceLabel('dog', breed.name)}" data-breed-description="${breed.description.replace(/"/g, '&quot;')}" title="Xem chi tiết">Chi tiết</button>
+                    </div>
                 </div>
             </div>
         `).join('');
+
+        if (typeof feather !== 'undefined') feather.replace();
     };
 
     const renderDogPuppyCards = (puppiesToRender, totalCount, breedName = '', options = {}) => {
@@ -2715,8 +3075,6 @@
         const emptyState = document.getElementById('emptyState');
         const countElement = document.getElementById('productCount');
 
-        currentDogBreedView = '';
-
         setShopFilterPanelVisible(true);
         setMainCategorySidebarVisible(true);
 
@@ -2735,18 +3093,28 @@
         updateResultsSummary(breedsToRender.length, catBreeds.length, 'giống mèo');
 
         grid.innerHTML = breedsToRender.map(breed => `
-            <div class="breed-card">
-                <div class="breed-image-wrap">
-                    <img src="${breed.image}" alt="${breed.name}" class="breed-image" loading="lazy" onerror="handleBreedImageFallback(this, 'cat')">
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="${breed.image}" alt="${breed.name}" loading="lazy" onerror="handleBreedImageFallback(this, 'cat')">
+                    <div class="product-badge new">🐱 Giống mèo</div>
+                    <button class="product-heart-btn" data-action="toggle-wishlist" data-name="${breed.name.replace(/"/g, '&quot;')}" data-price="${getBreedPriceLabel('cat', breed.name)}" data-image="${breed.image}" title="Yêu thích">
+                        <i data-feather="heart" style="width: 18px; height: 18px;"></i>
+                    </button>
                 </div>
-                <div class="breed-content">
-                    <h3 class="breed-title">${breed.name}</h3>
-                    <div class="breed-line"></div>
-                    <p class="breed-text">${breed.description}</p>
-                    <button class="breed-btn" type="button" data-action="breed-quick-view" data-breed-name="${breed.name.replace(/"/g, '&quot;')}" data-breed-image="${breed.image}" data-breed-type="cat" data-breed-price="${getBreedPriceLabel('cat', breed.name)}" data-breed-description="${breed.description.replace(/"/g, '&quot;')}">Xem thêm</button>
+
+                <div class="product-info">
+                    <h3 class="product-name">${breed.name}</h3>
+                    <p class="product-category">Giống mèo</p>
+                    <p class="product-price">${getBreedPriceLabel('cat', breed.name)}</p>
+                    <div class="product-corner-actions">
+                        <button class="product-corner-btn buy" data-action="add-cart" data-name="${breed.name.replace(/"/g, '&quot;')}" data-price="${getBreedPriceLabel('cat', breed.name)}" data-image="${breed.image}" title="Mua ngay">Mua</button>
+                        <button class="product-corner-btn detail" data-action="breed-quick-view" data-breed-name="${breed.name.replace(/"/g, '&quot;')}" data-breed-image="${breed.image}" data-breed-type="cat" data-breed-price="${getBreedPriceLabel('cat', breed.name)}" data-breed-description="${breed.description.replace(/"/g, '&quot;')}" title="Xem chi tiết">Chi tiết</button>
+                    </div>
                 </div>
             </div>
         `).join('');
+
+        if (typeof feather !== 'undefined') feather.replace();
     };
 
     // Filter and render
@@ -2759,54 +3127,17 @@
         updateShopHeroByCategory();
 
         if (categoryValue === 'giống chó') {
-            if (currentDogBreedView) {
-                const normalizedBreed = currentDogBreedView.toLowerCase();
-                let filteredPuppies = dogPuppies.filter((puppy) =>
-                    String(puppy.breed || '').toLowerCase().includes(normalizedBreed)
-                );
-
-                if (searchTerm) {
-                    filteredPuppies = filteredPuppies.filter((puppy) =>
-                        String(puppy.name || '').toLowerCase().includes(searchTerm)
-                    );
-                }
-
-                if (priceRange) {
-                    const [minValue, maxValueRaw] = priceRange.split('-');
-                    const minPrice = (parseInt(minValue, 10) || 0) * 1000;
-                    const maxPrice = Number.isFinite(parseInt(maxValueRaw, 10))
-                        ? parseInt(maxValueRaw, 10) * 1000
-                        : Infinity;
-
-                    filteredPuppies = filteredPuppies.filter((puppy) => {
-                        const puppyPrice = parseInt(String(puppy.price || '').replace(/[^0-9]/g, ''), 10);
-                        if (!Number.isFinite(puppyPrice)) return false;
-                        return puppyPrice >= minPrice && puppyPrice <= maxPrice;
-                    });
-                }
-
-                if (sort === 'price-asc') {
-                    filteredPuppies.sort((a, b) => parseInt(String(a.price || '').replace(/[^0-9]/g, ''), 10) - parseInt(String(b.price || '').replace(/[^0-9]/g, ''), 10));
-                } else if (sort === 'price-desc') {
-                    filteredPuppies.sort((a, b) => parseInt(String(b.price || '').replace(/[^0-9]/g, ''), 10) - parseInt(String(a.price || '').replace(/[^0-9]/g, ''), 10));
-                } else if (sort === 'newest') {
-                    filteredPuppies.sort((a, b) => (b.id || 0) - (a.id || 0));
-                }
-
-                const totalByBreed = dogPuppies.filter((puppy) =>
-                    String(puppy.breed || '').toLowerCase().includes(normalizedBreed)
-                ).length;
-
-                renderDogPuppyCards(filteredPuppies, totalByBreed, currentDogBreedView, { hideCategorySidebar: keepMainSidebarOnDogBreedView });
-                updateActiveFilters();
-                syncCategorySidebarState();
-                return;
-            }
-
+            currentSubcategoryFilter = '';
+            currentCatBreedView = '';
             let filteredBreeds = dogBreeds;
 
             if (searchTerm) {
                 filteredBreeds = dogBreeds.filter(breed => breed.name.toLowerCase().includes(searchTerm));
+            }
+
+            if (currentDogBreedView) {
+                const normalizedBreed = currentDogBreedView.toLowerCase();
+                filteredBreeds = filteredBreeds.filter((breed) => breed.name.toLowerCase().includes(normalizedBreed));
             }
 
             renderDogBreedCards(filteredBreeds);
@@ -2816,10 +3147,17 @@
         }
 
         if (categoryValue === 'giống mèo') {
+            currentSubcategoryFilter = '';
+            currentDogBreedView = '';
             let filteredBreeds = catBreeds;
 
             if (searchTerm) {
                 filteredBreeds = catBreeds.filter(breed => breed.name.toLowerCase().includes(searchTerm));
+            }
+
+            if (currentCatBreedView) {
+                const normalizedBreed = currentCatBreedView.toLowerCase();
+                filteredBreeds = filteredBreeds.filter((breed) => breed.name.toLowerCase().includes(normalizedBreed));
             }
 
             renderCatBreedCards(filteredBreeds);
@@ -2846,6 +3184,20 @@
                 const productCategoryLower = normalizeTextKey(product.category);
                 if (productCategoryLower !== normalizeTextKey(categoryValue)) {
                     console.log('Filter out:', product.name, '- product category:', productCategoryLower, '!== filter:', categoryValue);
+                    return false;
+                }
+            }
+
+            if (currentSubcategoryFilter) {
+                const productSubcategory = normalizeTextKey(
+                    detectProductSubcategory({
+                        category: product.category,
+                        name: product.name,
+                        code: product.description,
+                        subcategory: product.subcategory,
+                    })
+                );
+                if (productSubcategory !== normalizeTextKey(currentSubcategoryFilter)) {
                     return false;
                 }
             }
@@ -2887,6 +3239,9 @@
 
         if (search) filters.push(`Tìm: "${search}"`);
         if (category) filters.push(`Danh mục: ${category}`);
+        if (currentCatBreedView) filters.push(`Giống mèo: ${currentCatBreedView}`);
+        if (currentDogBreedView) filters.push(`Giống chó: ${currentDogBreedView}`);
+        if (currentSubcategoryFilter) filters.push(`Chi tiết: ${currentSubcategoryFilter}`);
         if (price) filters.push(`Giá: ${price}`);
         if (sort) filters.push(`Sắp xếp: ${sort}`);
 
@@ -2905,7 +3260,9 @@
         document.getElementById('priceFilter').value = '';
         document.getElementById('sortFilter').value = '';
         currentDogBreedView = '';
+        currentCatBreedView = '';
         keepMainSidebarOnDogBreedView = false;
+        currentSubcategoryFilter = '';
         document.querySelectorAll('.shop-custom-select').forEach(syncCustomSelectFromNative);
         filterAndRenderProducts();
         syncCategorySidebarState();
@@ -3021,6 +3378,12 @@
 
             toolbar.addEventListener('change', (event) => {
                 if (event.target.id === 'categoryFilter' || event.target.id === 'priceFilter' || event.target.id === 'sortFilter') {
+                    if (event.target.id === 'categoryFilter') {
+                        currentSubcategoryFilter = '';
+                        currentDogBreedView = '';
+                        currentCatBreedView = '';
+                        keepMainSidebarOnDogBreedView = false;
+                    }
                     filterAndRenderProducts();
                 }
             });
@@ -3042,22 +3405,12 @@
                     const breedPrice = actionButton.dataset.breedPrice || 'Liên hệ';
                     const breedDescription = actionButton.dataset.breedDescription || '';
 
-                    if (breedType === 'dog') {
-                        showDogPuppiesByBreed(breedName);
-                        return;
-                    }
-
-                    if (breedType === 'cat') {
-                        showCatKittensByBreed(breedName);
-                        return;
-                    }
-
                     openQuickViewWithData({
                         name: breedName,
-                        category: 'Giống thú cưng',
+                        category: breedType === 'dog' ? 'Giống chó' : 'Giống mèo',
                         image: breedImage,
                         price: breedPrice,
-                        description: `${breedDescription}. Nhấn Thêm vào giỏ để lưu vào giỏ hàng và xem thêm chi tiết khi cần.`
+                        description: breedDescription || 'Thông tin chi tiết đang được cập nhật.'
                     });
                     return;
                 }
@@ -3066,14 +3419,19 @@
                     const puppyId = parseInt(actionButton.dataset.puppyId || '0', 10);
                     const selectedPuppy = dogPuppies.find(p => p.id === puppyId);
                     if (selectedPuppy) {
-                        renderDogDetailPage(selectedPuppy);
+                        openQuickViewWithData({
+                            name: selectedPuppy.name,
+                            category: 'Giống chó',
+                            image: selectedPuppy.image,
+                            price: `${selectedPuppy.price} ₫`,
+                            description: `Giống ${selectedPuppy.breed}. Thông tin chi tiết đang được cập nhật.`
+                        });
                     }
                     return;
                 }
 
                 if (action === 'back-dog-list') {
-                    const breedName = actionButton.dataset.breedName || 'Poodle';
-                    showDogPuppiesByBreed(breedName);
+                    closeQuickView();
                     return;
                 }
 
@@ -3141,15 +3499,60 @@
         }
 
         if (categorySidebar && !categorySidebar.dataset.bound) {
+            categorySidebar.addEventListener('mouseover', (event) => {
+                const categoryBtn = event.target.closest('.shop-category-btn');
+                if (!categoryBtn) return;
+                openCategorySubmenu(categoryBtn);
+            });
+
+            categorySidebar.addEventListener('mouseleave', () => {
+                closeAllCategorySubmenus();
+            });
+
             categorySidebar.addEventListener('click', (event) => {
+                const genericSubBtn = event.target.closest('.shop-subcategory-list[data-generated="1"] .shop-subcategory-btn');
+                if (genericSubBtn) {
+                    const categorySelect = document.getElementById('categoryFilter');
+                    if (!categorySelect) return;
+
+                    const parentCategory = String(genericSubBtn.dataset.category || '').trim();
+                    const selectedSubcategory = String(genericSubBtn.dataset.subcategory || '').trim();
+                    if (!parentCategory || !selectedSubcategory) return;
+
+                    categorySelect.value = parentCategory;
+                    currentSubcategoryFilter = selectedSubcategory;
+                    currentDogBreedView = '';
+                    keepMainSidebarOnDogBreedView = false;
+
+                    filterAndRenderProducts();
+                    syncCategorySidebarState();
+                    return;
+                }
+
                 const breedBtn = event.target.closest('.shop-subcategory-btn');
-                if (breedBtn) {
+                if (breedBtn && breedBtn.closest('#dogBreedSubmenu')) {
                     const categorySelect = document.getElementById('categoryFilter');
                     if (!categorySelect) return;
 
                     categorySelect.value = 'Giống chó';
                     currentDogBreedView = String(breedBtn.dataset.breed || '').trim();
-                    keepMainSidebarOnDogBreedView = true;
+                    currentCatBreedView = '';
+                    keepMainSidebarOnDogBreedView = false;
+                    currentSubcategoryFilter = '';
+                    filterAndRenderProducts();
+                    syncCategorySidebarState();
+                    return;
+                }
+
+                if (breedBtn && breedBtn.closest('#catBreedSubmenu')) {
+                    const categorySelect = document.getElementById('categoryFilter');
+                    if (!categorySelect) return;
+
+                    categorySelect.value = 'Giống mèo';
+                    currentCatBreedView = String(breedBtn.dataset.breed || '').trim();
+                    currentDogBreedView = '';
+                    keepMainSidebarOnDogBreedView = false;
+                    currentSubcategoryFilter = '';
                     filterAndRenderProducts();
                     syncCategorySidebarState();
                     return;
@@ -3161,19 +3564,6 @@
                 const categorySelect = document.getElementById('categoryFilter');
                 if (!categorySelect) return;
 
-                 if (categoryBtn.classList.contains('has-children')) {
-                    const bounds = categoryBtn.getBoundingClientRect();
-                    const clickedArrow = event.clientX >= (bounds.right - 44);
-
-                    if (clickedArrow) {
-                        const submenu = document.getElementById('dogBreedSubmenu');
-                        const shouldExpand = !categoryBtn.classList.contains('expanded');
-                        categoryBtn.classList.toggle('expanded', shouldExpand);
-                        submenu?.classList.toggle('open', shouldExpand);
-                        return;
-                    }
-                }
-
                 if (String(categoryBtn.dataset.category || '').trim().toLowerCase() !== 'giống chó') {
                     currentDogBreedView = '';
                     keepMainSidebarOnDogBreedView = false;
@@ -3182,6 +3572,13 @@
                     keepMainSidebarOnDogBreedView = false;
                 }
 
+                if (String(categoryBtn.dataset.category || '').trim().toLowerCase() !== 'giống mèo') {
+                    currentCatBreedView = '';
+                } else {
+                    currentCatBreedView = '';
+                }
+
+                currentSubcategoryFilter = '';
                 categorySelect.value = categoryBtn.dataset.category || '';
                 filterAndRenderProducts();
                 syncCategorySidebarState();
@@ -3194,11 +3591,14 @@
     // Initialize - render products on page load
     const initShopPage = async () => {
         console.log('Shop page initialized');
+        normalizeFallbackProductsSubcategory();
         buildDogBreedSubmenu();
+        buildCatBreedSubmenu();
         setupDelegatedEvents();
         setupCustomSelectEvents();
 
         await loadProductsFromApi();
+        buildGenericCategorySubmenus();
 
         const hasPendingCategory = applyPendingCategoryFilter();
         if (!hasPendingCategory) {

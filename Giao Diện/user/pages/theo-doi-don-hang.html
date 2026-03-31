@@ -6,14 +6,146 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Mã đơn hàng</label>
-          <input class="form-control" type="text" placeholder="VD: PS123456">
+          <input id="trackOrderCode" class="form-control" type="text" placeholder="VD: DHO202603301530...">
         </div>
         <div class="col-md-6">
           <label class="form-label">Số điện thoại</label>
-          <input class="form-control" type="text" placeholder="Nhập số điện thoại đặt hàng">
+          <input id="trackPhone" class="form-control" type="text" placeholder="Nhập số điện thoại đặt hàng">
         </div>
       </div>
-      <button class="btn btn-dark mt-3" type="button">Kiểm tra trạng thái</button>
+      <button id="trackBtn" class="btn btn-dark mt-3" type="button">Kiểm tra trạng thái</button>
+      <div id="trackStatusText" class="small text-muted mt-3"></div>
+
+      <div class="table-responsive mt-3">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Mã đơn</th>
+              <th>Khách hàng</th>
+              <th>Số điện thoại</th>
+              <th>Tổng tiền</th>
+              <th>Trạng thái</th>
+              <th>Ngày tạo</th>
+            </tr>
+          </thead>
+          <tbody id="trackOrderBody">
+            <tr><td colspan="6" class="text-muted">Nhập mã đơn hoặc số điện thoại để tra cứu.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </section>
+
+<script>
+(function () {
+  const orderCodeInput = document.getElementById('trackOrderCode');
+  const phoneInput = document.getElementById('trackPhone');
+  const trackBtn = document.getElementById('trackBtn');
+  const trackStatusText = document.getElementById('trackStatusText');
+  const trackOrderBody = document.getElementById('trackOrderBody');
+
+  if (!orderCodeInput || !phoneInput || !trackBtn || !trackStatusText || !trackOrderBody) {
+    return;
+  }
+
+  const statusLabelMap = {
+    cho_duyet: 'Chờ duyệt',
+    da_duyet: 'Đã duyệt',
+    tu_choi: 'Đã bị hủy'
+  };
+
+  let activeKeyword = '';
+
+  function toMoney(value) {
+    return Number(value || 0).toLocaleString('vi-VN') + ' đ';
+  }
+
+  function getCandidates(keyword) {
+    const q = encodeURIComponent(keyword || '');
+    return [
+      new URL('../../index.php?api=get_online_orders&keyword=' + q, window.location.href).toString(),
+      '/phuocthanh/PHPCHINH/index.php?api=get_online_orders&keyword=' + q,
+      '/PHPCHINH/index.php?api=get_online_orders&keyword=' + q,
+      '/index.php?api=get_online_orders&keyword=' + q
+    ];
+  }
+
+  async function fetchOrders(keyword) {
+    let lastError = new Error('Không gọi được API tra cứu đơn hàng');
+    for (const url of getCandidates(keyword)) {
+      try {
+        const sep = url.includes('?') ? '&' : '?';
+        const res = await fetch(url + sep + '_t=' + Date.now(), { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          lastError = new Error(data.message || ('HTTP ' + res.status));
+          continue;
+        }
+        return data;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError;
+  }
+
+  function renderRows(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      trackOrderBody.innerHTML = '<tr><td colspan="6" class="text-muted">Không tìm thấy đơn phù hợp.</td></tr>';
+      return;
+    }
+
+    trackOrderBody.innerHTML = rows.map((item) => {
+      const statusKey = String(item.trangthai || 'cho_duyet');
+      const statusLabel = statusLabelMap[statusKey] || statusKey;
+      return `
+        <tr>
+          <td>${item.madonhang || ''}</td>
+          <td>${item.tenkhachhang || ''}</td>
+          <td>${item.sodienthoai || ''}</td>
+          <td>${toMoney(item.tongtien)}</td>
+          <td>${statusLabel}</td>
+          <td>${item.ngaytao || ''}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function doSearch() {
+    const keyword = (orderCodeInput.value.trim() || phoneInput.value.trim());
+    if (!keyword) {
+      trackStatusText.textContent = 'Vui lòng nhập mã đơn hoặc số điện thoại.';
+      trackOrderBody.innerHTML = '<tr><td colspan="6" class="text-muted">Chưa có dữ liệu.</td></tr>';
+      activeKeyword = '';
+      return;
+    }
+
+    activeKeyword = keyword;
+
+    trackStatusText.textContent = 'Đang tra cứu...';
+    try {
+      const payload = await fetchOrders(keyword);
+      const rows = Array.isArray(payload.data) ? payload.data.filter((item) => {
+        const code = String(item.madonhang || '');
+        const phone = String(item.sodienthoai || '');
+        const q = keyword.toLowerCase();
+        return code.toLowerCase().includes(q) || phone.toLowerCase().includes(q);
+      }) : [];
+
+      renderRows(rows);
+      trackStatusText.textContent = 'Tìm thấy ' + rows.length + ' đơn phù hợp.';
+    } catch (err) {
+      trackOrderBody.innerHTML = '<tr><td colspan="6" class="text-danger">Lỗi tra cứu: ' + String(err.message || err) + '</td></tr>';
+      trackStatusText.textContent = 'Không thể tra cứu vào lúc này.';
+    }
+  }
+
+  trackBtn.addEventListener('click', doSearch);
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && activeKeyword) {
+      doSearch();
+    }
+  }, 5000);
+})();
+</script>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
 	<meta charset="UTF-8">
@@ -389,10 +389,10 @@
 	function getApiCandidates() {
 		const candidates = [];
 		const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-		candidates.push(`${protocol}//127.0.0.1/PHP/index.php?api=get_sales`);
-		candidates.push(`${protocol}//localhost/PHP/index.php?api=get_sales`);
+		candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_sales`);
+		candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=get_sales`);
 		candidates.push(new URL('../../index.php?api=get_sales', window.location.href).toString());
-		candidates.push('/PHP/index.php?api=get_sales');
+		candidates.push('/PHPCHINH/index.php?api=get_sales');
 		candidates.push('/index.php?api=get_sales');
 		return Array.from(new Set(candidates));
 	}
@@ -400,10 +400,10 @@
 	function getProductApiCandidates() {
 		const candidates = [];
 		const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-		candidates.push(`${protocol}//127.0.0.1/PHP/index.php?api=get_products`);
-		candidates.push(`${protocol}//localhost/PHP/index.php?api=get_products`);
+		candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_products`);
+		candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=get_products`);
 		candidates.push(new URL('../../index.php?api=get_products', window.location.href).toString());
-		candidates.push('/PHP/index.php?api=get_products');
+		candidates.push('/PHPCHINH/index.php?api=get_products');
 		candidates.push('/index.php?api=get_products');
 		return Array.from(new Set(candidates));
 	}
@@ -783,3 +783,6 @@
 </script>
 </body>
 </html>
+
+
+

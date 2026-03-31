@@ -278,8 +278,8 @@
             const candidates = [];
 
             const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-            candidates.push(`${protocol}//127.0.0.1/PHP/index.php?api=get_services`);
-            candidates.push(`${protocol}//localhost/PHP/index.php?api=get_services`);
+            candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_services`);
+            candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=get_services`);
 
             // Most reliable candidate: resolve from the current iframe URL.
             candidates.push(new URL('../../index.php?api=get_services', window.location.href).toString());
@@ -294,7 +294,7 @@
                 if (detectedBase) candidates.push(`${detectedBase}/index.php?api=get_services`);
             }
 
-            candidates.push('/PHP/index.php?api=get_services');
+            candidates.push('/PHPCHINH/index.php?api=get_services');
             candidates.push('/index.php?api=get_services');
 
             return Array.from(new Set(candidates));
@@ -603,5 +603,6 @@
     </script>
 </body>
 </html>
+
 
 
