@@ -7,6 +7,18 @@
     --text-muted: rgba(0, 0, 0, 0.6);
 }
 
+html,
+body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Force the first hero section to sit flush with viewport top. */
+body > .hero-section.hero-video-mode:not(.shop-mode):not(.inner-mode):not(.content-only-mode):first-of-type {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
 /* Global Styles */
 * {
     margin: 0;
@@ -2748,7 +2760,7 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     }
 
     .hero-section.hero-video-mode:not(.shop-mode):not(.inner-mode):not(.content-only-mode) .main-header {
-        top: 4px;
+        top: 0;
         left: 0;
         transform: none;
         width: 100%;
@@ -5697,7 +5709,7 @@ html {
 
         .pet-footer-social a:hover {
             transform: translateY(-2px);
-            background: #f57f2a;
+            background: #1F8F4D;
             color: #fff;
         }
 
@@ -5729,8 +5741,12 @@ html {
         }
 
         .pet-footer-links a:hover,
-        .pet-footer-store a:hover {
-            color: #f57f2a;
+        .pet-footer-links a:focus,
+        .pet-footer-links a:active,
+        .pet-footer-store a:hover,
+        .pet-footer-store a:focus,
+        .pet-footer-store a:active {
+            color: #1F8F4D !important;
         }
 
         .pet-footer-store {
@@ -5783,7 +5799,7 @@ html {
         }
 
         .payment-logo:hover {
-            color: #f57f2a;
+            color: #1F8F4D;
             transform: translateY(-1px);
         }
 

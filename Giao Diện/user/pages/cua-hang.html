@@ -173,6 +173,46 @@
     </div>
 </div>
 
+<!-- Quick Checkout Modal -->
+<div id="checkoutQuickModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1100; align-items: center; justify-content: center;">
+    <div style="background: #ffffff; border-radius: 14px; padding: 24px; max-width: 520px; width: 92%; position: relative; animation: slideIn 0.25s ease; box-shadow: 0 20px 48px rgba(15, 23, 42, 0.25);">
+        <button type="button" onclick="closeCheckoutQuickModal()" style="position: absolute; top: 10px; right: 12px; border: none; background: none; font-size: 26px; color: #9ca3af; cursor: pointer; line-height: 1;">×</button>
+        <h3 style="margin: 0 0 16px; font-size: 22px; font-weight: 700; color: #0f172a;">Mua nhanh sản phẩm</h3>
+
+        <form id="checkoutQuickForm" style="display: grid; gap: 12px;">
+            <div style="display: grid; grid-template-columns: 74px 1fr; gap: 12px; align-items: center; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fafafa;">
+                <img id="checkoutQuickImage" src="" alt="Sản phẩm" style="width: 74px; height: 74px; border-radius: 10px; object-fit: cover; background: #f3f4f6;">
+                <div>
+                    <div id="checkoutQuickName" style="font-size: 15px; font-weight: 700; color: #111827;"></div>
+                    <div id="checkoutQuickPrice" style="font-size: 14px; font-weight: 600; color: #1F8F4D; margin-top: 4px;"></div>
+                </div>
+            </div>
+
+            <div>
+                <label for="checkoutQuickQty" style="display:block; margin-bottom:6px; font-size:13px; color:#334155;">Số lượng</label>
+                <input id="checkoutQuickQty" type="number" min="1" value="1" required style="width:100%; height:42px; border:1px solid #d1d5db; border-radius:10px; padding:0 12px;">
+            </div>
+
+            <div>
+                <label for="checkoutQuickCustomer" style="display:block; margin-bottom:6px; font-size:13px; color:#334155;">Họ và tên</label>
+                <input id="checkoutQuickCustomer" type="text" required placeholder="Nhập họ và tên" style="width:100%; height:42px; border:1px solid #d1d5db; border-radius:10px; padding:0 12px;">
+            </div>
+
+            <div>
+                <label for="checkoutQuickPhone" style="display:block; margin-bottom:6px; font-size:13px; color:#334155;">Số điện thoại</label>
+                <input id="checkoutQuickPhone" type="tel" required placeholder="Nhập số điện thoại" style="width:100%; height:42px; border:1px solid #d1d5db; border-radius:10px; padding:0 12px;">
+            </div>
+
+            <div>
+                <label for="checkoutQuickAddress" style="display:block; margin-bottom:6px; font-size:13px; color:#334155;">Địa chỉ nhận hàng</label>
+                <input id="checkoutQuickAddress" type="text" required placeholder="Nhập địa chỉ" style="width:100%; height:42px; border:1px solid #d1d5db; border-radius:10px; padding:0 12px;">
+            </div>
+
+            <button type="submit" style="height:44px; border:none; border-radius:10px; font-weight:700; color:#fff; background:linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); box-shadow:0 10px 24px rgba(31, 143, 77, 0.28);">Thanh toán ngay</button>
+        </form>
+    </div>
+</div>
+
 <style>
     @keyframes slideIn {
         from {
@@ -402,7 +442,7 @@
     }
 
     .shop-custom-trigger:hover {
-        border-color: #f4b08f;
+        border-color: #1F8F4D;
         box-shadow: 0 8px 20px rgba(31, 143, 77, 0.15);
     }
 
@@ -614,8 +654,8 @@
 
     .product-corner-btn.buy {
         background: #edf9ef;
-        color: #c85d2c;
-        border: 1px solid #f1c2a8;
+        color: #1F8F4D;
+        border: 1px solid #b6dec5;
     }
 
     .product-corner-btn.detail {
@@ -625,6 +665,11 @@
 
     .product-corner-btn:hover {
         transform: translateY(-2px);
+    }
+
+    .product-corner-btn.buy:hover {
+        background: #dff4e6;
+        box-shadow: 0 10px 22px rgba(31, 143, 77, 0.2);
     }
 
     .product-overlay {
@@ -674,12 +719,13 @@
     }
 
     .overlay-btn.add-cart {
-        background: #000;
-        color: white;
+        background: #ffffff;
+        color: #1F8F4D;
+        border: 1px solid rgba(31, 143, 77, 0.35);
     }
 
     .overlay-btn.add-cart:hover {
-        background: #333;
+        background: #f3fff7;
         transform: scale(1.08) translateY(0);
     }
 
@@ -2018,6 +2064,7 @@
     ];
 
     let currentQVProduct = null;
+    let currentCheckoutQuickItem = null;
     const SHOP_CATEGORY_STORAGE_KEY = 'shopSelectedCategory';
     let currentDogBreedView = '';
     let currentCatBreedView = '';
@@ -3311,6 +3358,34 @@
         document.getElementById('quickViewModal').style.display = 'none';
     };
 
+    const openCheckoutQuickModal = (item) => {
+        if (!item || !item.name) return;
+
+        currentCheckoutQuickItem = item;
+
+        const modal = document.getElementById('checkoutQuickModal');
+        const image = document.getElementById('checkoutQuickImage');
+        const name = document.getElementById('checkoutQuickName');
+        const price = document.getElementById('checkoutQuickPrice');
+        const qty = document.getElementById('checkoutQuickQty');
+
+        if (!modal || !image || !name || !price || !qty) return;
+
+        image.src = item.image || '';
+        name.textContent = item.name || '';
+        price.textContent = `${item.price || 'Liên hệ'}${String(item.price || '').includes('₫') || String(item.price || '').includes('đ') ? '' : '₫'}`;
+        qty.value = '1';
+
+        modal.style.display = 'flex';
+    };
+
+    const closeCheckoutQuickModal = () => {
+        const modal = document.getElementById('checkoutQuickModal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    window.closeCheckoutQuickModal = closeCheckoutQuickModal;
+
     const addToCartFromQV = () => {
         if (currentQVProduct) {
             addToCart(currentQVProduct.name, currentQVProduct.price, currentQVProduct.image);
@@ -3358,8 +3433,12 @@
     // Close modal on outside click
     window.onclick = (event) => {
         const modal = document.getElementById('quickViewModal');
+        const checkoutQuickModal = document.getElementById('checkoutQuickModal');
         if (event.target === modal) {
             closeQuickView();
+        }
+        if (event.target === checkoutQuickModal) {
+            closeCheckoutQuickModal();
         }
     };
 
@@ -3480,7 +3559,11 @@
                 }
 
                 if (action === 'add-cart') {
-                    addToCart(actionButton.dataset.name || '', actionButton.dataset.price || '', actionButton.dataset.image || '');
+                    openCheckoutQuickModal({
+                        name: actionButton.dataset.name || '',
+                        price: actionButton.dataset.price || '',
+                        image: actionButton.dataset.image || ''
+                    });
                     return;
                 }
 
@@ -3491,6 +3574,49 @@
             });
 
             productsGrid.dataset.bound = '1';
+        }
+
+        const checkoutQuickForm = document.getElementById('checkoutQuickForm');
+        if (checkoutQuickForm && !checkoutQuickForm.dataset.bound) {
+            checkoutQuickForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+
+                if (!currentCheckoutQuickItem) return;
+
+                const quantity = Math.max(1, parseInt(document.getElementById('checkoutQuickQty')?.value || '1', 10));
+                const customerName = (document.getElementById('checkoutQuickCustomer')?.value || '').trim();
+                const phone = (document.getElementById('checkoutQuickPhone')?.value || '').trim();
+                const address = (document.getElementById('checkoutQuickAddress')?.value || '').trim();
+
+                if (!customerName || !phone || !address) {
+                    alert('Vui lòng nhập đầy đủ thông tin nhận hàng.');
+                    return;
+                }
+
+                addToCart(currentCheckoutQuickItem.name, currentCheckoutQuickItem.price, currentCheckoutQuickItem.image, quantity);
+
+                try {
+                    localStorage.setItem('checkoutQuickInfo', JSON.stringify({
+                        customerName,
+                        phone,
+                        address,
+                        productName: currentCheckoutQuickItem.name,
+                        quantity
+                    }));
+                } catch (e) {}
+
+                closeCheckoutQuickModal();
+
+                if (typeof window.routeToPage === 'function') {
+                    window.routeToPage('checkout');
+                } else if (typeof window.loadPage === 'function') {
+                    window.loadPage('checkout');
+                } else {
+                    window.location.href = './thanh-toan.html';
+                }
+            });
+
+            checkoutQuickForm.dataset.bound = '1';
         }
 
         if (clearBtn && !clearBtn.dataset.bound) {
