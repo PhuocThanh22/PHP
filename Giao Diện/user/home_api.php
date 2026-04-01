@@ -34,6 +34,14 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         $phone = trim((string) ($input['phone'] ?? $input['sodienthoai'] ?? ''));
         $password = (string) ($input['password'] ?? '');
 
+        if (app_contains_reserved_account_keyword($name) || app_contains_reserved_account_keyword($email)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Tai khoan chua tu khoa admin/staff khong duoc dang ky tai khu vuc user',
+            ], 403);
+        }
+
         if ($name === '' || $email === '' || $password === '') {
             $conn->close();
             app_json_response([
@@ -248,7 +256,104 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         ]);
     }
 
-    if ($api === 'login_user') {
+    if ($api === 'social_oauth_start') {
+        if (!app_table_exists($conn, 'nguoidung')) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay bang nguoidung',
+            ], 500);
+        }
+
+        $provider = app_lower(trim((string) ($_GET['provider'] ?? '')));
+        if (!in_array($provider, ['google', 'facebook'], true)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Provider khong hop le',
+            ], 400);
+        }
+
+        app_social_start_session();
+        $returnUrl = app_social_sanitize_return_url((string) ($_GET['return'] ?? ''));
+        $providerConfig = app_social_get_provider_config($provider);
+        if ($providerConfig['client_id'] === '' || $providerConfig['client_secret'] === '') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Chua cau hinh OAuth cho provider nay. Vui long cap nhat file oauth-config.php',
+            ], 500);
+        }
+
+        $state = bin2hex(random_bytes(16));
+        $_SESSION['oauth_state_' . $provider] = $state;
+        $_SESSION['oauth_return_' . $provider] = $returnUrl;
+
+        $redirectUri = app_social_callback_url($provider);
+        $authUrl = app_social_build_auth_url($provider, $providerConfig['client_id'], $redirectUri, $state);
+
+        $conn->close();
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Location: ' . $authUrl);
+        exit;
+    }
+
+    if ($api === 'social_oauth_callback') {
+        $provider = app_lower(trim((string) ($_GET['provider'] ?? '')));
+        if (!in_array($provider, ['google', 'facebook'], true)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Provider khong hop le',
+            ], 400);
+        }
+
+        app_social_start_session();
+
+        $state = trim((string) ($_GET['state'] ?? ''));
+        $code = trim((string) ($_GET['code'] ?? ''));
+        $error = trim((string) ($_GET['error'] ?? ''));
+        $savedState = (string) ($_SESSION['oauth_state_' . $provider] ?? '');
+        $returnUrl = (string) ($_SESSION['oauth_return_' . $provider] ?? app_social_default_return_url());
+
+        unset($_SESSION['oauth_state_' . $provider], $_SESSION['oauth_return_' . $provider]);
+
+        if ($error !== '' || $code === '' || $state === '' || !hash_equals($savedState, $state)) {
+            $conn->close();
+            app_social_render_bridge(null, $returnUrl, 'Dang nhap bang ' . $provider . ' khong thanh cong.');
+        }
+
+        $providerConfig = app_social_get_provider_config($provider);
+        if ($providerConfig['client_id'] === '' || $providerConfig['client_secret'] === '') {
+            $conn->close();
+            app_social_render_bridge(null, $returnUrl, 'Chua cau hinh OAuth cho provider nay. Vui long cap nhat file oauth-config.php.');
+        }
+
+        $redirectUri = app_social_callback_url($provider);
+        $tokenData = app_social_exchange_token($provider, $providerConfig, $code, $redirectUri);
+        if (!$tokenData['ok']) {
+            $conn->close();
+            app_social_render_bridge(null, $returnUrl, $tokenData['message']);
+        }
+
+        $profileData = app_social_fetch_profile($provider, (string) $tokenData['access_token']);
+        if (!$profileData['ok']) {
+            $conn->close();
+            app_social_render_bridge(null, $returnUrl, $profileData['message']);
+        }
+
+        $userPayload = app_social_upsert_user($conn, $provider, $profileData['profile']);
+        $conn->close();
+
+        if (!$userPayload['ok']) {
+            app_social_render_bridge(null, $returnUrl, $userPayload['message']);
+        }
+
+        app_social_render_bridge($userPayload['user'], $returnUrl, '');
+    }
+
+    if ($api === 'login_user' || $api === 'login_admin_staff') {
         if (!app_table_exists($conn, 'nguoidung')) {
             $conn->close();
             app_json_response([
@@ -260,6 +365,12 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         $input = app_input_payload();
         $identifier = trim((string) ($input['identifier'] ?? $input['email'] ?? $input['username'] ?? ''));
         $password = (string) ($input['password'] ?? '');
+        $portal = app_lower(trim((string) ($input['portal'] ?? $_GET['portal'] ?? '')));
+        if ($api === 'login_admin_staff') {
+            $portal = 'admin_staff';
+        }
+        $isUserPortal = $portal === 'user';
+        $isAdminStaffPortal = in_array($portal, ['admin', 'staff', 'admin_staff', 'admin-staff'], true);
 
         if ($identifier === '' || $password === '') {
             $conn->close();
@@ -269,14 +380,44 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             ], 400);
         }
 
+        if ($isUserPortal && app_contains_reserved_account_keyword($identifier)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Tai khoan admin/staff khong the dang nhap vao trang user',
+            ], 403);
+        }
+
         $identifierLower = app_lower($identifier);
         $sql = "
             SELECT id, tennguoidung, emailnguoidung, matkhaunguoidung, vaitronguoidung, ngaytaonguoidung
             FROM nguoidung
-            WHERE LOWER(COALESCE(emailnguoidung, '')) = ?
-               OR LOWER(COALESCE(tennguoidung, '')) = ?
-            LIMIT 1
+            WHERE (
+                LOWER(COALESCE(emailnguoidung, '')) = ?
+                OR LOWER(COALESCE(tennguoidung, '')) = ?
+            )
         ";
+
+        if ($isAdminStaffPortal) {
+            $sql .= "
+              AND LOWER(COALESCE(vaitronguoidung, '')) IN (
+                    'admin',
+                    'administrator',
+                    'quantri',
+                    'quan tri',
+                    'quan_tri',
+                    'quản trị',
+                    'quản trị viên',
+                    'staff',
+                    'nhanvien',
+                    'nhan vien',
+                    'nhan_vien',
+                    'nhân viên'
+              )
+            ";
+        }
+
+        $sql .= "\n            LIMIT 1\n        ";
 
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
@@ -298,11 +439,64 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         $stmt->close();
 
         if (!is_array($row)) {
+            if ($isAdminStaffPortal) {
+                $roleProbeSql = "
+                    SELECT vaitronguoidung
+                    FROM nguoidung
+                    WHERE LOWER(COALESCE(emailnguoidung, '')) = ?
+                       OR LOWER(COALESCE(tennguoidung, '')) = ?
+                    LIMIT 1
+                ";
+                $roleProbeStmt = $conn->prepare($roleProbeSql);
+                if ($roleProbeStmt) {
+                    $roleProbeStmt->bind_param('ss', $identifierLower, $identifierLower);
+                    $roleProbeStmt->execute();
+                    $roleProbeResult = $roleProbeStmt->get_result();
+                    $roleProbeRow = $roleProbeResult ? $roleProbeResult->fetch_assoc() : null;
+                    if ($roleProbeResult) {
+                        $roleProbeResult->free();
+                    }
+                    $roleProbeStmt->close();
+
+                    if (is_array($roleProbeRow) && app_normalize_role((string) ($roleProbeRow['vaitronguoidung'] ?? 'user')) === 'user') {
+                        $conn->close();
+                        app_json_response([
+                            'ok' => false,
+                            'message' => 'Khach hang khong the dang nhap bang trang nay',
+                        ], 403);
+                    }
+                }
+            }
+
             $conn->close();
             app_json_response([
                 'ok' => false,
                 'message' => 'Sai tai khoan hoac mat khau',
             ], 401);
+        }
+
+        $rowUsername = (string) ($row['tennguoidung'] ?? '');
+        $rowEmail = (string) ($row['emailnguoidung'] ?? '');
+        $rowRole = app_normalize_role((string) ($row['vaitronguoidung'] ?? 'user'));
+
+        if ($isAdminStaffPortal && $rowRole === 'user') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Tai khoan user khong duoc phep dang nhap tai trang quan tri/nhan vien',
+            ], 403);
+        }
+
+        if ($isUserPortal && (
+            $rowRole !== 'user'
+            || app_contains_reserved_account_keyword($rowUsername)
+            || app_contains_reserved_account_keyword($rowEmail)
+        )) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Tai khoan admin/staff khong the dang nhap vao trang user',
+            ], 403);
         }
 
         $storedPassword = (string) ($row['matkhaunguoidung'] ?? '');
@@ -314,7 +508,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             ], 401);
         }
 
-        $role = app_normalize_role((string) ($row['vaitronguoidung'] ?? 'user'));
+        $role = $rowRole;
         $userPayload = [
             'id' => (int) ($row['id'] ?? 0),
             'tennguoidung' => (string) ($row['tennguoidung'] ?? ''),
@@ -548,4 +742,297 @@ function app_handle_user_api(mysqli $conn, string $api): bool
     }
 
     return false;
+}
+
+function app_social_start_session(): void
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+}
+
+function app_social_default_return_url(): string
+{
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host . app_base_path() . '/Giao%20Di%E1%BB%87n/user/home.html';
+}
+
+function app_social_sanitize_return_url(string $candidate): string
+{
+    $candidate = trim($candidate);
+    if ($candidate === '') {
+        return app_social_default_return_url();
+    }
+
+    $parts = parse_url($candidate);
+    if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+        return app_social_default_return_url();
+    }
+
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+    if ($host === '' || !hash_equals(app_lower($host), app_lower((string) $parts['host']))) {
+        return app_social_default_return_url();
+    }
+
+    return $candidate;
+}
+
+function app_social_get_provider_config(string $provider): array
+{
+    if ($provider === 'google') {
+        return [
+            'client_id' => app_env_value('GOOGLE_OAUTH_CLIENT_ID', ''),
+            'client_secret' => app_env_value('GOOGLE_OAUTH_CLIENT_SECRET', ''),
+        ];
+    }
+
+    return [
+        'client_id' => app_env_value('FACEBOOK_OAUTH_CLIENT_ID', ''),
+        'client_secret' => app_env_value('FACEBOOK_OAUTH_CLIENT_SECRET', ''),
+    ];
+}
+
+function app_social_callback_url(string $provider): string
+{
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host . app_base_path() . '/index.php?api=social_oauth_callback&provider=' . rawurlencode($provider);
+}
+
+function app_social_build_auth_url(string $provider, string $clientId, string $redirectUri, string $state): string
+{
+    if ($provider === 'google') {
+        return 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
+            'client_id' => $clientId,
+            'redirect_uri' => $redirectUri,
+            'response_type' => 'code',
+            'scope' => 'openid email profile',
+            'prompt' => 'select_account',
+            'state' => $state,
+        ]);
+    }
+
+    return 'https://www.facebook.com/v20.0/dialog/oauth?' . http_build_query([
+        'client_id' => $clientId,
+        'redirect_uri' => $redirectUri,
+        'response_type' => 'code',
+        'scope' => 'email,public_profile',
+        'state' => $state,
+    ]);
+}
+
+function app_social_http_request(string $url, array $options = []): array
+{
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $options['headers'] ?? []);
+        if (($options['method'] ?? 'GET') === 'POST') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, (string) ($options['body'] ?? ''));
+        }
+        $raw = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if (!is_string($raw)) {
+            return ['ok' => false, 'status' => $status, 'body' => '', 'error' => $err !== '' ? $err : 'Request failed'];
+        }
+
+        return ['ok' => true, 'status' => $status, 'body' => $raw, 'error' => ''];
+    }
+
+    $method = $options['method'] ?? 'GET';
+    $headers = $options['headers'] ?? [];
+    $headerText = '';
+    foreach ($headers as $headerLine) {
+        $headerText .= $headerLine . "\r\n";
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => $method,
+            'header' => $headerText,
+            'content' => (string) ($options['body'] ?? ''),
+            'timeout' => 20,
+            'ignore_errors' => true,
+        ],
+    ]);
+
+    $raw = @file_get_contents($url, false, $context);
+    if (!is_string($raw)) {
+        return ['ok' => false, 'status' => 0, 'body' => '', 'error' => 'Request failed'];
+    }
+
+    $status = 200;
+    if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+        $status = (int) $m[1];
+    }
+
+    return ['ok' => true, 'status' => $status, 'body' => $raw, 'error' => ''];
+}
+
+function app_social_exchange_token(string $provider, array $config, string $code, string $redirectUri): array
+{
+    if ($provider === 'google') {
+        $response = app_social_http_request('https://oauth2.googleapis.com/token', [
+            'method' => 'POST',
+            'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+            'body' => http_build_query([
+                'code' => $code,
+                'client_id' => $config['client_id'],
+                'client_secret' => $config['client_secret'],
+                'redirect_uri' => $redirectUri,
+                'grant_type' => 'authorization_code',
+            ]),
+        ]);
+    } else {
+        $url = 'https://graph.facebook.com/v20.0/oauth/access_token?' . http_build_query([
+            'client_id' => $config['client_id'],
+            'client_secret' => $config['client_secret'],
+            'redirect_uri' => $redirectUri,
+            'code' => $code,
+        ]);
+        $response = app_social_http_request($url);
+    }
+
+    if (!$response['ok'] || $response['status'] < 200 || $response['status'] >= 300) {
+        return ['ok' => false, 'message' => 'Khong the lay access token'];
+    }
+
+    $json = json_decode((string) $response['body'], true);
+    $token = is_array($json) ? (string) ($json['access_token'] ?? '') : '';
+    if ($token === '') {
+        return ['ok' => false, 'message' => 'Phan hoi token khong hop le'];
+    }
+
+    return ['ok' => true, 'access_token' => $token];
+}
+
+function app_social_fetch_profile(string $provider, string $accessToken): array
+{
+    if ($provider === 'google') {
+        $response = app_social_http_request('https://www.googleapis.com/oauth2/v3/userinfo', [
+            'headers' => ['Authorization: Bearer ' . $accessToken],
+        ]);
+    } else {
+        $response = app_social_http_request('https://graph.facebook.com/me?' . http_build_query([
+            'fields' => 'id,name,email',
+            'access_token' => $accessToken,
+        ]));
+    }
+
+    if (!$response['ok'] || $response['status'] < 200 || $response['status'] >= 300) {
+        return ['ok' => false, 'message' => 'Khong the lay thong tin tai khoan'];
+    }
+
+    $json = json_decode((string) $response['body'], true);
+    if (!is_array($json)) {
+        return ['ok' => false, 'message' => 'Phan hoi thong tin tai khoan khong hop le'];
+    }
+
+    return ['ok' => true, 'profile' => $json];
+}
+
+function app_social_upsert_user(mysqli $conn, string $provider, array $profile): array
+{
+    if (!app_table_exists($conn, 'nguoidung')) {
+        return ['ok' => false, 'message' => 'Khong tim thay bang nguoidung'];
+    }
+
+    $providerId = trim((string) ($profile['sub'] ?? $profile['id'] ?? ''));
+    $email = trim((string) ($profile['email'] ?? ''));
+    $name = trim((string) ($profile['name'] ?? ''));
+
+    if ($name === '') {
+        $name = ucfirst($provider) . ' User';
+    }
+
+    if ($email === '') {
+        $suffix = $providerId !== '' ? $providerId : bin2hex(random_bytes(4));
+        $email = $provider . '_' . $suffix . '@social.local';
+    }
+
+    if (app_contains_reserved_account_keyword($name) || app_contains_reserved_account_keyword($email)) {
+        return ['ok' => false, 'message' => 'Tai khoan social admin/staff khong duoc vao trang user'];
+    }
+
+    $emailLower = app_lower($email);
+    $findSql = "SELECT id, tennguoidung, emailnguoidung, vaitronguoidung, ngaytaonguoidung FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? LIMIT 1";
+    $findStmt = $conn->prepare($findSql);
+    if (!$findStmt) {
+        return ['ok' => false, 'message' => 'Khong the tim tai khoan'];
+    }
+    $findStmt->bind_param('s', $emailLower);
+    $findStmt->execute();
+    $findResult = $findStmt->get_result();
+    $existing = $findResult ? $findResult->fetch_assoc() : null;
+    if ($findResult) {
+        $findResult->free();
+    }
+    $findStmt->close();
+
+    if (is_array($existing)) {
+        $user = [
+            'id' => (int) ($existing['id'] ?? 0),
+            'tennguoidung' => (string) ($existing['tennguoidung'] ?? $name),
+            'emailnguoidung' => (string) ($existing['emailnguoidung'] ?? $email),
+            'vaitronguoidung' => app_normalize_role((string) ($existing['vaitronguoidung'] ?? 'user')),
+            'ngaytaonguoidung' => (string) ($existing['ngaytaonguoidung'] ?? ''),
+        ];
+        return ['ok' => true, 'user' => $user];
+    }
+
+    $username = $name;
+    $passwordHash = password_hash(bin2hex(random_bytes(18)), PASSWORD_BCRYPT);
+    $insertSql = "INSERT INTO nguoidung (tennguoidung, emailnguoidung, matkhaunguoidung, vaitronguoidung) VALUES (?, ?, ?, 'user')";
+    $insertStmt = $conn->prepare($insertSql);
+    if (!$insertStmt) {
+        return ['ok' => false, 'message' => 'Khong the tao tai khoan moi'];
+    }
+    $insertStmt->bind_param('sss', $username, $email, $passwordHash);
+    $ok = $insertStmt->execute();
+    $newId = (int) $insertStmt->insert_id;
+    $insertStmt->close();
+
+    if (!$ok || $newId <= 0) {
+        return ['ok' => false, 'message' => 'Tao tai khoan bang social that bai'];
+    }
+
+    $user = [
+        'id' => $newId,
+        'tennguoidung' => $username,
+        'emailnguoidung' => $email,
+        'vaitronguoidung' => 'user',
+        'ngaytaonguoidung' => '',
+    ];
+
+    return ['ok' => true, 'user' => $user];
+}
+
+function app_social_render_bridge(?array $user, string $returnUrl, string $errorMessage): void
+{
+    $safeReturnUrl = app_social_sanitize_return_url($returnUrl);
+    $userJson = json_encode($user, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $returnJson = json_encode($safeReturnUrl, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $errorJson = json_encode($errorMessage, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    header('Content-Type: text/html; charset=UTF-8');
+    echo '<!doctype html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đang hoàn tất đăng nhập...</title></head><body>';
+    echo '<script>(function(){var user=' . $userJson . ';var returnUrl=' . $returnJson . ';var error=' . $errorJson . ';if(user&&user.id){var sessionPayload={id:Number(user.id||0),role:"user",fullName:user.tennguoidung||"Khach hang",email:user.emailnguoidung||"",identifier:user.emailnguoidung||user.tennguoidung||"",createdAt:new Date().toISOString()};try{sessionStorage.setItem("authUser",JSON.stringify(sessionPayload));}catch(e){};try{localStorage.setItem("userSession",JSON.stringify(sessionPayload));}catch(e){};try{localStorage.setItem("isLoggedIn","true");}catch(e){};}if(error){try{localStorage.setItem("pendingAuthPromptV2",JSON.stringify({error:error,createdAt:new Date().toISOString()}));}catch(e){}}window.location.replace(returnUrl);})();</script>';
+    echo '</body></html>';
+    exit;
+}
+
+function app_contains_reserved_account_keyword(string $value): bool
+{
+    $v = app_lower(trim($value));
+    if ($v === '') {
+        return false;
+    }
+
+    return strpos($v, 'admin') !== false || strpos($v, 'staff') !== false;
 }

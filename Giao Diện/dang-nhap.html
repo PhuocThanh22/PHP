@@ -487,6 +487,9 @@
             const THEME_KEY = 'loginThemeMode';
 
             // Login page is always the source of truth: clear previous session to avoid auto-login.
+            sessionStorage.removeItem('authUser');
+            sessionStorage.removeItem(STORAGE_KEY);
+            sessionStorage.removeItem('isLoggedIn');
             localStorage.removeItem('authUser');
             localStorage.removeItem(STORAGE_KEY);
             localStorage.setItem('isLoggedIn', JSON.stringify(false));
@@ -534,11 +537,8 @@
             const getApiCandidates = () => {
                 const base = window.location.href;
                 return [
-                    new URL('../index.php?api=login_user', base).toString(),
-                    new URL('/phuocthanh/PHPCHINH/index.php?api=login_user', window.location.origin).toString(),
-                    new URL('/PHPCHINH/index.php?api=login_user', window.location.origin).toString(),
-                    new URL('/index.php?api=login_user', window.location.origin).toString(),
-                    new URL('user/home_api.php?api=login_user', base).toString()
+                    new URL('../index.php?api=login_admin_staff&portal=admin_staff', base).toString(),
+                    new URL('user/home_api.php?api=login_admin_staff&portal=admin_staff', base).toString()
                 ];
             };
 
@@ -546,11 +546,10 @@
                 const normalized = normalizeRole(role);
                 const routes = {
                     admin: './admin/admin.html',
-                    staff: './staff/admin.html',
-                    user: './user/home.html'
+                    staff: './staff/admin.html'
                 };
 
-                return routes[normalized] || './user/home.html';
+                return routes[normalized] || './dang-nhap.html';
             };
 
             // Keep users on the login page so they can switch accounts manually.
@@ -563,7 +562,7 @@
             });
 
             const submitLogin = async (identifier, password) => {
-                const payload = { identifier, password };
+                const payload = { identifier, password, portal: 'admin_staff' };
 
                 for (const url of getApiCandidates()) {
                     try {
@@ -619,6 +618,11 @@
                 const backendUser = result.data.data || {};
                 const user = result.data.user || {};
                 const role = normalizeRole(user.role || backendUser.vaitronguoidung || 'user');
+
+                if (role === 'user') {
+                    setStatus('Tài khoản user không được phép đăng nhập tại trang này.');
+                    return;
+                }
 
                 const sessionUser = {
                     id: Number(user.id || backendUser.id || 0),

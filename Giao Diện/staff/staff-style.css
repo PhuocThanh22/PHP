@@ -1,8 +1,8 @@
 ﻿@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --primary: #f87537;
-    --secondary: #fba81f;
+    --primary: #1F8F4D;
+    --secondary: #6FCF5F;
     --text: #0f172a;
     --muted: #6b7280;
     --border: #e5e7eb;
@@ -244,7 +244,7 @@ body.home-no-scroll .page-wrap {
     justify-content: center;
     border-radius: 10px;
     color: var(--primary);
-    background: rgba(248, 117, 55, 0.16);
+    background: rgba(31, 143, 77, 0.16);
 }
 
 .module-value {
@@ -275,7 +275,7 @@ body.home-no-scroll .page-wrap {
 }
 
 .stat-card.active {
-    outline: 2px solid rgba(248, 117, 55, 0.5);
+    outline: 2px solid rgba(31, 143, 77, 0.5);
 }
 
 .stat-card .icon {
@@ -297,7 +297,7 @@ body.home-no-scroll .page-wrap {
 }
 
 .stat-card.green .icon { background: linear-gradient(135deg, #22c55e, #16a34a); }
-.stat-card.orange .icon { background: linear-gradient(135deg, #f59e0b, #f97316); }
+.stat-card.orange .icon { background: linear-gradient(135deg, #f59e0b, #ea580c); }
 .stat-card.lime .icon { background: linear-gradient(135deg, #84cc16, #22c55e); }
 .stat-card.blue .icon { background: linear-gradient(135deg, #60a5fa, #2563eb); }
 
@@ -430,7 +430,7 @@ body.home-no-scroll .page-wrap {
 }
 
 .home-period-btn.active {
-    background: #f87537;
+    background: #1F8F4D;
     color: #fff;
 }
 
@@ -484,8 +484,8 @@ body.home-no-scroll .page-wrap {
 }
 
 .home-category-filter select:focus {
-    border-color: #f4a067;
-    box-shadow: 0 0 0 3px rgba(248, 117, 55, 0.12);
+    border-color: #4ade80;
+    box-shadow: 0 0 0 3px rgba(31, 143, 77, 0.12);
 }
 
 .home-axis-note {
@@ -533,8 +533,8 @@ body.home-no-scroll .page-wrap {
 }
 
 .home-search input:focus {
-    border-color: #f4a067;
-    box-shadow: 0 0 0 3px rgba(248, 117, 55, 0.12);
+    border-color: #4ade80;
+    box-shadow: 0 0 0 3px rgba(31, 143, 77, 0.12);
 }
 
 .home-toolbar {
@@ -595,7 +595,7 @@ body.home-no-scroll .page-wrap {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #f87537, #fba81f);
+    background: linear-gradient(135deg, #1F8F4D, #6FCF5F);
     color: #fff;
     font-size: 14px;
     font-weight: 700;
@@ -679,7 +679,7 @@ body.home-no-scroll .page-wrap {
 
 .home-task-list li i,
 .home-task-list li .emoji-icon {
-    color: #f87537;
+    color: #1F8F4D;
     font-size: 15px;
 }
 
@@ -692,17 +692,17 @@ body.home-no-scroll .page-wrap {
 
 .home-quick-actions button {
     height: 34px;
-    border: 1px solid #f5c7a8;
+    border: 1px solid #86efac;
     border-radius: 9px;
-    background: #fff7f2;
-    color: #b45309;
+    background: #f0fdf4;
+    color: #166534;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
 }
 
 .home-quick-actions button:hover {
-    background: #ffeada;
+    background: #dcfce7;
 }
 
 .home-alert-list li {
@@ -753,7 +753,7 @@ body.home-no-scroll .page-wrap {
 .home-top-service li span::before {
     counter-increment: homeTop;
     content: counter(homeTop) ". ";
-    color: #f87537;
+    color: #1F8F4D;
     font-weight: 700;
 }
 
@@ -875,8 +875,8 @@ body.home-no-scroll .page-wrap {
 }
 
 .service-search input:focus {
-    border-color: #f4a067;
-    box-shadow: 0 0 0 3px rgba(248, 117, 55, 0.12);
+    border-color: #4ade80;
+    box-shadow: 0 0 0 3px rgba(31, 143, 77, 0.12);
 }
 
 .service-toolbar-actions {
@@ -941,8 +941,8 @@ body.home-no-scroll .page-wrap {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #f87537;
-    background: rgba(248, 117, 55, 0.16);
+    color: #1F8F4D;
+    background: rgba(31, 143, 77, 0.16);
 }
 
 .service-meta {
@@ -994,9 +994,9 @@ body.home-no-scroll .page-wrap {
 }
 
 .btn-edit {
-    border: 1px solid #f59e0b;
+    border: 1px solid #16a34a;
     background: #fff;
-    color: #b45309;
+    color: #166534;
     border-radius: 8px;
     padding: 6px 12px;
     font-size: 14px;
@@ -1007,7 +1007,7 @@ body.home-no-scroll .page-wrap {
 }
 
 .btn-edit:hover {
-    background: #f59e0b;
+    background: #16a34a;
     color: #fff;
 }
 
@@ -1095,8 +1095,8 @@ body.home-no-scroll .page-wrap {
 }
 
 .service-form-control:focus {
-    border-color: #f4a067;
-    box-shadow: 0 0 0 3px rgba(248, 117, 55, 0.12);
+    border-color: #4ade80;
+    box-shadow: 0 0 0 3px rgba(31, 143, 77, 0.12);
 }
 
 .service-modal-footer {

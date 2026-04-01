@@ -2,6 +2,15 @@
 
 mysqli_report(MYSQLI_REPORT_OFF);
 
+$appLocalConfig = [];
+$appConfigPath = __DIR__ . '/oauth-config.php';
+if (is_file($appConfigPath)) {
+    $loadedConfig = require $appConfigPath;
+    if (is_array($loadedConfig)) {
+        $appLocalConfig = $loadedConfig;
+    }
+}
+
 function app_base_path(): string
 {
     $scriptName = $_SERVER['SCRIPT_NAME'] ?? '/';
@@ -19,6 +28,12 @@ function app_json_response(array $payload, int $statusCode = 200): void
 
 function app_env_value(string $key, string $default = ''): string
 {
+    global $appLocalConfig;
+
+    if (is_array($appLocalConfig) && isset($appLocalConfig[$key]) && trim((string) $appLocalConfig[$key]) !== '') {
+        return trim((string) $appLocalConfig[$key]);
+    }
+
     $value = getenv($key);
     if ($value !== false && trim((string) $value) !== '') {
         return trim((string) $value);
