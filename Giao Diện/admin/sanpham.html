@@ -85,6 +85,7 @@
                 <input id="productSearchInput" type="text" placeholder="Tìm theo tên hoặc mã sản phẩm..." aria-label="Tìm sản phẩm">
             </div>
             <div class="service-toolbar-actions">
+                <button class="btn btn-primary" type="button" onclick="openAddCategoryModal()"><i class="bi bi-tags me-1"></i>Thêm danh mục</button>
                 <button class="btn btn-success" type="button" onclick="openAddProductModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
                 <button class="btn btn-danger" type="button" onclick="deleteProductBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
             </div>
@@ -132,6 +133,37 @@
     </div>
 </div>
 
+<div class="service-modal" id="categoryEditModal" aria-hidden="true">
+    <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="categoryEditTitle">
+        <div class="service-modal-header">
+            <h3 class="service-modal-title" id="categoryEditTitle">Thêm danh mục</h3>
+            <button type="button" class="service-modal-close" id="closeCategoryModal" aria-label="Đóng">&times;</button>
+        </div>
+
+        <form id="categoryEditForm">
+            <div class="service-modal-body">
+                <input type="hidden" id="editCategoryId">
+
+                <div class="service-form-group full">
+                    <label for="editCategoryName">Tên danh mục</label>
+                    <input class="service-form-control" id="editCategoryName" type="text" required>
+                </div>
+
+                <div class="service-form-group full">
+                    <label for="editCategoryImageFile">Ảnh danh mục</label>
+                    <input class="service-form-control" id="editCategoryImageFile" type="file" accept="image/*">
+                    <small id="editCategoryImageHint" class="text-muted"></small>
+                </div>
+            </div>
+
+            <div class="service-modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="cancelCategoryModal">Hủy</button>
+                <button type="submit" class="btn btn-primary" id="saveCategoryBtn">Lưu danh mục</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="service-modal" id="productEditModal" aria-hidden="true">
     <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="productEditTitle">
         <div class="service-modal-header">
@@ -151,7 +183,7 @@
 
                 <div class="service-form-group">
                     <label for="editProductCategory">Danh mục</label>
-                    <input class="service-form-control" id="editProductCategory" type="text" required>
+                    <select class="service-form-control" id="editProductCategory" required></select>
                 </div>
 
                 <div class="service-form-group">
@@ -175,7 +207,8 @@
 
                 <div class="service-form-group full">
                     <label for="editProductImage">Hình ảnh</label>
-                    <input class="service-form-control" id="editProductImage" type="text" placeholder="images/sanpham/sp001.jpg hoặc URL ảnh">
+                    <input class="service-form-control" id="editProductImage" type="file" accept="image/*">
+                    <small id="editProductImageHint" class="text-muted"></small>
                 </div>
             </div>
 
@@ -189,7 +222,9 @@
 
 <script>
     const productStore = new Map();
+    const categoryStore = new Map();
     let allProducts = [];
+    let allCategories = [];
     let currentFilter = '';
     let productEditMode = 'update';
     let selectedProductId = '';
@@ -349,6 +384,48 @@
         return '../../' + value.replace(/^\/+/, '');
     }
 
+    function getApiCandidates(apiName) {
+        const candidates = [];
+        candidates.push(`get_services.php?api=${apiName}`);
+        candidates.push(new URL(`get_services.php?api=${apiName}`, window.location.href).toString());
+        candidates.push(new URL(`../../index.php?api=${apiName}`, window.location.href).toString());
+        candidates.push(`/phuocthanh/PHPCHINH/index.php?api=${apiName}`);
+        candidates.push(`/PHPCHINH/index.php?api=${apiName}`);
+        return Array.from(new Set(candidates));
+    }
+
+    function populateCategoryOptions(selectedId = '') {
+        const select = document.getElementById('editProductCategory');
+        if (!select) return;
+
+        if (!allCategories.length) {
+            select.innerHTML = '<option value="">-- Chưa có danh mục, hãy thêm danh mục trước --</option>';
+            select.value = '';
+            return;
+        }
+
+        const selected = String(selectedId || '');
+        select.innerHTML = allCategories.map((item) => {
+            const value = String(item.id || '');
+            const isSelected = value === selected ? ' selected' : '';
+            return `<option value="${escapeHtml(value)}"${isSelected}>${escapeHtml(item.tendanhmuc || 'Danh mục')}</option>`;
+        }).join('');
+
+        if (!selected) {
+            select.value = String(allCategories[0].id || '');
+        }
+    }
+
+    function setProductImageHint(text) {
+        const hintEl = document.getElementById('editProductImageHint');
+        if (hintEl) hintEl.textContent = String(text || '');
+    }
+
+    function setCategoryImageHint(text) {
+        const hintEl = document.getElementById('editCategoryImageHint');
+        if (hintEl) hintEl.textContent = String(text || '');
+    }
+
     function refreshSummary() {
         const totalEl = document.getElementById('spTotal');
         const lowStockEl = document.getElementById('spLowStock');
@@ -448,16 +525,8 @@
         renderProducts(rows);
     }
 
-    function getProductApiCandidates() {
-        const candidates = [];
-        candidates.push(new URL('../../index.php?api=get_products', window.location.href).toString());
-        candidates.push('/phuocthanh/PHPCHINH/index.php?api=get_products');
-        candidates.push('/PHPCHINH/index.php?api=get_products');
-        return Array.from(new Set(candidates));
-    }
-
     async function fetchProductsPayload() {
-        const candidates = getProductApiCandidates();
+        const candidates = getApiCandidates('get_products');
         const cacheBuster = `_t=${Date.now()}`;
         let lastError = new Error('Khong lay duoc du lieu san pham');
 
@@ -475,6 +544,37 @@
                 const payload = await response.json();
                 if (!payload.ok) {
                     lastError = new Error(payload.message || 'Khong lay duoc du lieu san pham');
+                    continue;
+                }
+
+                return payload;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    async function fetchCategoriesPayload() {
+        const candidates = getApiCandidates('get_categories');
+        const cacheBuster = `_t=${Date.now()}`;
+        let lastError = new Error('Khong lay duoc du lieu danh muc');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}${cacheBuster}`;
+
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) {
+                    lastError = new Error('HTTP ' + response.status);
+                    continue;
+                }
+
+                const payload = await response.json();
+                if (!payload.ok) {
+                    lastError = new Error(payload.message || 'Khong lay duoc du lieu danh muc');
                     continue;
                 }
 
@@ -525,6 +625,98 @@
         throw lastError;
     }
 
+    async function mutateCategory(action, payload = {}) {
+        const candidates = [
+            'get_services.php?api=get_categories',
+            new URL('get_services.php?api=get_categories', window.location.href).toString(),
+        ];
+        let lastError = new Error('Khong the xu ly danh muc');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}_t=${Date.now()}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entity: 'categories', action, ...payload }),
+                });
+
+                if (!response.ok) {
+                    lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                    continue;
+                }
+
+                const data = await response.json();
+                if (!data.ok) {
+                    lastError = new Error(data.message || 'API ok=false');
+                    continue;
+                }
+
+                return data;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    async function uploadImageFile(file, type = 'products') {
+        if (!(file instanceof File)) return '';
+
+        const candidates = [
+            'get_services.php?api=upload_image',
+            new URL('get_services.php?api=upload_image', window.location.href).toString(),
+        ];
+        let lastError = new Error('Khong the tai anh len');
+
+        for (const candidate of candidates) {
+            const separator = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${separator}_t=${Date.now()}`;
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('type', type);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                    continue;
+                }
+
+                const payload = await response.json();
+                if (!payload.ok) {
+                    lastError = new Error(payload.message || 'Upload that bai');
+                    continue;
+                }
+
+                return String(payload.data?.path || '');
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    async function loadCategories() {
+        categoryStore.clear();
+        allCategories = [];
+
+        const payload = await fetchCategoriesPayload();
+        const rows = Array.isArray(payload.data) ? payload.data : [];
+        allCategories = rows.map((item) => ({ ...item }));
+        allCategories.forEach((item) => categoryStore.set(String(item.id), item));
+        populateCategoryOptions();
+    }
+
     async function loadProducts(forceReload = false) {
         const tbody = document.getElementById('spTableBody');
         if (!tbody) return;
@@ -560,18 +752,44 @@
         }
     }
 
+    function openAddCategoryModal() {
+        document.getElementById('editCategoryId').value = '';
+        document.getElementById('editCategoryName').value = '';
+        document.getElementById('editCategoryImageFile').value = '';
+        setCategoryImageHint('Có thể bỏ trống nếu chưa có ảnh danh mục.');
+
+        const modal = document.getElementById('categoryEditModal');
+        if (!modal) return;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCategoryModal() {
+        const modal = document.getElementById('categoryEditModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
     function openAddProductModal() {
+        if (!allCategories.length) {
+            showNotice('Cần thêm ít nhất 1 danh mục trước khi thêm sản phẩm.', 'warning');
+            openAddCategoryModal();
+            return;
+        }
+
         productEditMode = 'create';
         document.getElementById('productEditTitle').textContent = 'Thêm sản phẩm mới';
         document.getElementById('saveProductBtn').textContent = 'Thêm mới';
         document.getElementById('editProductId').value = '';
         document.getElementById('editProductCode').value = '';
         document.getElementById('editProductName').value = '';
-        document.getElementById('editProductCategory').value = '';
+        populateCategoryOptions();
         document.getElementById('editProductPrice').value = 0;
         document.getElementById('editProductQty').value = 0;
         document.getElementById('editProductStatus').value = 'conhang';
         document.getElementById('editProductImage').value = '';
+        setProductImageHint('Chọn ảnh sản phẩm từ máy tính (tối đa 5MB).');
         openProductModal();
     }
 
@@ -585,11 +803,13 @@
         document.getElementById('editProductId').value = String(product.id || '');
         document.getElementById('editProductCode').value = String(product.masanpham || '');
         document.getElementById('editProductName').value = String(product.tensanpham || '');
-        document.getElementById('editProductCategory').value = String(product.tendanhmuc || '');
+        populateCategoryOptions(String(product.danhmuc_id || ''));
         document.getElementById('editProductPrice').value = Number(product.giasanpham || 0);
         document.getElementById('editProductQty').value = Number(product.soluongsanpham || 0);
         document.getElementById('editProductStatus').value = String(product.trangthaisanpham || 'conhang');
-        document.getElementById('editProductImage').value = String(product.hinhanhsanpham || '');
+        document.getElementById('editProductImage').value = '';
+        const hasImage = String(product.hinhanhsanpham || '').trim() !== '';
+        setProductImageHint(hasImage ? 'Để trống nếu giữ ảnh hiện tại, hoặc chọn ảnh mới để thay thế.' : 'Sản phẩm chưa có ảnh, hãy chọn ảnh từ máy tính.');
         openProductModal();
     }
 
@@ -643,10 +863,18 @@
 
     document.getElementById('closeProductModal').addEventListener('click', closeProductModal);
     document.getElementById('cancelProductModal').addEventListener('click', closeProductModal);
+    document.getElementById('closeCategoryModal').addEventListener('click', closeCategoryModal);
+    document.getElementById('cancelCategoryModal').addEventListener('click', closeCategoryModal);
 
     document.getElementById('productEditModal').addEventListener('click', (event) => {
         if (event.target.id === 'productEditModal') {
             closeProductModal();
+        }
+    });
+
+    document.getElementById('categoryEditModal').addEventListener('click', (event) => {
+        if (event.target.id === 'categoryEditModal') {
+            closeCategoryModal();
         }
     });
 
@@ -662,30 +890,77 @@
         editProduct(selectedProductId);
     });
 
+    document.getElementById('categoryEditForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const name = document.getElementById('editCategoryName').value.trim();
+        const imageFile = document.getElementById('editCategoryImageFile').files?.[0] || null;
+
+        if (!name) {
+            showNotice('Vui lòng nhập tên danh mục.', 'warning');
+            return;
+        }
+
+        try {
+            let imagePath = '';
+            if (imageFile) {
+                imagePath = await uploadImageFile(imageFile, 'categories');
+            }
+
+            const res = await mutateCategory('create', {
+                tendanhmuc: name,
+                hinhanhdanhmuc: imagePath,
+            });
+
+            const newCategory = res.data || {};
+            if (newCategory.id) {
+                allCategories.push(newCategory);
+                categoryStore.set(String(newCategory.id), newCategory);
+                populateCategoryOptions(String(newCategory.id));
+            }
+
+            refreshSummary();
+            closeCategoryModal();
+            showNotice(`Thêm danh mục "${newCategory.tendanhmuc || name}" thành công.`, 'success');
+        } catch (error) {
+            showNotice('Lưu danh mục thất bại: ' + getErrorMessage(error), 'error');
+        }
+    });
+
     document.getElementById('productEditForm').addEventListener('submit', async (event) => {
         event.preventDefault();
 
         const rawId = document.getElementById('editProductId').value;
         const code = document.getElementById('editProductCode').value.trim();
         const name = document.getElementById('editProductName').value.trim();
-        const category = document.getElementById('editProductCategory').value.trim();
+        const categoryId = Number(document.getElementById('editProductCategory').value || 0);
+        const categoryName = categoryStore.get(String(categoryId))?.tendanhmuc || '';
         const price = Number(document.getElementById('editProductPrice').value || 0);
         const qty = Number(document.getElementById('editProductQty').value || 0);
         const status = document.getElementById('editProductStatus').value;
-        const image = document.getElementById('editProductImage').value.trim();
+        const imageFile = document.getElementById('editProductImage').files?.[0] || null;
 
-        if (!name || !category) return;
+        if (!name || categoryId <= 0) {
+            showNotice('Vui lòng nhập tên sản phẩm và chọn danh mục.', 'warning');
+            return;
+        }
 
         try {
+            let uploadedImagePath = '';
+            if (imageFile) {
+                uploadedImagePath = await uploadImageFile(imageFile, 'products');
+            }
+
             if (productEditMode === 'create') {
                 const res = await mutateProduct('create', {
                     masanpham: code,
                     tensanpham: name,
-                    tendanhmuc: category,
+                    danhmuc_id: categoryId,
+                    tendanhmuc: categoryName,
                     giasanpham: price,
                     soluongsanpham: qty,
                     trangthaisanpham: status,
-                    hinhanhsanpham: image,
+                    hinhanhsanpham: uploadedImagePath,
                 });
 
                 const newProduct = res.data || {};
@@ -698,11 +973,12 @@
                     id: Number(rawId),
                     masanpham: code,
                     tensanpham: name,
-                    tendanhmuc: category,
+                    danhmuc_id: categoryId,
+                    tendanhmuc: categoryName,
                     giasanpham: price,
                     soluongsanpham: qty,
                     trangthaisanpham: status,
-                    hinhanhsanpham: image,
+                    hinhanhsanpham: uploadedImagePath,
                 });
 
                 const updated = res.data || {};
@@ -733,12 +1009,15 @@
                 closeNotice();
                 return;
             }
+            closeCategoryModal();
             closeProductModal();
             hideProductDetail();
         }
     });
 
-    loadProducts();
+    Promise.all([loadCategories(), loadProducts()]).catch((error) => {
+        showNotice('Khong the tai du lieu ban dau: ' + getErrorMessage(error), 'error');
+    });
 </script>
 </body>
 </html>

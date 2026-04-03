@@ -22,8 +22,173 @@ if (!defined('APP_RUNNING_FROM_INDEX')) {
     exit;
 }
 
+function app_ensure_category_image_column(mysqli $conn): bool
+{
+    if (app_column_exists($conn, 'danhmuc', 'hinhanhdanhmuc')) {
+        return true;
+    }
+
+    $alterSql = "ALTER TABLE danhmuc ADD COLUMN hinhanhdanhmuc VARCHAR(255) NULL AFTER tendanhmuc";
+    return (bool) $conn->query($alterSql);
+}
+
+function app_admin_upload_image(array $file, string $group): array
+{
+    $errorCode = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($errorCode !== UPLOAD_ERR_OK) {
+        if ($errorCode === UPLOAD_ERR_NO_FILE) {
+            return [false, '', 'Chua chon tep anh'];
+        }
+        return [false, '', 'Tai tep len that bai'];
+    }
+
+    $tmpPath = (string) ($file['tmp_name'] ?? '');
+    if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+        return [false, '', 'Khong doc duoc tep anh tai len'];
+    }
+
+    $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0 || $size > 5 * 1024 * 1024) {
+        return [false, '', 'Kich thuoc anh khong hop le (toi da 5MB)'];
+    }
+
+    $mime = '';
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if ($finfo !== false) {
+        $detected = finfo_file($finfo, $tmpPath);
+        finfo_close($finfo);
+        $mime = is_string($detected) ? $detected : '';
+    }
+
+    $allowed = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'image/gif' => 'gif',
+    ];
+
+    if (!isset($allowed[$mime])) {
+        return [false, '', 'Dinh dang anh khong ho tro (chi cho phep JPG, PNG, WEBP, GIF)'];
+    }
+
+    $folder = 'products';
+    if ($group === 'categories') {
+        $folder = 'categories';
+    } elseif ($group === 'services') {
+        $folder = 'services';
+    }
+
+    $uploadDir = dirname(__DIR__, 2) . '/anhdata/' . $folder;
+    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
+        return [false, '', 'Khong the tao thu muc luu anh'];
+    }
+
+    try {
+        $rand = bin2hex(random_bytes(4));
+    } catch (Throwable $e) {
+        $rand = (string) mt_rand(100000, 999999);
+    }
+
+    $extension = $allowed[$mime];
+    $fileName = $folder . '_' . date('YmdHis') . '_' . $rand . '.' . $extension;
+    $targetPath = $uploadDir . '/' . $fileName;
+
+    if (!move_uploaded_file($tmpPath, $targetPath)) {
+        return [false, '', 'Khong the luu tep anh'];
+    }
+
+    $relativePath = 'anhdata/' . $folder . '/' . $fileName;
+    return [true, $relativePath, ''];
+}
+
 function app_handle_admin_api(mysqli $conn, string $api): bool
 {
+    if ($api === 'upload_image') {
+        $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        if ($method !== 'POST') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Chi ho tro POST khi upload anh',
+            ], 405);
+        }
+
+        $type = trim((string) ($_POST['type'] ?? $_GET['type'] ?? 'products'));
+        if (!in_array($type, ['products', 'categories', 'services'], true)) {
+            $type = 'products';
+        }
+
+        if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Thieu tep anh de tai len',
+            ], 400);
+        }
+
+        [$ok, $path, $message] = app_admin_upload_image($_FILES['image'], $type);
+        if (!$ok) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => $message,
+            ], 400);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'data' => [
+                'path' => $path,
+                'url' => app_to_public_image_url($path),
+            ],
+        ]);
+    }
+
+    if ($api === 'get_categories') {
+        app_ensure_category_image_column($conn);
+
+        $sql = "
+            SELECT
+                id,
+                tendanhmuc,
+                COALESCE(NULLIF(TRIM(hinhanhdanhmuc), ''), '') AS hinhanhdanhmuc
+            FROM danhmuc
+            ORDER BY id ASC
+            LIMIT 500
+        ";
+
+        $result = $conn->query($sql);
+        if (!$result) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the lay danh muc',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $data = [];
+        while ($row = $result->fetch_assoc()) {
+            $rawImage = (string) ($row['hinhanhdanhmuc'] ?? '');
+            $data[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'tendanhmuc' => (string) ($row['tendanhmuc'] ?? ''),
+                'hinhanhdanhmuc' => $rawImage,
+                'hinhanh' => app_to_public_image_url($rawImage),
+            ];
+        }
+
+        $result->free();
+        $conn->close();
+
+        app_json_response([
+            'ok' => true,
+            'count' => count($data),
+            'data' => $data,
+        ]);
+    }
+
     if ($api === 'get_users') {
         if (!app_table_exists($conn, 'nguoidung')) {
             $conn->close();
@@ -207,6 +372,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
             if ($action === 'create') {
                 $name = trim((string) ($input['tensanpham'] ?? ''));
                 $code = trim((string) ($input['masanpham'] ?? ''));
+                $categoryId = (int) ($input['danhmuc_id'] ?? 0);
                 $categoryName = trim((string) ($input['tendanhmuc'] ?? ''));
                 $subcategoryName = trim((string) ($input['danhmuccon'] ?? ''));
                 $price = (float) ($input['giasanpham'] ?? 0);
@@ -219,7 +385,12 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Ten san pham khong hop le'], 400);
                 }
 
-                $danhmucId = app_resolve_category_id($conn, $categoryName);
+                $danhmucId = $categoryId > 0 ? $categoryId : app_resolve_category_id($conn, $categoryName);
+                if ($danhmucId <= 0) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Vui long chon danh muc cho san pham'], 400);
+                }
+
                 if ($code === '') {
                     $code = 'SP' . str_pad((string) time(), 10, '0', STR_PAD_LEFT);
                 }
@@ -253,6 +424,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $id = (int) ($input['id'] ?? 0);
                 $name = trim((string) ($input['tensanpham'] ?? ''));
                 $code = trim((string) ($input['masanpham'] ?? ''));
+                $categoryId = (int) ($input['danhmuc_id'] ?? 0);
                 $categoryName = trim((string) ($input['tendanhmuc'] ?? ''));
                 $subcategoryName = trim((string) ($input['danhmuccon'] ?? ''));
                 $price = (float) ($input['giasanpham'] ?? 0);
@@ -265,7 +437,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Du lieu cap nhat san pham khong hop le'], 400);
                 }
 
-                $existingResult = $conn->query('SELECT danhmuc_id, masanpham FROM sanpham WHERE id = ' . $id . ' LIMIT 1');
+                $existingResult = $conn->query('SELECT danhmuc_id, masanpham, hinhanhsanpham FROM sanpham WHERE id = ' . $id . ' LIMIT 1');
                 $existing = $existingResult ? $existingResult->fetch_assoc() : null;
                 if ($existingResult) {
                     $existingResult->free();
@@ -275,9 +447,21 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Khong tim thay san pham'], 404);
                 }
 
-                $danhmucId = app_resolve_category_id($conn, $categoryName, (int) ($existing['danhmuc_id'] ?? 0));
+                $fallbackCategory = (int) ($existing['danhmuc_id'] ?? 0);
+                $danhmucId = $categoryId > 0
+                    ? $categoryId
+                    : app_resolve_category_id($conn, $categoryName, $fallbackCategory);
+                if ($danhmucId <= 0) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Vui long chon danh muc cho san pham'], 400);
+                }
+
                 if ($code === '') {
                     $code = (string) ($existing['masanpham'] ?? '');
+                }
+
+                if ($image === '') {
+                    $image = (string) ($existing['hinhanhsanpham'] ?? '');
                 }
 
                 $stmt = $conn->prepare('UPDATE sanpham SET tensanpham = ?, danhmuc_id = ?, danhmuccon = ?, masanpham = ?, giasanpham = ?, soluongsanpham = ?, trangthaisanpham = ?, hinhanhsanpham = ? WHERE id = ?');
@@ -323,6 +507,121 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 if (!$ok) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Xoa san pham that bai', 'error' => $conn->error], 500);
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true]);
+            }
+        }
+
+        if ($entity === 'categories') {
+            app_ensure_category_image_column($conn);
+
+            if ($action === 'create') {
+                $name = trim((string) ($input['tendanhmuc'] ?? ''));
+                $image = trim((string) ($input['hinhanhdanhmuc'] ?? ''));
+
+                if ($name === '') {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Ten danh muc khong hop le'], 400);
+                }
+
+                $stmt = $conn->prepare('INSERT INTO danhmuc (tendanhmuc, hinhanhdanhmuc) VALUES (?, ?)');
+                if (!$stmt) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the them danh muc', 'error' => $conn->error], 500);
+                }
+
+                $stmt->bind_param('ss', $name, $image);
+                $ok = $stmt->execute();
+                $newId = (int) $conn->insert_id;
+                $stmt->close();
+
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Them danh muc that bai', 'error' => $conn->error], 500);
+                }
+
+                $rowResult = $conn->query('SELECT id, tendanhmuc, COALESCE(NULLIF(TRIM(hinhanhdanhmuc), ""), "") AS hinhanhdanhmuc FROM danhmuc WHERE id = ' . $newId . ' LIMIT 1');
+                $row = $rowResult ? $rowResult->fetch_assoc() : null;
+                if ($rowResult) {
+                    $rowResult->free();
+                }
+                if (is_array($row)) {
+                    $row['hinhanh'] = app_to_public_image_url((string) ($row['hinhanhdanhmuc'] ?? ''));
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true, 'data' => $row]);
+            }
+
+            if ($action === 'update') {
+                $id = (int) ($input['id'] ?? 0);
+                $name = trim((string) ($input['tendanhmuc'] ?? ''));
+                $image = trim((string) ($input['hinhanhdanhmuc'] ?? ''));
+
+                if ($id <= 0 || $name === '') {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Du lieu cap nhat danh muc khong hop le'], 400);
+                }
+
+                if ($image === '') {
+                    $oldRes = $conn->query('SELECT hinhanhdanhmuc FROM danhmuc WHERE id = ' . $id . ' LIMIT 1');
+                    $oldRow = $oldRes ? $oldRes->fetch_assoc() : null;
+                    if ($oldRes) {
+                        $oldRes->free();
+                    }
+                    $image = is_array($oldRow) ? (string) ($oldRow['hinhanhdanhmuc'] ?? '') : '';
+                }
+
+                $stmt = $conn->prepare('UPDATE danhmuc SET tendanhmuc = ?, hinhanhdanhmuc = ? WHERE id = ?');
+                if (!$stmt) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the cap nhat danh muc', 'error' => $conn->error], 500);
+                }
+
+                $stmt->bind_param('ssi', $name, $image, $id);
+                $ok = $stmt->execute();
+                $stmt->close();
+
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Cap nhat danh muc that bai', 'error' => $conn->error], 500);
+                }
+
+                $rowResult = $conn->query('SELECT id, tendanhmuc, COALESCE(NULLIF(TRIM(hinhanhdanhmuc), ""), "") AS hinhanhdanhmuc FROM danhmuc WHERE id = ' . $id . ' LIMIT 1');
+                $row = $rowResult ? $rowResult->fetch_assoc() : null;
+                if ($rowResult) {
+                    $rowResult->free();
+                }
+                if (is_array($row)) {
+                    $row['hinhanh'] = app_to_public_image_url((string) ($row['hinhanhdanhmuc'] ?? ''));
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true, 'data' => $row]);
+            }
+
+            if ($action === 'delete') {
+                $id = (int) ($input['id'] ?? 0);
+                if ($id <= 0) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'ID danh muc khong hop le'], 400);
+                }
+
+                $stmt = $conn->prepare('DELETE FROM danhmuc WHERE id = ?');
+                if (!$stmt) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the xoa danh muc', 'error' => $conn->error], 500);
+                }
+
+                $stmt->bind_param('i', $id);
+                $ok = $stmt->execute();
+                $stmt->close();
+
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Xoa danh muc that bai. Co the danh muc dang duoc su dung.', 'error' => $conn->error], 500);
                 }
 
                 $conn->close();

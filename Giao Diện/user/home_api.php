@@ -183,12 +183,20 @@ function app_handle_user_api(mysqli $conn, string $api): bool
     }
 
     if ($api === 'get_home_categories') {
+        if (function_exists('app_ensure_category_image_column')) {
+            app_ensure_category_image_column($conn);
+        }
+
         $sql = "
             SELECT
                 d.id,
                 d.tendanhmuc,
                 COUNT(s.id) AS soluongsanpham,
-                COALESCE(MAX(NULLIF(TRIM(s.hinhanhsanpham), '')), '') AS hinhanh
+                COALESCE(
+                    MAX(NULLIF(TRIM(d.hinhanhdanhmuc), '')),
+                    MAX(NULLIF(TRIM(s.hinhanhsanpham), '')),
+                    ''
+                ) AS hinhanh
             FROM danhmuc d
             LEFT JOIN sanpham s ON s.danhmuc_id = d.id
             GROUP BY d.id, d.tendanhmuc
@@ -222,7 +230,11 @@ function app_handle_user_api(mysqli $conn, string $api): bool
                 SELECT
                     COALESCE(NULLIF(TRIM(d.tendanhmuc), ''), 'Chua phan loai') AS tendanhmuc,
                     COUNT(s.id) AS soluongsanpham,
-                    COALESCE(MAX(NULLIF(TRIM(s.hinhanhsanpham), '')), '') AS hinhanh
+                    COALESCE(
+                        MAX(NULLIF(TRIM(d.hinhanhdanhmuc), '')),
+                        MAX(NULLIF(TRIM(s.hinhanhsanpham), '')),
+                        ''
+                    ) AS hinhanh
                 FROM sanpham s
                 LEFT JOIN danhmuc d ON d.id = s.danhmuc_id
                 GROUP BY COALESCE(NULLIF(TRIM(d.tendanhmuc), ''), 'Chua phan loai')

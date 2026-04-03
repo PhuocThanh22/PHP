@@ -953,9 +953,9 @@
     placeOrderBtn.addEventListener('click', async () => {
       const authUser = getCurrentAuthUser();
       if (!authUser || Number(authUser.id || 0) <= 0) {
-        showFailurePopup('Vui lòng đăng nhập tài khoản để đặt hàng online.');
+        showFailurePopup('Hãy đăng nhập trước khi mua hàng.');
         if (typeof window.openAuthModal === 'function') {
-          window.openAuthModal('login', 'Vui lòng đăng nhập để thanh toán đơn hàng.');
+          window.openAuthModal('login', 'Hãy đăng nhập trước khi mua hàng.');
         }
         return;
       }

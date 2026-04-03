@@ -193,20 +193,7 @@
                 <input id="checkoutQuickQty" type="number" min="1" value="1" required style="width:100%; height:42px; border:1px solid #d1d5db; border-radius:10px; padding:0 12px;">
             </div>
 
-            <div>
-                <label for="checkoutQuickCustomer" style="display:block; margin-bottom:6px; font-size:13px; color:#334155;">Họ và tên</label>
-                <input id="checkoutQuickCustomer" type="text" required placeholder="Nhập họ và tên" style="width:100%; height:42px; border:1px solid #d1d5db; border-radius:10px; padding:0 12px;">
-            </div>
-
-            <div>
-                <label for="checkoutQuickPhone" style="display:block; margin-bottom:6px; font-size:13px; color:#334155;">Số điện thoại</label>
-                <input id="checkoutQuickPhone" type="tel" required placeholder="Nhập số điện thoại" style="width:100%; height:42px; border:1px solid #d1d5db; border-radius:10px; padding:0 12px;">
-            </div>
-
-            <div>
-                <label for="checkoutQuickAddress" style="display:block; margin-bottom:6px; font-size:13px; color:#334155;">Địa chỉ nhận hàng</label>
-                <input id="checkoutQuickAddress" type="text" required placeholder="Nhập địa chỉ" style="width:100%; height:42px; border:1px solid #d1d5db; border-radius:10px; padding:0 12px;">
-            </div>
+            <p style="margin: 0; font-size: 13px; color: #475569;">Nhập số lượng và bấm <b>Thanh toán ngay</b> để chuyển tới trang thanh toán.</p>
 
             <button type="submit" style="height:44px; border:none; border-radius:10px; font-weight:700; color:#fff; background:linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); box-shadow:0 10px 24px rgba(31, 143, 77, 0.28);">Thanh toán ngay</button>
         </form>
@@ -2811,7 +2798,7 @@
                     <p class="product-category">${product.category}</p>
                     <p class="product-price">${product.price}₫</p>
                     <div class="product-corner-actions">
-                        <button class="product-corner-btn buy" data-action="add-cart" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Mua ngay">Mua</button>
+                        <button class="product-corner-btn buy" data-action="buy-now" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Mua ngay">Mua</button>
                         <button class="product-corner-btn detail" data-action="quick-view" data-product-id="${product.id}" title="Xem chi tiết">Chi tiết</button>
                     </div>
                 </div>
@@ -2858,7 +2845,7 @@
                     <p class="product-category">Giống chó</p>
                     <p class="product-price">${getBreedPriceLabel('dog', breed.name)}</p>
                     <div class="product-corner-actions">
-                        <button class="product-corner-btn buy" data-action="add-cart" data-name="${breed.name.replace(/"/g, '&quot;')}" data-price="${getBreedPriceLabel('dog', breed.name)}" data-image="${breed.image}" title="Mua ngay">Mua</button>
+                        <button class="product-corner-btn buy" data-action="buy-now" data-name="${breed.name.replace(/"/g, '&quot;')}" data-price="${getBreedPriceLabel('dog', breed.name)}" data-image="${breed.image}" title="Mua ngay">Mua</button>
                         <button class="product-corner-btn detail" data-action="breed-quick-view" data-breed-name="${breed.name.replace(/"/g, '&quot;')}" data-breed-image="${breed.image}" data-breed-type="dog" data-breed-price="${getBreedPriceLabel('dog', breed.name)}" data-breed-description="${breed.description.replace(/"/g, '&quot;')}" title="Xem chi tiết">Chi tiết</button>
                     </div>
                 </div>
@@ -2925,7 +2912,7 @@
                                 <p class="product-category">Giống chó</p>
                                 <p class="product-price">${puppy.price} ₫</p>
                                 <div class="product-corner-actions">
-                                    <button class="product-corner-btn buy" data-action="add-cart" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}" title="Mua ngay">Mua</button>
+                                    <button class="product-corner-btn buy" data-action="buy-now" data-name="${puppy.name.replace(/"/g, '&quot;')}" data-price="${puppy.price}" data-image="${puppy.image}" title="Mua ngay">Mua</button>
                                     <button class="product-corner-btn detail" data-action="open-dog-detail" data-puppy-id="${puppy.id}" title="Xem chi tiết">Chi tiết</button>
                                 </div>
                             </div>
@@ -3154,7 +3141,7 @@
                     <p class="product-category">Giống mèo</p>
                     <p class="product-price">${getBreedPriceLabel('cat', breed.name)}</p>
                     <div class="product-corner-actions">
-                        <button class="product-corner-btn buy" data-action="add-cart" data-name="${breed.name.replace(/"/g, '&quot;')}" data-price="${getBreedPriceLabel('cat', breed.name)}" data-image="${breed.image}" title="Mua ngay">Mua</button>
+                        <button class="product-corner-btn buy" data-action="buy-now" data-name="${breed.name.replace(/"/g, '&quot;')}" data-price="${getBreedPriceLabel('cat', breed.name)}" data-image="${breed.image}" title="Mua ngay">Mua</button>
                         <button class="product-corner-btn detail" data-action="breed-quick-view" data-breed-name="${breed.name.replace(/"/g, '&quot;')}" data-breed-image="${breed.image}" data-breed-type="cat" data-breed-price="${getBreedPriceLabel('cat', breed.name)}" data-breed-description="${breed.description.replace(/"/g, '&quot;')}" title="Xem chi tiết">Chi tiết</button>
                     </div>
                 </div>
@@ -3386,6 +3373,34 @@
 
     window.closeCheckoutQuickModal = closeCheckoutQuickModal;
 
+    const getCurrentAuthUser = () => {
+        try {
+            const raw = sessionStorage.getItem('authUser') || localStorage.getItem('authUser') || localStorage.getItem('userSession');
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') return null;
+            return parsed;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    const requireLoginBeforePurchase = (postLoginAction = null) => {
+        const authUser = getCurrentAuthUser();
+        if (authUser && Number(authUser.id || 0) > 0) {
+            return true;
+        }
+
+        alert('Hãy đăng nhập trước khi mua hàng.');
+        if (typeof window.openAuthModal === 'function') {
+            window.openAuthModal('login', {
+                reason: 'Hãy đăng nhập trước khi mua hàng.',
+                postLoginAction: typeof postLoginAction === 'function' ? postLoginAction : null
+            });
+        }
+        return false;
+    };
+
     const addToCartFromQV = () => {
         if (currentQVProduct) {
             addToCart(currentQVProduct.name, currentQVProduct.price, currentQVProduct.image);
@@ -3559,10 +3574,31 @@
                 }
 
                 if (action === 'add-cart') {
-                    openCheckoutQuickModal({
+                    addToCart(
+                        actionButton.dataset.name || '',
+                        actionButton.dataset.price || '',
+                        actionButton.dataset.image || '',
+                        1
+                    );
+                    return;
+                }
+
+                if (action === 'buy-now') {
+                    const item = {
                         name: actionButton.dataset.name || '',
                         price: actionButton.dataset.price || '',
                         image: actionButton.dataset.image || ''
+                    };
+
+                    const allowOpen = requireLoginBeforePurchase(() => openCheckoutQuickModal(item));
+                    if (!allowOpen) {
+                        return;
+                    }
+
+                    openCheckoutQuickModal({
+                        name: item.name,
+                        price: item.price,
+                        image: item.image
                     });
                     return;
                 }
@@ -3583,27 +3619,13 @@
 
                 if (!currentCheckoutQuickItem) return;
 
-                const quantity = Math.max(1, parseInt(document.getElementById('checkoutQuickQty')?.value || '1', 10));
-                const customerName = (document.getElementById('checkoutQuickCustomer')?.value || '').trim();
-                const phone = (document.getElementById('checkoutQuickPhone')?.value || '').trim();
-                const address = (document.getElementById('checkoutQuickAddress')?.value || '').trim();
-
-                if (!customerName || !phone || !address) {
-                    alert('Vui lòng nhập đầy đủ thông tin nhận hàng.');
+                if (!requireLoginBeforePurchase()) {
                     return;
                 }
 
-                addToCart(currentCheckoutQuickItem.name, currentCheckoutQuickItem.price, currentCheckoutQuickItem.image, quantity);
+                const quantity = Math.max(1, parseInt(document.getElementById('checkoutQuickQty')?.value || '1', 10));
 
-                try {
-                    localStorage.setItem('checkoutQuickInfo', JSON.stringify({
-                        customerName,
-                        phone,
-                        address,
-                        productName: currentCheckoutQuickItem.name,
-                        quantity
-                    }));
-                } catch (e) {}
+                addToCart(currentCheckoutQuickItem.name, currentCheckoutQuickItem.price, currentCheckoutQuickItem.image, quantity);
 
                 closeCheckoutQuickModal();
 

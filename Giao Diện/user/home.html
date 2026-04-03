@@ -536,7 +536,7 @@
                             <h3 class="service-highlight-title">Spa - Cắt tạo kiểu</h3>
                             <p class="service-highlight-price">Từ 299.000₫</p>
                             <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="loadServiceCategory('spa')">Đặt lịch</button>
+                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Spa - Cắt tạo kiểu', 'Từ 299.000₫')">Đặt lịch</button>
                                 <button class="service-detail-btn" onclick="loadServiceCategory('spa')">Chi tiết</button>
                             </div>
                         </div>
@@ -555,7 +555,7 @@
                             <h3 class="service-highlight-title">Khách sạn - Lưu trú</h3>
                             <p class="service-highlight-price">Từ 390.000₫/đêm</p>
                             <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="loadServiceCategory('hotel')">Đặt lịch</button>
+                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Khách sạn - Lưu trú', 'Từ 390.000₫/đêm')">Đặt lịch</button>
                                 <button class="service-detail-btn" onclick="loadServiceCategory('hotel')">Chi tiết</button>
                             </div>
                         </div>
@@ -574,7 +574,7 @@
                             <h3 class="service-highlight-title">Tắm &amp; Sấy</h3>
                             <p class="service-highlight-price">Từ 199.000₫</p>
                             <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="loadServiceCategory('bath-dry')">Đặt lịch</button>
+                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Tắm & Sấy', 'Từ 199.000₫')">Đặt lịch</button>
                                 <button class="service-detail-btn" onclick="loadServiceCategory('bath-dry')">Chi tiết</button>
                             </div>
                         </div>
@@ -593,7 +593,7 @@
                             <h3 class="service-highlight-title">Vệ sinh tai</h3>
                             <p class="service-highlight-price">Từ 99.000₫</p>
                             <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="loadServiceCategory('ear-cleaning')">Đặt lịch</button>
+                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Vệ sinh tai', 'Từ 99.000₫')">Đặt lịch</button>
                                 <button class="service-detail-btn" onclick="loadServiceCategory('ear-cleaning')">Chi tiết</button>
                             </div>
                         </div>
@@ -612,7 +612,7 @@
                             <h3 class="service-highlight-title">Cắt móng</h3>
                             <p class="service-highlight-price">Từ 89.000₫</p>
                             <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="loadServiceCategory('nail-trimming')">Đặt lịch</button>
+                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Cắt móng', 'Từ 89.000₫')">Đặt lịch</button>
                                 <button class="service-detail-btn" onclick="loadServiceCategory('nail-trimming')">Chi tiết</button>
                             </div>
                         </div>
@@ -631,7 +631,7 @@
                             <h3 class="service-highlight-title">Đón trả tận nơi</h3>
                             <p class="service-highlight-price">Từ 79.000₫</p>
                             <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="routeToPage('contact')">Đặt lịch</button>
+                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Đón trả tận nơi', 'Từ 79.000₫')">Đặt lịch</button>
                                 <button class="service-detail-btn" onclick="routeToPage('contact')">Chi tiết</button>
                             </div>
                         </div>
@@ -650,7 +650,7 @@
                             <h3 class="service-highlight-title">Khám sức khỏe định kỳ</h3>
                             <p class="service-highlight-price">Từ 249.000₫</p>
                             <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="routeToPage('contact')">Đặt lịch</button>
+                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Khám sức khỏe định kỳ', 'Từ 249.000₫')">Đặt lịch</button>
                                 <button class="service-detail-btn" onclick="routeToPage('contact')">Chi tiết</button>
                             </div>
                         </div>
@@ -669,7 +669,7 @@
                             <h3 class="service-highlight-title">Huấn luyện cơ bản</h3>
                             <p class="service-highlight-price">Từ 350.000₫</p>
                             <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="routeToPage('contact')">Đặt lịch</button>
+                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Huấn luyện cơ bản', 'Từ 350.000₫')">Đặt lịch</button>
                                 <button class="service-detail-btn" onclick="routeToPage('contact')">Chi tiết</button>
                             </div>
                         </div>
@@ -1725,6 +1725,76 @@
             document.getElementById('quickViewModal').classList.remove('active');
         };
 
+        const ensureUserNoticePopup = () => {
+            if (document.getElementById('userNoticePopup')) {
+                return;
+            }
+
+            if (!document.getElementById('userNoticePopupStyle')) {
+                const style = document.createElement('style');
+                style.id = 'userNoticePopupStyle';
+                style.textContent =
+                    '.user-notice-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,24,18,.42);z-index:12000;padding:16px;}' +
+                    '.user-notice-modal{width:min(420px,92vw);background:#fff;border:1px solid #d7e9dd;border-radius:14px;box-shadow:0 20px 44px rgba(0,0,0,.22);font-family:Poppins,Arial,sans-serif;overflow:hidden;}' +
+                    '.user-notice-head{padding:12px 16px;background:linear-gradient(135deg,#16a34a 0%,#22c55e 100%);color:#fff;font-weight:700;font-size:16px;}' +
+                    '.user-notice-body{padding:16px;color:#102b20;font-size:14px;line-height:1.55;}' +
+                    '.user-notice-foot{padding:0 16px 16px;display:flex;justify-content:flex-end;}' +
+                    '.user-notice-btn{height:38px;min-width:88px;border:none;border-radius:10px;background:#16a34a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;}';
+                document.head.appendChild(style);
+            }
+
+            const html = `
+                <div id="userNoticePopup" class="user-notice-overlay" role="dialog" aria-modal="true" aria-labelledby="userNoticeTitle">
+                    <div class="user-notice-modal">
+                        <div id="userNoticeTitle" class="user-notice-head">Thông báo</div>
+                        <div id="userNoticeMessage" class="user-notice-body"></div>
+                        <div class="user-notice-foot">
+                            <button type="button" id="userNoticeOkBtn" class="user-notice-btn">Đồng ý</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', html);
+
+            const overlay = document.getElementById('userNoticePopup');
+            const close = () => {
+                overlay.style.display = 'none';
+            };
+
+            document.getElementById('userNoticeOkBtn')?.addEventListener('click', close);
+            overlay?.addEventListener('click', (event) => {
+                if (event.target === overlay) {
+                    close();
+                }
+            });
+            overlay.__closePopup = close;
+        };
+
+        const showUserNoticePopup = (message, title = 'Thông báo') => {
+            ensureUserNoticePopup();
+            const overlay = document.getElementById('userNoticePopup');
+            const titleEl = document.getElementById('userNoticeTitle');
+            const messageEl = document.getElementById('userNoticeMessage');
+            if (!overlay || !titleEl || !messageEl) return;
+
+            titleEl.textContent = String(title || 'Thông báo');
+            messageEl.textContent = String(message || '');
+            overlay.style.display = 'flex';
+        };
+
+        const installAlertOverride = () => {
+            if (window.__userAlertPatched) {
+                return;
+            }
+            window.__userAlertPatched = true;
+            window.alert = (message) => {
+                showUserNoticePopup(message, 'Thông báo');
+            };
+        };
+
+        installAlertOverride();
+
         // Quantity controls
         const decreaseQuantity = () => {
             const input = document.getElementById('quantityInput');
@@ -2250,7 +2320,13 @@
 
         const normalizeCategoryImage = (name, imageUrl, index) => {
             const source = String(imageUrl || '').trim();
-            if (source) return source;
+            if (source) {
+                const normalized = source
+                    .replace('/Giao Diện/user/anhdata/', '/anhdata/')
+                    .replace('/Giao%20Di%E1%BB%87n/user/anhdata/', '/anhdata/')
+                    .replace(/ /g, '%20');
+                return normalized;
+            }
 
             const n = String(name || '').toLowerCase();
             if (n.includes('thức ăn')) return HOME_CATEGORY_FALLBACK_IMAGES[0];
@@ -2670,8 +2746,8 @@
                 style.textContent =
                     '.booking-popup-overlay{display:none;position:fixed;inset:0;z-index:10050;background:rgba(6,18,12,.55);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:16px;}' +
                     'body.booking-popup-open{overflow:hidden;}' +
-                    '.booking-popup-shell{width:min(1120px,96vw);height:min(90vh,840px);display:flex;flex-direction:column;background:#fff;border:1px solid #cfe9d8;border-radius:18px;overflow:hidden;box-shadow:0 26px 60px rgba(10,63,38,.3);}' +
-                    '.booking-popup-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;background:linear-gradient(135deg,#198754 0%,#22c55e 100%);color:#fff;}' +
+                    '.booking-popup-shell{width:min(1120px,96vw);height:min(90vh,840px);display:flex;flex-direction:column;background:#fff;border:1px solid #cfe9d8;border-radius:18px;overflow:hidden;box-shadow:0 26px 60px rgba(10,63,38,.3);font-family:Poppins,Arial,sans-serif;}' +
+                    '.booking-popup-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;background:linear-gradient(135deg,#198754 0%,#22c55e 100%);color:#fff;font-family:Poppins,Arial,sans-serif;}' +
                     '.booking-popup-title{font-size:18px;font-weight:700;line-height:1.2;margin:0;}' +
                     '.booking-popup-sub{font-size:12px;opacity:.92;margin-top:3px;}' +
                     '.booking-popup-close{width:36px;height:36px;border:none;border-radius:10px;background:rgba(255,255,255,.2);color:#fff;font-size:24px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}' +
@@ -2737,6 +2813,10 @@
             frame.src = `pages/dat-lich-dich-vu.html?popup=1&_=${Date.now()}`;
             modal.style.display = 'flex';
             document.body.classList.add('booking-popup-open');
+        };
+
+        window.openHomeFeaturedBooking = (serviceName, servicePrice) => {
+            openBookingModal(serviceName, servicePrice);
         };
 
         // Bắt click nút "Đặt ngay" ở mọi trang dịch vụ được load động
@@ -2866,6 +2946,19 @@
       try {
         localStorage.setItem(AUTH_STORAGE_KEYS.userSession, JSON.stringify(basePayload));
       } catch (e) {}
+
+            // Keep customer center profile in sync with latest authenticated user.
+            try {
+                const oldProfileRaw = localStorage.getItem('userProfile');
+                const oldProfile = oldProfileRaw ? JSON.parse(oldProfileRaw) : {};
+                const nextProfile = {
+                    ...(oldProfile && typeof oldProfile === 'object' ? oldProfile : {}),
+                    name: String(basePayload.fullName || 'Khach hang'),
+                    email: String(basePayload.email || basePayload.identifier || ''),
+                    role: 'user'
+                };
+                localStorage.setItem('userProfile', JSON.stringify(nextProfile));
+            } catch (e) {}
 
       localStorage.setItem(AUTH_STORAGE_KEYS.isLoggedIn, 'true');
       return basePayload;

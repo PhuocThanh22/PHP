@@ -994,6 +994,43 @@
         return 'user';
       };
 
+      const syncProfileFromAuthUser = () => {
+        const authUser = getCurrentAuthUser();
+        if (!authUser || Number(authUser.id || 0) <= 0) return;
+
+        const authRole = normalizeRole(authUser.role || authUser.vaitronguoidung || 'user');
+        if (authRole !== 'user') return;
+
+        const currentProfile = store.get(KEYS.profile, {});
+        const currentRole = normalizeRole(currentProfile?.role || 'user');
+        const authName = String(authUser.fullName || authUser.tennguoidung || '').trim();
+        const authEmail = String(authUser.email || authUser.emailnguoidung || authUser.identifier || '').trim();
+
+        const shouldOverwriteName =
+          authName !== '' && (
+            !String(currentProfile?.name || '').trim() ||
+            currentRole !== 'user' ||
+            String(currentProfile?.name || '').trim().toLowerCase().includes('admin') ||
+            String(currentProfile?.name || '').trim().toLowerCase().includes('staff')
+          );
+
+        const shouldOverwriteEmail = authEmail !== '' && (!String(currentProfile?.email || '').trim() || currentRole !== 'user');
+
+        if (!shouldOverwriteName && !shouldOverwriteEmail && currentRole === 'user') {
+          return;
+        }
+
+        const nextProfile = {
+          ...(currentProfile && typeof currentProfile === 'object' ? currentProfile : {}),
+          role: 'user'
+        };
+
+        if (shouldOverwriteName) nextProfile.name = authName;
+        if (shouldOverwriteEmail) nextProfile.email = authEmail;
+
+        store.set(KEYS.profile, nextProfile);
+      };
+
       const authUserSnapshot = getCurrentAuthUser();
       if (!authUserSnapshot) {
         if (typeof window.openAuthModal === 'function') {
@@ -2532,6 +2569,7 @@
         window.setInterval(runSync, 5000);
       };
 
+      syncProfileFromAuthUser();
       seedData();
       bindEvents();
       initialRender();

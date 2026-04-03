@@ -392,8 +392,15 @@ function app_to_public_image_url(string $imagePath): string
         return '';
     }
 
-    if (preg_match('~^(?:https?:)?//~i', $path) || app_starts_with($path, 'data:') || app_starts_with($path, '/')) {
+    if (preg_match('~^(?:https?:)?//~i', $path) || app_starts_with($path, 'data:')) {
         return $path;
+    }
+
+    // Normalize legacy absolute paths stored from older UI flows.
+    if (app_starts_with($path, '/')) {
+        $path = str_replace('Giao Diện/user/anhdata/', 'anhdata/', $path);
+        $path = str_replace('Giao%20Di%E1%BB%87n/user/anhdata/', 'anhdata/', $path);
+        return str_replace(' ', '%20', $path);
     }
 
     if (app_starts_with($path, './')) {
