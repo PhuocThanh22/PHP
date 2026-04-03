@@ -561,47 +561,43 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         $address = trim((string) ($input['address'] ?? ''));
         $note = trim((string) ($input['note'] ?? ''));
         $total = (float) ($input['total'] ?? 0);
+        $paymentMethod = app_normalize_payment_method((string) ($input['payment_method'] ?? 'tien_mat'));
         $items = $input['items'] ?? [];
+        $normalizedItems = app_prepare_order_items(is_array($items) ? $items : []);
         $accountUserId = (int) ($input['user_id'] ?? 0);
 
-        if ($accountUserId <= 0) {
-            $conn->close();
-            app_json_response([
-                'ok' => false,
-                'message' => 'Vui long dang nhap tai khoan de dat hang',
-            ], 401);
-        }
+        if ($accountUserId > 0) {
+            $userCheckSql = "
+                SELECT id, vaitronguoidung
+                FROM nguoidung
+                WHERE id = ?
+                LIMIT 1
+            ";
+            $userCheckStmt = $conn->prepare($userCheckSql);
+            if (!$userCheckStmt) {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Khong the xac thuc tai khoan',
+                    'error' => $conn->error,
+                ], 500);
+            }
+            $userCheckStmt->bind_param('i', $accountUserId);
+            $userCheckStmt->execute();
+            $userCheckResult = $userCheckStmt->get_result();
+            $userRow = $userCheckResult ? $userCheckResult->fetch_assoc() : null;
+            if ($userCheckResult) {
+                $userCheckResult->free();
+            }
+            $userCheckStmt->close();
 
-        $userCheckSql = "
-            SELECT id, vaitronguoidung
-            FROM nguoidung
-            WHERE id = ?
-            LIMIT 1
-        ";
-        $userCheckStmt = $conn->prepare($userCheckSql);
-        if (!$userCheckStmt) {
-            $conn->close();
-            app_json_response([
-                'ok' => false,
-                'message' => 'Khong the xac thuc tai khoan',
-                'error' => $conn->error,
-            ], 500);
-        }
-        $userCheckStmt->bind_param('i', $accountUserId);
-        $userCheckStmt->execute();
-        $userCheckResult = $userCheckStmt->get_result();
-        $userRow = $userCheckResult ? $userCheckResult->fetch_assoc() : null;
-        if ($userCheckResult) {
-            $userCheckResult->free();
-        }
-        $userCheckStmt->close();
-
-        if (!is_array($userRow) || app_normalize_role((string) ($userRow['vaitronguoidung'] ?? 'user')) !== 'user') {
-            $conn->close();
-            app_json_response([
-                'ok' => false,
-                'message' => 'Tai khoan khong hop le de dat hang online',
-            ], 403);
+            if (!is_array($userRow) || app_normalize_role((string) ($userRow['vaitronguoidung'] ?? 'user')) !== 'user') {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Tai khoan khong hop le de dat hang online',
+                ], 403);
+            }
         }
 
         if ($customerName === '' || $customerPhone === '' || $address === '' || $total <= 0) {
@@ -609,6 +605,23 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             app_json_response([
                 'ok' => false,
                 'message' => 'Thong tin dat hang online chua day du',
+            ], 400);
+        }
+
+        if (!app_ensure_order_tables($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang donhang/donhang_chitiet',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        if (count($normalizedItems) === 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Don hang online chua co san pham hop le',
             ], 400);
         }
 
@@ -662,81 +675,112 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         }
 
         $internalOrderId = 0;
-        if (app_table_exists($conn, 'donhang')) {
+        $newId = 0;
+
+        $conn->begin_transaction();
+        try {
             $orderStatus = app_map_online_to_order_status('cho_duyet');
             $insertDonHangSql = "
                 INSERT INTO donhang
-                    (khachhang_id, ngaydatdonhang, tongtiendonhang, trangthaidonhang)
+                    (khachhang_id, madonhang, ngaydatdonhang, tongtiendonhang, trangthaidonhang, nguondonhang, phuongthucthanhtoan, tennhanvien, ghichudonhang)
                 VALUES
-                    (NULLIF(?, 0), CURDATE(), ?, ?)
+                    (NULLIF(?, 0), ?, NOW(), ?, ?, 'online', ?, 'Online', ?)
             ";
             $insertDonHangStmt = $conn->prepare($insertDonHangSql);
-            if ($insertDonHangStmt) {
-                $customerIdForOrder = $customerId > 0 ? $customerId : 0;
-                $insertDonHangStmt->bind_param('ids', $customerIdForOrder, $total, $orderStatus);
-                $insertDonHangStmt->execute();
-                $internalOrderId = (int) $insertDonHangStmt->insert_id;
-                $insertDonHangStmt->close();
+            if (!$insertDonHangStmt) {
+                throw new RuntimeException('Khong the tao don hang tong');
             }
-        }
 
-        if ($internalOrderId > 0 && app_table_exists($conn, 'lichsudonhang')) {
-            $historyNote = 'Don online moi tao';
-            if ($accountUserId > 0) {
-                $historyNote .= ' - nguoidung_id: ' . $accountUserId;
+            $customerIdForOrder = $customerId > 0 ? $customerId : 0;
+            $orderNote = $note !== '' ? $note : 'Don online cho duyet';
+            $insertDonHangStmt->bind_param('isdsss', $customerIdForOrder, $orderCode, $total, $orderStatus, $paymentMethod, $orderNote);
+            $insertDonHangStmt->execute();
+            $internalOrderId = (int) $insertDonHangStmt->insert_id;
+            $insertDonHangStmt->close();
+
+            if ($internalOrderId <= 0) {
+                throw new RuntimeException('Khong the tao don hang online');
             }
-            $insertHistorySql = "
-                INSERT INTO lichsudonhang (donhang_id, trangthai, ghichu)
-                VALUES (?, 'dangxuly', ?)
+
+            $detailStmt = $conn->prepare('INSERT INTO donhang_chitiet (donhang_id, sanpham_id, masanpham, tensanpham, soluong, dongia, thanhtien) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            if (!$detailStmt) {
+                throw new RuntimeException('Khong the luu chi tiet don hang');
+            }
+
+            foreach ($normalizedItems as $item) {
+                $productId = (int) ($item['product_id'] ?? 0);
+                $qty = (int) ($item['quantity'] ?? 0);
+                $price = (float) ($item['price'] ?? 0);
+                $lineTotal = $price * $qty;
+                $code = (string) ($item['code'] ?? '');
+                $name = trim((string) ($item['name'] ?? ''));
+                if ($name === '') {
+                    $name = 'San pham #' . $productId;
+                }
+
+                $detailStmt->bind_param('iissidd', $internalOrderId, $productId, $code, $name, $qty, $price, $lineTotal);
+                $detailStmt->execute();
+            }
+            $detailStmt->close();
+
+            if (app_table_exists($conn, 'lichsudonhang')) {
+                $historyNote = 'Don online moi tao';
+                if ($accountUserId > 0) {
+                    $historyNote .= ' - nguoidung_id: ' . $accountUserId;
+                }
+                $insertHistorySql = "
+                    INSERT INTO lichsudonhang (donhang_id, trangthai, ghichu)
+                    VALUES (?, 'dangxuly', ?)
+                ";
+                $insertHistoryStmt = $conn->prepare($insertHistorySql);
+                if ($insertHistoryStmt) {
+                    $insertHistoryStmt->bind_param('is', $internalOrderId, $historyNote);
+                    $insertHistoryStmt->execute();
+                    $insertHistoryStmt->close();
+                }
+            }
+
+            $insertSql = "
+                INSERT INTO donhang_online
+                    (donhang_id, madonhang, tenkhachhang, sodienthoai, email, diachi, ghichu, tongtien, trangthai, nguon, chitiet_json)
+                VALUES
+                    (?, ?, ?, ?, ?, ?, ?, ?, 'cho_duyet', 'online', ?)
             ";
-            $insertHistoryStmt = $conn->prepare($insertHistorySql);
-            if ($insertHistoryStmt) {
-                $insertHistoryStmt->bind_param('is', $internalOrderId, $historyNote);
-                $insertHistoryStmt->execute();
-                $insertHistoryStmt->close();
+
+            $stmt = $conn->prepare($insertSql);
+            if (!$stmt) {
+                throw new RuntimeException('Khong the tao don online');
             }
-        }
 
-        $insertSql = "
-            INSERT INTO donhang_online
-                (donhang_id, madonhang, tenkhachhang, sodienthoai, email, diachi, ghichu, tongtien, trangthai, nguon, chitiet_json)
-            VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, 'cho_duyet', 'online', ?)
-        ";
+            $stmt->bind_param(
+                'issssssds',
+                $internalOrderId,
+                $orderCode,
+                $customerName,
+                $customerPhone,
+                $customerEmail,
+                $address,
+                $note,
+                $total,
+                $itemsJson
+            );
 
-        $stmt = $conn->prepare($insertSql);
-        if (!$stmt) {
-            $conn->close();
-            app_json_response([
-                'ok' => false,
-                'message' => 'Khong the tao don online',
-                'error' => $conn->error,
-            ], 500);
-        }
+            $ok = $stmt->execute();
+            $newId = (int) $stmt->insert_id;
+            $stmt->close();
 
-        $stmt->bind_param(
-            'issssssds',
-            $internalOrderId,
-            $orderCode,
-            $customerName,
-            $customerPhone,
-            $customerEmail,
-            $address,
-            $note,
-            $total,
-            $itemsJson
-        );
+            if (!$ok || $newId <= 0) {
+                throw new RuntimeException('Khong the luu don online');
+            }
 
-        $ok = $stmt->execute();
-        $newId = (int) $stmt->insert_id;
-        $stmt->close();
-
-        if (!$ok) {
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
             $conn->close();
             app_json_response([
                 'ok' => false,
                 'message' => 'Khong the luu don online',
-                'error' => $conn->error,
+                'error' => $e->getMessage(),
             ], 500);
         }
 

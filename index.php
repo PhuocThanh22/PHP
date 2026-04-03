@@ -305,6 +305,239 @@ function app_generate_online_order_code(): string
     return 'DHO' . date('YmdHis') . strtoupper(bin2hex(random_bytes(2)));
 }
 
+function app_generate_order_code(string $prefix = 'DH'): string
+{
+    $safePrefix = strtoupper(trim($prefix)) !== '' ? strtoupper(trim($prefix)) : 'DH';
+    try {
+        $suffix = strtoupper(bin2hex(random_bytes(2)));
+    } catch (Throwable $e) {
+        $suffix = strtoupper(substr(md5((string) microtime(true)), 0, 4));
+    }
+
+    return $safePrefix . date('YmdHis') . $suffix;
+}
+
+function app_ensure_order_tables(mysqli $conn): bool
+{
+    $createOrderSql = "
+        CREATE TABLE IF NOT EXISTS donhang (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            khachhang_id INT NULL,
+            madonhang VARCHAR(40) NULL,
+            ngaydatdonhang DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            tongtiendonhang DECIMAL(14,2) NOT NULL DEFAULT 0,
+            trangthaidonhang VARCHAR(40) NOT NULL DEFAULT 'dangxuly',
+            nguondonhang VARCHAR(30) NOT NULL DEFAULT 'tai_quay',
+            phuongthucthanhtoan VARCHAR(30) NOT NULL DEFAULT 'tien_mat',
+            tennhanvien VARCHAR(120) NULL,
+            ghichudonhang TEXT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_donhang_ma (madonhang),
+            KEY idx_donhang_status (trangthaidonhang),
+            KEY idx_donhang_created (ngaydatdonhang),
+            KEY idx_donhang_source (nguondonhang),
+            KEY idx_donhang_customer (khachhang_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ";
+
+    if (!(bool) $conn->query($createOrderSql)) {
+        return false;
+    }
+
+    $columnMigrations = [
+        'madonhang' => "ALTER TABLE donhang ADD COLUMN madonhang VARCHAR(40) NULL AFTER khachhang_id",
+        'nguondonhang' => "ALTER TABLE donhang ADD COLUMN nguondonhang VARCHAR(30) NOT NULL DEFAULT 'tai_quay' AFTER trangthaidonhang",
+        'phuongthucthanhtoan' => "ALTER TABLE donhang ADD COLUMN phuongthucthanhtoan VARCHAR(30) NOT NULL DEFAULT 'tien_mat' AFTER nguondonhang",
+        'tennhanvien' => "ALTER TABLE donhang ADD COLUMN tennhanvien VARCHAR(120) NULL AFTER phuongthucthanhtoan",
+        'ghichudonhang' => "ALTER TABLE donhang ADD COLUMN ghichudonhang TEXT NULL AFTER tennhanvien",
+    ];
+
+    foreach ($columnMigrations as $column => $sql) {
+        if (!app_column_exists($conn, 'donhang', $column)) {
+            $conn->query($sql);
+        }
+    }
+
+    if (!app_column_exists($conn, 'donhang', 'madonhang')) {
+        return false;
+    }
+
+    $createDetailSql = "
+        CREATE TABLE IF NOT EXISTS donhang_chitiet (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            donhang_id INT UNSIGNED NOT NULL,
+            sanpham_id INT UNSIGNED NULL,
+            masanpham VARCHAR(80) NULL,
+            tensanpham VARCHAR(255) NOT NULL,
+            soluong INT NOT NULL DEFAULT 1,
+            dongia DECIMAL(14,2) NOT NULL DEFAULT 0,
+            thanhtien DECIMAL(14,2) NOT NULL DEFAULT 0,
+            ngaytao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_dhct_order (donhang_id),
+            KEY idx_dhct_product (sanpham_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ";
+
+    return (bool) $conn->query($createDetailSql);
+}
+
+function app_normalize_payment_method(string $value): string
+{
+    $method = app_lower(trim($value));
+    if ($method === 'chuyen_khoan' || $method === 'bank' || $method === 'transfer') {
+        return 'chuyen_khoan';
+    }
+
+    return 'tien_mat';
+}
+
+function app_prepare_order_items(array $items): array
+{
+    $normalized = [];
+
+    foreach ($items as $raw) {
+        if (!is_array($raw)) {
+            continue;
+        }
+
+        $productId = (int) ($raw['id'] ?? $raw['product_id'] ?? $raw['sanpham_id'] ?? $raw['productId'] ?? 0);
+        $qty = (int) ($raw['qty'] ?? $raw['quantity'] ?? $raw['soluong'] ?? 0);
+        $price = (float) ($raw['price'] ?? $raw['dongia'] ?? 0);
+        $name = trim((string) ($raw['name'] ?? $raw['product_name'] ?? $raw['title'] ?? $raw['tensanpham'] ?? ''));
+        $code = trim((string) ($raw['code'] ?? $raw['sku'] ?? $raw['masanpham'] ?? ''));
+
+        if ($qty <= 0) {
+            continue;
+        }
+
+        if ($productId <= 0 && $code === '' && $name === '') {
+            continue;
+        }
+
+        $normalized[] = [
+            'product_id' => $productId,
+            'quantity' => $qty,
+            'price' => $price,
+            'name' => $name,
+            'code' => $code,
+        ];
+    }
+
+    return $normalized;
+}
+
+function app_apply_stock_deduction(mysqli $conn, array &$items): array
+{
+    if (!app_table_exists($conn, 'sanpham')) {
+        return [false, 'Khong tim thay bang sanpham'];
+    }
+
+    $stockByIdStmt = $conn->prepare('SELECT id, tensanpham, masanpham, giasanpham, soluongsanpham FROM sanpham WHERE id = ? LIMIT 1 FOR UPDATE');
+    $stockByCodeStmt = $conn->prepare('SELECT id, tensanpham, masanpham, giasanpham, soluongsanpham FROM sanpham WHERE masanpham = ? LIMIT 1 FOR UPDATE');
+    $stockByNameStmt = $conn->prepare('SELECT id, tensanpham, masanpham, giasanpham, soluongsanpham FROM sanpham WHERE LOWER(tensanpham) = LOWER(?) LIMIT 1 FOR UPDATE');
+    $updateStmt = $conn->prepare('UPDATE sanpham SET soluongsanpham = soluongsanpham - ? WHERE id = ? LIMIT 1');
+    if (!$stockByIdStmt || !$stockByCodeStmt || !$stockByNameStmt || !$updateStmt) {
+        if ($stockByIdStmt) {
+            $stockByIdStmt->close();
+        }
+        if ($stockByCodeStmt) {
+            $stockByCodeStmt->close();
+        }
+        if ($stockByNameStmt) {
+            $stockByNameStmt->close();
+        }
+        if ($updateStmt) {
+            $updateStmt->close();
+        }
+        return [false, 'Khong the khoa va cap nhat ton kho'];
+    }
+
+    foreach ($items as $index => $item) {
+        $productId = (int) ($item['product_id'] ?? 0);
+        $productCode = trim((string) ($item['code'] ?? ''));
+        $productName = trim((string) ($item['name'] ?? ''));
+        $qty = (int) ($item['quantity'] ?? 0);
+        if ($qty <= 0) {
+            $stockByIdStmt->close();
+            $stockByCodeStmt->close();
+            $stockByNameStmt->close();
+            $updateStmt->close();
+            return [false, 'Du lieu san pham khong hop le'];
+        }
+
+        $result = null;
+        if ($productId > 0) {
+            $stockByIdStmt->bind_param('i', $productId);
+            $stockByIdStmt->execute();
+            $result = $stockByIdStmt->get_result();
+        } elseif ($productCode !== '') {
+            $stockByCodeStmt->bind_param('s', $productCode);
+            $stockByCodeStmt->execute();
+            $result = $stockByCodeStmt->get_result();
+        } else {
+            $stockByNameStmt->bind_param('s', $productName);
+            $stockByNameStmt->execute();
+            $result = $stockByNameStmt->get_result();
+        }
+
+        $row = $result ? $result->fetch_assoc() : null;
+        if ($result) {
+            $result->free();
+        }
+
+        if (!is_array($row)) {
+            $itemLabel = $productName !== '' ? $productName : ($productCode !== '' ? $productCode : ('ID ' . $productId));
+            $stockByIdStmt->close();
+            $stockByCodeStmt->close();
+            $stockByNameStmt->close();
+            $updateStmt->close();
+            return [false, 'San pham khong ton tai: ' . $itemLabel];
+        }
+
+        $resolvedProductId = (int) ($row['id'] ?? 0);
+        $currentStock = (int) ($row['soluongsanpham'] ?? 0);
+        if ($currentStock < $qty) {
+            $name = (string) ($row['tensanpham'] ?? ('ID ' . $productId));
+            $stockByIdStmt->close();
+            $stockByCodeStmt->close();
+            $stockByNameStmt->close();
+            $updateStmt->close();
+            return [false, 'Khong du ton kho cho san pham: ' . $name];
+        }
+
+        $updateStmt->bind_param('ii', $qty, $resolvedProductId);
+        $updateStmt->execute();
+
+        $items[$index]['product_id'] = $resolvedProductId;
+        $items[$index]['price'] = (float) ($item['price'] > 0 ? $item['price'] : ($row['giasanpham'] ?? 0));
+        $items[$index]['name'] = trim((string) ($item['name'] ?? '')) !== ''
+            ? (string) $item['name']
+            : (string) ($row['tensanpham'] ?? 'San pham');
+        $items[$index]['code'] = trim((string) ($item['code'] ?? '')) !== ''
+            ? (string) $item['code']
+            : (string) ($row['masanpham'] ?? '');
+    }
+
+    $stockByIdStmt->close();
+    $stockByCodeStmt->close();
+    $stockByNameStmt->close();
+    $updateStmt->close();
+    return [true, ''];
+}
+
+function app_order_status_to_sell_status(string $status): string
+{
+    $normalized = app_lower(trim($status));
+    if ($normalized === 'hoanthanh' || $normalized === 'hoan_tat' || $normalized === 'hoan tat') {
+        return 'hoan_tat';
+    }
+    if ($normalized === 'huy' || $normalized === 'da_huy') {
+        return 'da_huy';
+    }
+    return 'dang_xu_ly';
+}
+
 function app_map_online_to_order_status(string $onlineStatus): string
 {
     $status = trim(strtolower($onlineStatus));

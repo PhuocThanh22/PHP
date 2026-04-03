@@ -56,9 +56,50 @@
         return `${Number(value || 0).toLocaleString('vi-VN')} ₫`;
     };
 
+    const defaultProductImage = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=320&h=320&fit=crop';
+
+    const normalizeProductImageUrl = (value) => {
+        const raw = String(value || '').trim().replace(/\\/g, '/');
+        if (!raw) return defaultProductImage;
+        if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+
+        const pathname = String(window.location.pathname || '');
+        const markerIndexRaw = pathname.indexOf('/Giao Diện/');
+        const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
+        const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
+        const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
+
+        let normalized = raw.replace(/^\.\//, '');
+        normalized = normalized.replace(/^Giao Diện\/user\//i, '');
+        normalized = normalized.replace(/^Giao%20Diện\/user\//i, '');
+        normalized = normalized.replace(/^Giao Diện\//i, '');
+        normalized = normalized.replace(/^Giao%20Diện\//i, '');
+        normalized = normalized.replace(/^user\//i, '');
+
+        if (normalized.startsWith('/')) return normalized.replace(/ /g, '%20');
+        if (/^anhdata\//i.test(normalized)) {
+            return `${window.location.origin}${projectBase}/${normalized}`.replace(/ /g, '%20');
+        }
+
+        try {
+            return new URL(normalized.replace(/ /g, '%20'), window.location.origin + projectBase + '/').toString();
+        } catch (e) {
+            return defaultProductImage;
+        }
+    };
+
+    const normalizeCartItems = (items) => {
+        if (!Array.isArray(items)) return [];
+        return items.map((item) => ({
+            ...item,
+            image: normalizeProductImageUrl(item?.image || item?.hinhanh || item?.hinhanhsanpham || ''),
+        }));
+    };
+
     // Load and display cart
     const loadCart = () => {
-        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const cart = normalizeCartItems(JSON.parse(localStorage.getItem('cart')) || []);
+        localStorage.setItem('cart', JSON.stringify(cart));
         const itemsContainer = document.getElementById('cartItemsContainer');
         const summaryContainer = document.getElementById('cartSummaryContainer');
         const countElement = document.getElementById('cartItemsCount');
@@ -105,7 +146,7 @@
                 <div class="cart-item" style="display: grid; grid-template-columns: 130px 1fr 120px; gap: 20px; align-items: center; padding: 20px; border-bottom: 1px solid #f0f0f0; transition: all 0.3s ease;" onmouseover="this.style.backgroundColor='#fafafa'; this.style.transform='scale(1.01)'" onmouseout="this.style.backgroundColor='white'; this.style.transform='scale(1)'">
                     <!-- Product Image -->
                     <div style="width: 130px; height: 130px; background: #f5f5f5; border-radius: 8px; overflow: hidden;">
-                        <img src="${item.image}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <img src="${item.image}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onerror="this.onerror=null;this.src='${defaultProductImage}';" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                     </div>
 
                     <!-- Product Info -->

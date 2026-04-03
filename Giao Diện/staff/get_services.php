@@ -167,6 +167,230 @@ function app_booking_find_service_id(mysqli $conn, string $serviceName): int
 
 function app_handle_staff_api(mysqli $conn, string $api): bool
 {
+    if ($api === 'checkout_pos_order') {
+        if (!app_ensure_order_tables($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang donhang/donhang_chitiet',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $input = app_input_payload();
+        $customerName = trim((string) ($input['customer_name'] ?? 'Khach le'));
+        $customerPhone = trim((string) ($input['customer_phone'] ?? ''));
+        $customerEmail = trim((string) ($input['customer_email'] ?? ''));
+        $staffName = trim((string) ($input['staff_name'] ?? 'Nhan vien'));
+        $note = trim((string) ($input['note'] ?? ''));
+        $paymentMethod = app_normalize_payment_method((string) ($input['payment_method'] ?? 'tien_mat'));
+        $items = app_prepare_order_items(is_array($input['items'] ?? null) ? $input['items'] : []);
+
+        if (count($items) === 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Gio hang trong hoac du lieu san pham khong hop le',
+            ], 400);
+        }
+
+        $customerId = 0;
+        if ($customerPhone !== '' || $customerEmail !== '' || $customerName !== '') {
+            $customerId = app_booking_find_or_create_customer($conn, $customerName, $customerPhone, $customerEmail);
+        }
+
+        $conn->begin_transaction();
+        try {
+            [$stockOk, $stockMessage] = app_apply_stock_deduction($conn, $items);
+            if (!$stockOk) {
+                throw new RuntimeException($stockMessage !== '' ? $stockMessage : 'Khong the cap nhat ton kho');
+            }
+
+            $total = 0.0;
+            foreach ($items as $item) {
+                $total += (float) ($item['price'] ?? 0) * (int) ($item['quantity'] ?? 0);
+            }
+
+            if ($total <= 0) {
+                throw new RuntimeException('Tong tien don hang khong hop le');
+            }
+
+            $orderCode = app_generate_order_code('POS');
+            $insertOrderSql = "
+                INSERT INTO donhang
+                    (khachhang_id, madonhang, ngaydatdonhang, tongtiendonhang, trangthaidonhang, nguondonhang, phuongthucthanhtoan, tennhanvien, ghichudonhang)
+                VALUES
+                    (NULLIF(?, 0), ?, NOW(), ?, 'hoanthanh', 'tai_quay', ?, ?, ?)
+            ";
+            $insertOrderStmt = $conn->prepare($insertOrderSql);
+            if (!$insertOrderStmt) {
+                throw new RuntimeException('Khong the tao don hang');
+            }
+
+            $insertOrderStmt->bind_param('isdsss', $customerId, $orderCode, $total, $paymentMethod, $staffName, $note);
+            $insertOrderStmt->execute();
+            $orderId = (int) $insertOrderStmt->insert_id;
+            $insertOrderStmt->close();
+
+            if ($orderId <= 0) {
+                throw new RuntimeException('Khong the luu don hang tai quay');
+            }
+
+            $detailStmt = $conn->prepare('INSERT INTO donhang_chitiet (donhang_id, sanpham_id, masanpham, tensanpham, soluong, dongia, thanhtien) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            if (!$detailStmt) {
+                throw new RuntimeException('Khong the luu chi tiet don hang');
+            }
+
+            foreach ($items as $item) {
+                $productId = (int) ($item['product_id'] ?? 0);
+                $qty = (int) ($item['quantity'] ?? 0);
+                $price = (float) ($item['price'] ?? 0);
+                $lineTotal = $price * $qty;
+                $code = (string) ($item['code'] ?? '');
+                $name = (string) ($item['name'] ?? 'San pham');
+                $detailStmt->bind_param('iissidd', $orderId, $productId, $code, $name, $qty, $price, $lineTotal);
+                $detailStmt->execute();
+            }
+            $detailStmt->close();
+
+            if (app_table_exists($conn, 'lichsudonhang')) {
+                $historyNote = 'Thanh toan tai quay - ' . ($staffName !== '' ? $staffName : 'Nhan vien');
+                $historyStmt = $conn->prepare('INSERT INTO lichsudonhang (donhang_id, trangthai, ghichu) VALUES (?, ?, ?)');
+                if ($historyStmt) {
+                    $historyStatus = 'hoanthanh';
+                    $historyStmt->bind_param('iss', $orderId, $historyStatus, $historyNote);
+                    $historyStmt->execute();
+                    $historyStmt->close();
+                }
+            }
+
+            $conn->commit();
+
+            $responseCustomer = $customerName !== '' ? $customerName : 'Khach le';
+            $conn->close();
+            app_json_response([
+                'ok' => true,
+                'message' => 'Thanh toan thanh cong',
+                'data' => [
+                    'order_id' => $orderId,
+                    'mahoadon' => $orderCode,
+                    'tenkhachhang' => $responseCustomer,
+                    'tennhanvien' => $staffName !== '' ? $staffName : 'Nhan vien',
+                    'ngayban' => date('Y-m-d H:i:s'),
+                    'tongtien' => $total,
+                    'phuongthucthanhtoan' => $paymentMethod,
+                    'trangthai' => 'hoan_tat',
+                ],
+            ]);
+        } catch (Throwable $e) {
+            $conn->rollback();
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Thanh toan that bai',
+                'error' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    if ($api === 'get_sales') {
+        if (!app_ensure_order_tables($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang donhang/donhang_chitiet',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $keyword = trim((string) ($_GET['keyword'] ?? ''));
+        $limit = (int) ($_GET['limit'] ?? 500);
+        if ($limit <= 0 || $limit > 2000) {
+            $limit = 500;
+        }
+
+        $sql = "
+            SELECT
+                d.id,
+                d.madonhang,
+                d.ngaydatdonhang,
+                d.tongtiendonhang,
+                d.trangthaidonhang,
+                d.phuongthucthanhtoan,
+                d.tennhanvien,
+                d.nguondonhang,
+                COALESCE(NULLIF(TRIM(k.tenkhachhang), ''), 'Khach le') AS tenkhachhang
+            FROM donhang d
+            LEFT JOIN khachhang k ON k.id = d.khachhang_id
+            ORDER BY d.id DESC
+            LIMIT ?
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the tai danh sach don ban',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $stmt->bind_param('i', $limit);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $rows = [];
+        $needle = app_lower($keyword);
+        while ($row = $result->fetch_assoc()) {
+            $maHoaDon = (string) ($row['madonhang'] ?? '');
+            if ($maHoaDon === '') {
+                $maHoaDon = 'DH' . str_pad((string) ((int) ($row['id'] ?? 0)), 8, '0', STR_PAD_LEFT);
+            }
+
+            $status = app_order_status_to_sell_status((string) ($row['trangthaidonhang'] ?? 'dangxuly'));
+            $customer = (string) ($row['tenkhachhang'] ?? 'Khach le');
+            $staffName = trim((string) ($row['tennhanvien'] ?? ''));
+            if ($staffName === '') {
+                $staffName = ((string) ($row['nguondonhang'] ?? '') === 'online') ? 'Online' : 'Nhan vien';
+            }
+
+            if ($needle !== '') {
+                $haystack = app_lower(implode(' ', [
+                    $maHoaDon,
+                    $customer,
+                    $staffName,
+                    (string) ($row['ngaydatdonhang'] ?? ''),
+                ]));
+                if (strpos($haystack, $needle) === false) {
+                    continue;
+                }
+            }
+
+            $rows[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'mahoadon' => $maHoaDon,
+                'tenkhachhang' => $customer,
+                'tennhanvien' => $staffName,
+                'ngayban' => (string) ($row['ngaydatdonhang'] ?? ''),
+                'tongtien' => (float) ($row['tongtiendonhang'] ?? 0),
+                'phuongthucthanhtoan' => (string) ($row['phuongthucthanhtoan'] ?? 'tien_mat'),
+                'trangthai' => $status,
+                'nguon' => (string) ($row['nguondonhang'] ?? ''),
+            ];
+        }
+
+        $result->free();
+        $stmt->close();
+        $conn->close();
+
+        app_json_response([
+            'ok' => true,
+            'count' => count($rows),
+            'data' => array_values($rows),
+        ]);
+    }
+
     if ($api === 'create_service_booking') {
         if (!app_booking_ensure_table($conn)) {
             $conn->close();

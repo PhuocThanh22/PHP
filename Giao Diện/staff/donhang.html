@@ -10,31 +10,225 @@
 </head>
 <body>
 <div class="page-wrap">
-    <div class="top-header"><h2>Quản Lý Đơn Hàng</h2></div>
+    <div class="top-header d-flex justify-content-between align-items-center">
+        <h2>Quản Lý Đơn Hàng</h2>
+        <div class="service-toolbar">
+            <div class="service-search">
+                <i class="bi bi-search"></i>
+                <input id="orderSearchInput" type="text" placeholder="Tìm theo mã đơn, khách hàng hoặc nhân viên..." aria-label="Tìm đơn hàng">
+            </div>
+        </div>
+    </div>
     <div class="module-grid">
-        <div class="module-card"><div class="module-title"><i class="bi bi-hourglass-split"></i><span>Đang Xử Lý</span></div><div class="module-value">23</div><div class="module-desc">Đơn chờ xác nhận</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-truck"></i><span>Đang Giao</span></div><div class="module-value">45</div><div class="module-desc">Đơn trên đường vận chuyển</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-check2-circle"></i><span>Hoàn Thành</span></div><div class="module-value">257</div><div class="module-desc">Đơn giao thành công</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-receipt"></i><span>Tổng Đơn Bán</span></div><div class="module-value" id="orderSellTotal">0</div><div class="module-desc">Số hóa đơn trong danh sách</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-cash-stack"></i><span>Doanh Thu</span></div><div class="module-value" id="orderSellRevenue">0 đ</div><div class="module-desc">Tổng tiền các đơn hiện có</div></div>
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-cart-check text-success me-2"></i>Đơn Hàng Gần Đây</h3></div>
-        <div class="quick-stats">
-            <div class="quick-stat-item"><span class="number">23</span><span class="label">Đang xử lý</span></div>
-            <div class="quick-stat-item"><span class="number">45</span><span class="label">Đã giao</span></div>
-            <div class="quick-stat-item"><span class="number">2</span><span class="label">Đã hủy</span></div>
-        </div>
+        <div class="section-header"><h3><i class="bi bi-card-checklist text-success me-2"></i>Danh Sách Đơn Bán</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Mã ĐH</th><th>Khách Hàng</th><th>Ngày Đặt</th><th>Tổng Tiền</th><th>Trạng Thái</th></tr></thead>
-                <tbody>
-                    <tr><td>#DH001</td><td>Nguyễn Văn A</td><td>03/02/2026</td><td>1,250,000 đ</td><td><span class="status-badge info">Đang xử lý</span></td></tr>
-                    <tr><td>#DH002</td><td>Trần Thị B</td><td>03/02/2026</td><td>850,000 đ</td><td><span class="status-badge success">Đã giao</span></td></tr>
-                </tbody>
+                <thead><tr><th>Mã Hóa Đơn</th><th>Khách Hàng</th><th>Nhân Viên</th><th>Ngày Bán</th><th>Tổng Tiền</th><th>Thanh Toán</th><th>Trạng Thái</th><th>Ghi Chú</th></tr></thead>
+                <tbody id="orderTableBody"></tbody>
             </table>
         </div>
     </div>
 </div>
+<script>
+(function () {
+    let allOrders = [];
+    let searchKeyword = '';
+
+    function formatVnd(value) {
+        return Number(value || 0).toLocaleString('vi-VN') + ' đ';
+    }
+
+    function statusBadgeClass(status) {
+        const s = String(status || '').toLowerCase();
+        if (s === 'hoan_tat') return 'success';
+        if (s === 'dang_xu_ly') return 'warning';
+        if (s === 'da_huy') return 'danger';
+        return 'info';
+    }
+
+    function statusText(status) {
+        const s = String(status || '').toLowerCase();
+        if (s === 'hoan_tat') return 'Hoàn tất';
+        if (s === 'dang_xu_ly') return 'Đang xử lý';
+        if (s === 'da_huy') return 'Đã hủy';
+        return 'Mới';
+    }
+
+    function paymentText(method) {
+        const m = String(method || '').toLowerCase();
+        if (m === 'tien_mat') return 'Tiền mặt';
+        if (m === 'chuyen_khoan') return 'Chuyển khoản';
+        return 'Khác';
+    }
+
+    function getSalesApiCandidates() {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        return [
+            `${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_sales`,
+            `${protocol}//localhost/PHPCHINH/index.php?api=get_sales`,
+            new URL('../../index.php?api=get_sales', window.location.href).toString(),
+            '/PHPCHINH/index.php?api=get_sales',
+            '/index.php?api=get_sales'
+        ];
+    }
+
+    function getOnlineApiCandidates() {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        return [
+            `${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_online_orders`,
+            `${protocol}//localhost/PHPCHINH/index.php?api=get_online_orders`,
+            new URL('../../index.php?api=get_online_orders', window.location.href).toString(),
+            '/PHPCHINH/index.php?api=get_online_orders',
+            '/index.php?api=get_online_orders'
+        ];
+    }
+
+    async function fetchPayload(candidates, fallbackMessage) {
+        let lastError = new Error('Không lấy được dữ liệu bán hàng');
+        for (const candidate of candidates) {
+            const sep = candidate.includes('?') ? '&' : '?';
+            const url = `${candidate}${sep}_t=${Date.now()}`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) {
+                    lastError = new Error('HTTP ' + response.status);
+                    continue;
+                }
+
+                const payload = await response.json();
+                if (!payload.ok) {
+                    lastError = new Error(payload.message || 'API lỗi');
+                    continue;
+                }
+                return payload;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw new Error(lastError.message || fallbackMessage);
+    }
+
+    function toOnlineCompletedSales(rows) {
+        const onlineRows = Array.isArray(rows) ? rows : [];
+        return onlineRows
+            .filter((row) => {
+                const status = String(row?.trangthai || '').toLowerCase();
+                return status === 'da_duyet' || status === 'hoan_tat' || status === 'hoanthanh';
+            })
+            .map((row) => ({
+                mahoadon: String(row?.madonhang || ''),
+                tenkhachhang: String(row?.tenkhachhang || 'Khách hàng online'),
+                tennhanvien: 'Online',
+                ngayban: String(row?.ngaycapnhat || row?.ngaytao || ''),
+                tongtien: Number(row?.tongtien || 0),
+                phuongthucthanhtoan: 'chuyen_khoan',
+                trangthai: 'hoan_tat',
+                ghichu: 'Online',
+            }));
+    }
+
+    function applyFilter(list, keyword) {
+        const key = String(keyword || '').trim().toLowerCase();
+        if (!key) return list;
+        return list.filter((item) => {
+            const code = String(item.mahoadon || '').toLowerCase();
+            const customer = String(item.tenkhachhang || '').toLowerCase();
+            const staff = String(item.tennhanvien || '').toLowerCase();
+            const note = String(item.ghichu || '').toLowerCase();
+            return code.includes(key) || customer.includes(key) || staff.includes(key) || note.includes(key);
+        });
+    }
+
+    function renderOrders() {
+        const tbody = document.getElementById('orderTableBody');
+        if (!tbody) return;
+
+        const rows = applyFilter(allOrders, searchKeyword);
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="8">Không tìm thấy đơn bán phù hợp.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map((item) => `
+            <tr>
+                <td>${String(item.mahoadon || '')}</td>
+                <td>${String(item.tenkhachhang || '')}</td>
+                <td>${String(item.tennhanvien || '')}</td>
+                <td>${String(item.ngayban || '')}</td>
+                <td>${formatVnd(item.tongtien || 0)}</td>
+                <td>${paymentText(item.phuongthucthanhtoan || '')}</td>
+                <td><span class="status-badge ${statusBadgeClass(item.trangthai)}">${statusText(item.trangthai)}</span></td>
+                <td>${String(item.ghichu || '')}</td>
+            </tr>
+        `).join('');
+    }
+
+    function refreshSummary() {
+        const totalEl = document.getElementById('orderSellTotal');
+        const revenueEl = document.getElementById('orderSellRevenue');
+        if (!totalEl || !revenueEl) return;
+
+        const revenue = allOrders.reduce((sum, item) => sum + Number(item.tongtien || 0), 0);
+        totalEl.textContent = String(allOrders.length);
+        revenueEl.textContent = formatVnd(revenue);
+    }
+
+    async function loadOrders() {
+        const tbody = document.getElementById('orderTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8">Đang tải dữ liệu đơn hàng...</td></tr>';
+        }
+
+        try {
+            const salesPayload = await fetchPayload(getSalesApiCandidates(), 'Không lấy được dữ liệu bán hàng');
+            const onlinePayload = await fetchPayload(getOnlineApiCandidates(), 'Không lấy được dữ liệu đơn online');
+
+            const salesRows = Array.isArray(salesPayload.data) ? salesPayload.data : [];
+            const onlineCompletedRows = toOnlineCompletedSales(onlinePayload.data);
+
+            const salesByCode = new Map();
+            salesRows.forEach((row) => {
+                const key = String(row?.mahoadon || '');
+                if (key !== '') {
+                    salesByCode.set(key, true);
+                }
+            });
+
+            const mergedOnline = onlineCompletedRows.filter((row) => !salesByCode.has(String(row.mahoadon || '')));
+            allOrders = [...salesRows, ...mergedOnline].sort((a, b) => {
+                const ta = new Date(a?.ngayban || 0).getTime() || 0;
+                const tb = new Date(b?.ngayban || 0).getTime() || 0;
+                return tb - ta;
+            });
+
+            refreshSummary();
+            renderOrders();
+        } catch (error) {
+            allOrders = [];
+            refreshSummary();
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="8">Lỗi tải dữ liệu: ${String(error.message || error)}</td></tr>`;
+            }
+        }
+    }
+
+    const searchInput = document.getElementById('orderSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', (event) => {
+            searchKeyword = String(event.target?.value || '');
+            renderOrders();
+        });
+    }
+
+    loadOrders();
+})();
+</script>
 </body>
 </html>
 

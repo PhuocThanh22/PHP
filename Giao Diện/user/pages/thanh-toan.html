@@ -438,7 +438,7 @@
   <div class="checkout-success-card">
     <div id="checkoutSuccessTitle" class="checkout-success-head">Đặt hàng thành công</div>
     <div class="checkout-success-body">
-      <p style="margin:0 0 8px 0;">Đơn hàng của bạn đã được ghi nhận thành công.</p>
+      <p id="checkoutSuccessLead" style="margin:0 0 8px 0;">Đơn hàng của bạn đã được ghi nhận thành công.</p>
       <div id="checkoutSuccessDetail" class="checkout-success-detail"></div>
     </div>
     <div class="checkout-success-actions">
@@ -456,148 +456,157 @@
 
     if (!provinceEl || !districtEl || !wardEl) return;
 
-    const allProvinces = [
-      'An Giang',
-      'Bà Rịa - Vũng Tàu',
-      'Bắc Giang',
-      'Bắc Kạn',
-      'Bạc Liêu',
-      'Bắc Ninh',
-      'Bến Tre',
-      'Bình Định',
-      'Bình Dương',
-      'Bình Phước',
-      'Bình Thuận',
-      'Cà Mau',
-      'Cần Thơ',
-      'Cao Bằng',
-      'Đà Nẵng',
-      'Đắk Lắk',
-      'Đắk Nông',
-      'Điện Biên',
-      'Đồng Nai',
-      'Đồng Tháp',
-      'Gia Lai',
-      'Hà Giang',
-      'Hà Nam',
-      'Hà Nội',
-      'Hà Tĩnh',
-      'Hải Dương',
-      'Hải Phòng',
-      'Hậu Giang',
-      'Hòa Bình',
-      'Hưng Yên',
-      'Khánh Hòa',
-      'Kiên Giang',
-      'Kon Tum',
-      'Lai Châu',
-      'Lâm Đồng',
-      'Lạng Sơn',
-      'Lào Cai',
-      'Long An',
-      'Nam Định',
-      'Nghệ An',
-      'Ninh Bình',
-      'Ninh Thuận',
-      'Phú Thọ',
-      'Phú Yên',
-      'Quảng Bình',
-      'Quảng Nam',
-      'Quảng Ngãi',
-      'Quảng Ninh',
-      'Quảng Trị',
-      'Sóc Trăng',
-      'Sơn La',
-      'Tây Ninh',
-      'Thái Bình',
-      'Thái Nguyên',
-      'Thanh Hóa',
-      'Thừa Thiên Huế',
-      'Tiền Giang',
-      'TP Hồ Chí Minh',
-      'Trà Vinh',
-      'Tuyên Quang',
-      'Vĩnh Long',
-      'Vĩnh Phúc',
-      'Yên Bái'
-    ];
+    const ADDRESS_API_BASE = 'https://provinces.open-api.vn/api';
+    let provincesCache = [];
+    let districtsCache = [];
+    let wardsCache = [];
 
-    const vnAddressData = {
-      'Hà Nội': {
-        'Quận Hoàn Kiếm': ['Phường Hàng Bạc', 'Phường Cửa Đông', 'Phường Tràng Tiền'],
-        'Quận Cầu Giấy': ['Phường Dịch Vọng', 'Phường Nghĩa Tân', 'Phường Quan Hoa'],
-        'Quận Hà Đông': ['Phường Mộ Lao', 'Phường Nguyễn Trãi', 'Phường Văn Quán']
-      },
-      'TP Hồ Chí Minh': {
-        'Quận 1': ['Phường Bến Nghé', 'Phường Bến Thành', 'Phường Đa Kao'],
-        'Quận 7': ['Phường Tân Phong', 'Phường Tân Hưng', 'Phường Phú Mỹ'],
-        'Thành phố Thủ Đức': ['Phường Hiệp Bình Chánh', 'Phường Linh Đông', 'Phường An Phú']
-      },
-      'Đà Nẵng': {
-        'Quận Hải Châu': ['Phường Hải Châu I', 'Phường Hải Châu II', 'Phường Hòa Cường Bắc'],
-        'Quận Sơn Trà': ['Phường An Hải Bắc', 'Phường Mân Thái', 'Phường Thọ Quang'],
-        'Quận Thanh Khê': ['Phường Thanh Khê Đông', 'Phường Thanh Khê Tây', 'Phường Xuân Hà']
-      },
-      'Cần Thơ': {
-        'Quận Ninh Kiều': ['Phường Tân An', 'Phường An Cư', 'Phường Xuân Khánh'],
-        'Quận Bình Thủy': ['Phường Bình Thủy', 'Phường Trà Nóc', 'Phường Long Hòa'],
-        'Quận Cái Răng': ['Phường Hưng Phú', 'Phường Lê Bình', 'Phường Phú Thứ']
-      },
-      'Hải Phòng': {
-        'Quận Hồng Bàng': ['Phường Sở Dầu', 'Phường Thượng Lý', 'Phường Hạ Lý'],
-        'Quận Lê Chân': ['Phường Dư Hàng', 'Phường An Biên', 'Phường Trại Cau'],
-        'Quận Ngô Quyền': ['Phường Lạch Tray', 'Phường Máy Chai', 'Phường Cầu Đất']
+    const fallbackAddressData = {
+      'Đồng Tháp': {
+        'Thành phố Cao Lãnh': ['Phường 1', 'Phường 2', 'Phường 3', 'Phường 4', 'Phường 6', 'Phường Hòa Thuận', 'Xã Mỹ Ngãi', 'Xã Mỹ Tân', 'Xã Tịnh Thới'],
+        'Thành phố Sa Đéc': ['Phường 1', 'Phường 2', 'Phường 3', 'Phường 4', 'Xã Tân Phú Đông', 'Xã Tân Quy Đông', 'Xã An Hòa'],
+        'Huyện Cao Lãnh': ['Thị trấn Mỹ Thọ', 'Xã An Bình', 'Xã Bình Hàng Tây', 'Xã Bình Hàng Trung', 'Xã Gáo Giồng', 'Xã Mỹ Hội', 'Xã Mỹ Long'],
+        'Huyện Lấp Vò': ['Thị trấn Lấp Vò', 'Thị trấn Mỹ An Hưng B', 'Xã Bình Thành', 'Xã Định An', 'Xã Định Yên', 'Xã Hội An Đông', 'Xã Long Hưng A'],
+        'Huyện Lai Vung': ['Thị trấn Lai Vung', 'Xã Định Hòa', 'Xã Hòa Thành', 'Xã Long Hậu', 'Xã Tân Dương', 'Xã Tân Hòa', 'Xã Vĩnh Thới'],
+        'Huyện Châu Thành': ['Thị trấn Cái Tàu Hạ', 'Xã An Hiệp', 'Xã An Khánh', 'Xã Hòa Tân', 'Xã Phú Hựu', 'Xã Phú Long', 'Xã Tân Bình']
       }
     };
 
-    const getDistrictMap = (province) => {
-      if (!province) return {};
-      if (vnAddressData[province]) return vnAddressData[province];
-      return {
-        'Quận/Huyện trung tâm': ['Phường/Xã trung tâm', 'Phường/Xã 1', 'Phường/Xã 2']
-      };
+    const createOption = (label, value, code) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      if (code !== undefined && code !== null) {
+        option.dataset.code = String(code);
+      }
+      return option;
     };
 
-    const fillOptions = (selectEl, values, placeholder) => {
+    const fillOptions = (selectEl, list, placeholder) => {
       selectEl.innerHTML = '';
-      const defaultOption = document.createElement('option');
-      defaultOption.value = '';
-      defaultOption.textContent = placeholder;
-      selectEl.appendChild(defaultOption);
-
-      values.forEach((value) => {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = value;
-        selectEl.appendChild(option);
+      selectEl.appendChild(createOption(placeholder, ''));
+      list.forEach((item) => {
+        if (typeof item === 'string') {
+          selectEl.appendChild(createOption(item, item));
+        } else {
+          selectEl.appendChild(createOption(item.name, item.name, item.code));
+        }
       });
     };
 
-    fillOptions(provinceEl, allProvinces, 'Chọn tỉnh / thành phố');
-    fillOptions(districtEl, [], 'Chọn quận / huyện');
-    fillOptions(wardEl, [], 'Chọn phường / xã');
+    const readSelectedCode = (selectEl) => {
+      const opt = selectEl?.selectedOptions?.[0];
+      return Number(opt?.dataset?.code || 0);
+    };
 
-    provinceEl.addEventListener('change', () => {
-      const province = provinceEl.value;
-      const districtMap = getDistrictMap(province);
-      const districts = province ? Object.keys(districtMap) : [];
+    const fetchJson = async (url) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const loadDistrictFallback = (provinceName) => {
+      const districtMap = fallbackAddressData[provinceName] || {};
+      const districts = Object.keys(districtMap).map((name, idx) => ({ code: idx + 1, name }));
+      districtsCache = districts;
+      wardsCache = [];
 
       fillOptions(districtEl, districts, 'Chọn quận / huyện');
       fillOptions(wardEl, [], 'Chọn phường / xã');
-
       districtEl.disabled = districts.length === 0;
       wardEl.disabled = true;
-    });
+    };
 
-    districtEl.addEventListener('change', () => {
-      const province = provinceEl.value;
-      const district = districtEl.value;
-      const districtMap = getDistrictMap(province);
-      const wards = province && district ? (districtMap[district] || []) : [];
-
+    const loadWardFallback = (provinceName, districtName) => {
+      const districtMap = fallbackAddressData[provinceName] || {};
+      const wards = (districtMap[districtName] || []).map((name, idx) => ({ code: idx + 1, name }));
+      wardsCache = wards;
       fillOptions(wardEl, wards, 'Chọn phường / xã');
       wardEl.disabled = wards.length === 0;
-    });
+    };
+
+    const loadProvinces = async () => {
+      try {
+        const data = await fetchJson(ADDRESS_API_BASE + '/p/');
+        provincesCache = (Array.isArray(data) ? data : []).map((item) => ({ code: item.code, name: item.name }));
+        fillOptions(provinceEl, provincesCache, 'Chọn tỉnh / thành phố');
+      } catch (error) {
+        provincesCache = Object.keys(fallbackAddressData).map((name, idx) => ({ code: idx + 1, name }));
+        fillOptions(provinceEl, provincesCache, 'Chọn tỉnh / thành phố');
+      }
+
+      fillOptions(districtEl, [], 'Chọn quận / huyện');
+      fillOptions(wardEl, [], 'Chọn phường / xã');
+      districtEl.disabled = true;
+      wardEl.disabled = true;
+    };
+
+    const loadDistricts = async () => {
+      const provinceName = provinceEl.value;
+      const provinceCode = readSelectedCode(provinceEl);
+
+      fillOptions(districtEl, [], 'Đang tải quận / huyện...');
+      fillOptions(wardEl, [], 'Chọn phường / xã');
+      districtEl.disabled = true;
+      wardEl.disabled = true;
+
+      if (!provinceName) {
+        fillOptions(districtEl, [], 'Chọn quận / huyện');
+        return;
+      }
+
+      if (!provinceCode) {
+        loadDistrictFallback(provinceName);
+        return;
+      }
+
+      try {
+        const provinceData = await fetchJson(ADDRESS_API_BASE + '/p/' + provinceCode + '?depth=2');
+        districtsCache = (Array.isArray(provinceData?.districts) ? provinceData.districts : []).map((d) => ({ code: d.code, name: d.name }));
+        fillOptions(districtEl, districtsCache, 'Chọn quận / huyện');
+        districtEl.disabled = districtsCache.length === 0;
+      } catch (error) {
+        loadDistrictFallback(provinceName);
+      }
+    };
+
+    const loadWards = async () => {
+      const provinceName = provinceEl.value;
+      const districtName = districtEl.value;
+      const districtCode = readSelectedCode(districtEl);
+
+      fillOptions(wardEl, [], 'Đang tải phường / xã...');
+      wardEl.disabled = true;
+
+      if (!provinceName || !districtName) {
+        fillOptions(wardEl, [], 'Chọn phường / xã');
+        return;
+      }
+
+      if (!districtCode) {
+        loadWardFallback(provinceName, districtName);
+        return;
+      }
+
+      try {
+        const districtData = await fetchJson(ADDRESS_API_BASE + '/d/' + districtCode + '?depth=2');
+        wardsCache = (Array.isArray(districtData?.wards) ? districtData.wards : []).map((w) => ({ code: w.code, name: w.name }));
+        fillOptions(wardEl, wardsCache, 'Chọn phường / xã');
+        wardEl.disabled = wardsCache.length === 0;
+      } catch (error) {
+        loadWardFallback(provinceName, districtName);
+      }
+    };
+
+    provinceEl.addEventListener('change', loadDistricts);
+    districtEl.addEventListener('change', loadWards);
+    loadProvinces();
   })();
 
   (function renderCheckoutOrder() {
@@ -694,6 +703,7 @@
     const errorBox = document.getElementById('checkoutValidationErrors');
     const successModal = document.getElementById('checkoutSuccessModal');
     const successTitle = document.getElementById('checkoutSuccessTitle');
+    const successLead = document.getElementById('checkoutSuccessLead');
     const successDetail = document.getElementById('checkoutSuccessDetail');
     const continueShoppingBtn = document.getElementById('continueShoppingBtn');
     const goHomeAfterOrderBtn = document.getElementById('goHomeAfterOrderBtn');
@@ -702,6 +712,37 @@
 
     const toMoney = (value) => Number(value || 0).toLocaleString('vi-VN') + ' ₫';
   const parsePrice = (value) => Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
+    const defaultProductImage = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=320&h=320&fit=crop';
+
+    const normalizeProductImageUrl = (value) => {
+      const raw = String(value || '').trim().replace(/\\/g, '/');
+      if (!raw) return defaultProductImage;
+      if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+
+      const pathname = String(window.location.pathname || '');
+      const markerIndexRaw = pathname.indexOf('/Giao Diện/');
+      const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
+      const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
+      const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
+
+      let normalized = raw.replace(/^\.\//, '');
+      normalized = normalized.replace(/^Giao Diện\/user\//i, '');
+      normalized = normalized.replace(/^Giao%20Diện\/user\//i, '');
+      normalized = normalized.replace(/^Giao Diện\//i, '');
+      normalized = normalized.replace(/^Giao%20Diện\//i, '');
+      normalized = normalized.replace(/^user\//i, '');
+
+      if (normalized.startsWith('/')) return normalized.replace(/ /g, '%20');
+      if (/^anhdata\//i.test(normalized)) {
+        return `${window.location.origin}${projectBase}/${normalized}`.replace(/ /g, '%20');
+      }
+
+      try {
+        return new URL(normalized.replace(/ /g, '%20'), window.location.origin + projectBase + '/').toString();
+      } catch (e) {
+        return defaultProductImage;
+      }
+    };
 
     const getCurrentAuthUser = () => {
       try {
@@ -718,6 +759,9 @@
       if (!successModal || !successDetail) return;
       if (successTitle) {
         successTitle.textContent = 'Đặt hàng thành công';
+      }
+      if (successLead) {
+        successLead.textContent = 'Đơn hàng của bạn đã được ghi nhận thành công.';
       }
 
       continueShoppingBtn?.style.setProperty('display', 'inline-block');
@@ -738,6 +782,9 @@
 
       if (successTitle) {
         successTitle.textContent = 'Đặt hàng thất bại';
+      }
+      if (successLead) {
+        successLead.textContent = 'Đơn hàng chưa được tạo. Vui lòng kiểm tra lại thông tin.';
       }
 
       continueShoppingBtn?.style.setProperty('display', 'none');
@@ -830,15 +877,34 @@
         window.location.origin + projectBase + '/index.php?api=create_online_order',
         projectBase + '/index.php?api=create_online_order',
         new URL('../../index.php?api=create_online_order', window.location.href).toString(),
-        '/phuocthanh/PHPCHINH/index.php?api=create_online_order',
-        '/PHPCHINH/index.php?api=create_online_order'
+        '/phuocthanh/PHPCHINH/index.php?api=create_online_order'
       ];
 
       return Array.from(new Set(candidates));
     };
 
     async function createOnlineOrder(payload) {
+      const parseApiJson = (rawText) => {
+        if (typeof rawText !== 'string') return null;
+        try {
+          return JSON.parse(rawText);
+        } catch (err) {
+          const start = rawText.indexOf('{');
+          const end = rawText.lastIndexOf('}');
+          if (start >= 0 && end > start) {
+            const candidate = rawText.slice(start, end + 1);
+            try {
+              return JSON.parse(candidate);
+            } catch (err2) {
+              return null;
+            }
+          }
+          return null;
+        }
+      };
+
       let lastError = new Error('Không thể gửi đơn online');
+      let hasMeaningfulApiError = false;
       for (const url of getOrderApiCandidates()) {
         try {
           const response = await fetch(url, {
@@ -848,16 +914,18 @@
           });
 
           const responseText = await response.text();
-          let data = null;
-          try {
-            data = JSON.parse(responseText);
-          } catch (parseError) {
-            lastError = new Error('API tra ve du lieu khong phai JSON tu ' + url);
+          const data = parseApiJson(responseText);
+          if (!data) {
+            const snippet = String(responseText || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+            if (!hasMeaningfulApiError) {
+              lastError = new Error('API tra ve du lieu khong phai JSON tu ' + url + (snippet ? ' | ' + snippet : ''));
+            }
             continue;
           }
 
           if (!response.ok || !data.ok) {
             lastError = new Error(data.message || ('HTTP ' + response.status));
+            hasMeaningfulApiError = true;
             continue;
           }
 
@@ -907,7 +975,7 @@
             name: String(item?.name || 'Sản phẩm'),
             qty: Number(item?.quantity || 1),
             price: Number(parsePrice(item?.price || 0)),
-            image: String(item?.image || '')
+            image: normalizeProductImageUrl(item?.image || item?.hinhanh || item?.hinhanhsanpham || '')
           }))
         };
 
@@ -997,7 +1065,14 @@
 
       const cartRaw = localStorage.getItem('cart');
       const cartItems = cartRaw ? JSON.parse(cartRaw) : [];
-      const cartList = Array.isArray(cartItems) ? cartItems : [];
+      const cartList = (Array.isArray(cartItems) ? cartItems : []).map((item) => ({
+        ...item,
+        image: normalizeProductImageUrl(item?.image || item?.hinhanh || item?.hinhanhsanpham || ''),
+      }));
+      const paymentInput = document.querySelector('input[name="paymentMethod"]:checked');
+      const paymentMethod = String(paymentInput?.value || 'COD').toUpperCase() === 'BANK'
+        ? 'chuyen_khoan'
+        : 'tien_mat';
       const total = cartList.reduce((sum, item) => {
         const price = parsePrice(item.price);
         const quantity = Number(item.quantity || 1);
@@ -1010,12 +1085,14 @@
         customer_email: email,
         address: [addressDetail, ward, district, province].filter(Boolean).join(', '),
         note,
+        payment_method: paymentMethod,
         total,
         items: cartList.map((item) => ({
           id: item.id || 0,
           name: item.name || '',
           price: parsePrice(item.price),
-          quantity: Number(item.quantity || 1)
+          quantity: Number(item.quantity || 1),
+          image: normalizeProductImageUrl(item?.image || item?.hinhanh || item?.hinhanhsanpham || '')
         }))
       };
 

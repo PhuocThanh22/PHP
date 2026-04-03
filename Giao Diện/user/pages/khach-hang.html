@@ -667,9 +667,8 @@
       <div class="customer-menu" id="customerMenu">
         <button class="customer-menu-btn active" data-pane="dashboard"><i data-feather="grid"></i>Tổng quan</button>
         <button class="customer-menu-btn" data-pane="orders"><i data-feather="package"></i>Đơn hàng</button>
-        <button class="customer-menu-btn" data-pane="service-bookings"><i data-feather="calendar"></i>Lịch sử</button>
+        <button class="customer-menu-btn" data-pane="service-bookings"><i data-feather="calendar"></i>Dịch vụ</button>
         <button class="customer-menu-btn" data-pane="vouchers"><i data-feather="gift"></i>Voucher</button>
-        <button class="customer-menu-btn" data-pane="favorites"><i data-feather="heart"></i>Yêu thích & Giỏ</button>
         <button class="customer-menu-btn" data-pane="support"><i data-feather="message-circle"></i>Hỗ trợ</button>
         <button class="customer-menu-btn" data-pane="security"><i data-feather="shield"></i>Bảo mật</button>
         <button class="customer-menu-btn" data-action="logout"><i data-feather="log-out"></i>Đăng xuất</button>
@@ -1002,31 +1001,16 @@
         if (authRole !== 'user') return;
 
         const currentProfile = store.get(KEYS.profile, {});
-        const currentRole = normalizeRole(currentProfile?.role || 'user');
-        const authName = String(authUser.fullName || authUser.tennguoidung || '').trim();
+        const authName = String(authUser.fullName || authUser.tennguoidung || authUser.name || authUser.displayName || '').trim();
         const authEmail = String(authUser.email || authUser.emailnguoidung || authUser.identifier || '').trim();
-
-        const shouldOverwriteName =
-          authName !== '' && (
-            !String(currentProfile?.name || '').trim() ||
-            currentRole !== 'user' ||
-            String(currentProfile?.name || '').trim().toLowerCase().includes('admin') ||
-            String(currentProfile?.name || '').trim().toLowerCase().includes('staff')
-          );
-
-        const shouldOverwriteEmail = authEmail !== '' && (!String(currentProfile?.email || '').trim() || currentRole !== 'user');
-
-        if (!shouldOverwriteName && !shouldOverwriteEmail && currentRole === 'user') {
-          return;
-        }
 
         const nextProfile = {
           ...(currentProfile && typeof currentProfile === 'object' ? currentProfile : {}),
           role: 'user'
         };
 
-        if (shouldOverwriteName) nextProfile.name = authName;
-        if (shouldOverwriteEmail) nextProfile.email = authEmail;
+        if (authName !== '') nextProfile.name = authName;
+        if (authEmail !== '') nextProfile.email = authEmail;
 
         store.set(KEYS.profile, nextProfile);
       };
@@ -1074,7 +1058,7 @@
         const profile = store.get(KEYS.profile, {});
         return {
           id: Number(authUser?.id || 0),
-          email: normalizeText(authUser?.emailnguoidung || authUser?.identifier || profile?.email || ''),
+          email: normalizeText(authUser?.email || authUser?.emailnguoidung || authUser?.identifier || profile?.email || ''),
           phone: normalizeText(profile?.phone || ''),
           hasAuth: !!authUser
         };
@@ -1097,14 +1081,24 @@
       const getCurrentUserOrders = () => {
         const allOrders = store.get(KEYS.orders, []);
         if (!Array.isArray(allOrders)) return [];
-        return allOrders.filter((order) => isOrderOwnedByCurrentUser(order));
+        return allOrders
+          .filter((order) => isOrderOwnedByCurrentUser(order))
+          .map((order) => ({
+            ...order,
+            items: sanitizeOrderItems(order?.items),
+          }));
       };
 
       const setCurrentUserOrders = (nextOrders) => {
         const allOrders = store.get(KEYS.orders, []);
         const safeAllOrders = Array.isArray(allOrders) ? allOrders : [];
         const otherOrders = safeAllOrders.filter((order) => !isOrderOwnedByCurrentUser(order));
-        const scopedOrders = Array.isArray(nextOrders) ? nextOrders : [];
+        const scopedOrders = Array.isArray(nextOrders)
+          ? nextOrders.map((order) => ({
+            ...order,
+            items: sanitizeOrderItems(order?.items),
+          }))
+          : [];
         store.set(KEYS.orders, [...scopedOrders, ...otherOrders]);
       };
 
@@ -1157,6 +1151,57 @@
         if (status === 'da_duyet') return 'shipping';
         if (status === 'tu_choi') return 'cancelled';
         return 'pending';
+      };
+
+      const DEFAULT_PRODUCT_IMAGE = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=320&h=320&fit=crop';
+
+      const normalizeProductImageUrl = (value) => {
+        const raw = String(value || '').trim().replace(/\\/g, '/');
+        if (!raw) return DEFAULT_PRODUCT_IMAGE;
+        if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+
+        const pathname = String(window.location.pathname || '');
+        const markerIndexRaw = pathname.indexOf('/Giao Diện/');
+        const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
+        const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
+        const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
+
+        let normalized = raw.replace(/^\.\//, '');
+        normalized = normalized.replace(/^Giao Diện\/user\//i, '');
+        normalized = normalized.replace(/^Giao%20Diện\/user\//i, '');
+        normalized = normalized.replace(/^Giao Diện\//i, '');
+        normalized = normalized.replace(/^Giao%20Diện\//i, '');
+        normalized = normalized.replace(/^user\//i, '');
+
+        if (normalized.startsWith('/')) {
+          return normalized.replace(/ /g, '%20');
+        }
+
+        if (/^anhdata\//i.test(normalized)) {
+          return `${window.location.origin}${projectBase}/${normalized}`.replace(/ /g, '%20');
+        }
+
+        try {
+          return new URL(normalized.replace(/ /g, '%20'), window.location.origin + projectBase + '/').toString();
+        } catch (e) {
+          return DEFAULT_PRODUCT_IMAGE;
+        }
+      };
+
+      const sanitizeOrderItem = (item) => {
+        const safe = (item && typeof item === 'object') ? item : {};
+        return {
+          ...safe,
+          name: String(safe.name || safe.product_name || safe.title || safe.tensanpham || 'Sản phẩm'),
+          qty: Number(safe.qty || safe.quantity || safe.soluong || 1),
+          price: Number(safe.price || safe.dongia || 0),
+          image: normalizeProductImageUrl(safe.image || safe.hinhanh || safe.hinhanhsanpham || ''),
+        };
+      };
+
+      const sanitizeOrderItems = (items) => {
+        if (!Array.isArray(items)) return [];
+        return items.map(sanitizeOrderItem);
       };
 
       const normalizePhone = (value) => String(value || '').replace(/[^0-9]/g, '');
@@ -1297,6 +1342,24 @@
 
           if (String(localOrder.createdAt || '') !== nextCreatedAt) {
             localOrder.createdAt = nextCreatedAt;
+            hasChanges = true;
+          }
+
+          const serverItems = sanitizeOrderItems(serverOrder?.items);
+          if (serverItems.length > 0) {
+            const localItems = sanitizeOrderItems(localOrder?.items);
+            const mergedItems = serverItems.map((serverItem, index) => {
+              const localItem = localItems[index] || {};
+              const imageValue = String(serverItem.image || '').trim() || String(localItem.image || '').trim();
+              return {
+                ...serverItem,
+                qty: Number(serverItem.qty || localItem.qty || 1),
+                price: Number(serverItem.price || localItem.price || 0),
+                image: normalizeProductImageUrl(imageValue),
+              };
+            });
+
+            localOrder.items = mergedItems;
             hasChanges = true;
           }
         });
@@ -1624,7 +1687,7 @@
             ${(order.items || []).map((item) => `
               <div class="order-item">
                 <div style="display:flex;gap:10px;">
-                  <img src="${item.image || ''}" alt="${item.name}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;">
+                  <img src="${normalizeProductImageUrl(item.image || '')}" alt="${item.name}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:1px solid #e2e8f0;" onerror="this.onerror=null;this.src='${DEFAULT_PRODUCT_IMAGE}';">
                   <div>
                     <div style="font-weight:600;">${item.name}</div>
                     <div class="muted">SL: ${item.qty}</div>
@@ -2101,7 +2164,7 @@
                 cart.push({
                   name: item.name,
                   price: formatPrice(item.price),
-                  image: item.image || '',
+                  image: normalizeProductImageUrl(item.image || ''),
                   quantity: item.qty
                 });
               }

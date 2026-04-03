@@ -194,18 +194,6 @@
 
 	<div class="top-header d-flex justify-content-between align-items-center">
 		<h2>Quản Lý Bán Hàng</h2>
-		<div class="service-toolbar">
-			<div class="service-search">
-				<i class="bi bi-search"></i>
-				<input id="sellSearchInput" type="text" placeholder="Tìm theo mã hóa đơn, khách hàng hoặc nhân viên..." aria-label="Tìm đơn bán">
-			</div>
-		</div>
-	</div>
-
-	<div class="module-grid">
-		<div class="module-card"><div class="module-title"><i class="bi bi-receipt"></i><span>Tổng Đơn Bán</span></div><div class="module-value" id="sellTotal">0</div><div class="module-desc">Số hóa đơn trong danh sách</div></div>
-		<div class="module-card"><div class="module-title"><i class="bi bi-cash-stack"></i><span>Doanh Thu</span></div><div class="module-value" id="sellRevenue">0 đ</div><div class="module-desc">Tổng tiền các đơn hiện có</div></div>
-		<div class="module-card"><div class="module-title"><i class="bi bi-check-circle"></i><span>Đơn Hoàn Tất</span></div><div class="module-value" id="sellCompleted">0</div><div class="module-desc">Đơn đã thanh toán thành công</div></div>
 	</div>
 
 	<div class="content-section">
@@ -254,22 +242,11 @@
 		</div>
 	</div>
 
-	<div class="content-section">
-		<div class="section-header"><h3><i class="bi bi-card-checklist text-warning me-2"></i>Danh Sách Đơn Bán</h3></div>
-		<div class="data-table">
-			<table>
-				<thead><tr><th>Mã Hóa Đơn</th><th>Khách Hàng</th><th>Nhân Viên</th><th>Ngày Bán</th><th>Tổng Tiền</th><th>Thanh Toán</th><th>Trạng Thái</th></tr></thead>
-				<tbody id="sellTableBody"></tbody>
-			</table>
-		</div>
-	</div>
 </div>
 
 <script>
-	let allSales = [];
 	let allProducts = [];
 	let productFilter = '';
-	let currentFilter = '';
 	const cartStore = new Map();
 	let hasAutoSeededCart = false;
 	const transferConfig = {
@@ -292,35 +269,6 @@
 
 	function formatVnd(value) {
 		return new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' đ';
-	}
-
-	function formatLocalDateTime(value) {
-		const date = value instanceof Date ? value : new Date(value);
-		const pad = (n) => String(n).padStart(2, '0');
-		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-	}
-
-	function statusBadgeClass(status) {
-		const s = String(status || '').toLowerCase();
-		if (s === 'hoan_tat') return 'success';
-		if (s === 'dang_xu_ly') return 'warning';
-		if (s === 'da_huy') return 'danger';
-		return 'info';
-	}
-
-	function statusText(status) {
-		const s = String(status || '').toLowerCase();
-		if (s === 'hoan_tat') return 'Hoàn tất';
-		if (s === 'dang_xu_ly') return 'Đang xử lý';
-		if (s === 'da_huy') return 'Đã hủy';
-		return 'Mới';
-	}
-
-	function paymentText(method) {
-		const m = String(method || '').toLowerCase();
-		if (m === 'tien_mat') return 'Tiền mặt';
-		if (m === 'chuyen_khoan') return 'Chuyển khoản';
-		return 'Khác';
 	}
 
 	function getCartTotal() {
@@ -384,17 +332,6 @@
 		checkoutBtn.textContent = 'Thanh toán';
 	}
 
-	function getApiCandidates() {
-		const candidates = [];
-		const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-		candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_sales`);
-		candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=get_sales`);
-		candidates.push(new URL('../../index.php?api=get_sales', window.location.href).toString());
-		candidates.push('/PHPCHINH/index.php?api=get_sales');
-		candidates.push('/index.php?api=get_sales');
-		return Array.from(new Set(candidates));
-	}
-
 	function getProductApiCandidates() {
 		const candidates = [];
 		const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
@@ -406,32 +343,15 @@
 		return Array.from(new Set(candidates));
 	}
 
-	async function fetchSalesPayload() {
-		const candidates = getApiCandidates();
-		let lastError = new Error('Không lấy được dữ liệu bán hàng');
-
-		for (const candidate of candidates) {
-			const separator = candidate.includes('?') ? '&' : '?';
-			const url = `${candidate}${separator}_t=${Date.now()}`;
-			try {
-				const response = await fetch(url, { cache: 'no-store' });
-				if (!response.ok) {
-					lastError = new Error('HTTP ' + response.status);
-					continue;
-				}
-
-				const payload = await response.json();
-				if (!payload.ok) {
-					lastError = new Error(payload.message || 'API lỗi');
-					continue;
-				}
-				return payload;
-			} catch (error) {
-				lastError = error;
-			}
-		}
-
-		throw lastError;
+	function getCheckoutApiCandidates() {
+		const candidates = [];
+		const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+		candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=checkout_pos_order`);
+		candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=checkout_pos_order`);
+		candidates.push(new URL('../../index.php?api=checkout_pos_order', window.location.href).toString());
+		candidates.push('/PHPCHINH/index.php?api=checkout_pos_order');
+		candidates.push('/index.php?api=checkout_pos_order');
+		return Array.from(new Set(candidates));
 	}
 
 	async function fetchProductsPayload() {
@@ -630,32 +550,84 @@
 		renderCart();
 	}
 
-	function finalizeCheckout(method, options = {}) {
-		const shouldSpeak = Boolean(options.speakSuccess);
-		const shouldShowSuccessAlert = !shouldSpeak;
-		const items = Array.from(cartStore.values());
-		const total = getCartTotal();
-		const now = new Date();
-		const invoice = {
-			mahoadon: 'POS' + now.getTime(),
-			tenkhachhang: 'Khách lẻ',
-			tennhanvien: 'Nhân viên',
-			ngayban: formatLocalDateTime(now),
-			tongtien: total,
-			phuongthucthanhtoan: method,
-			trangthai: 'hoan_tat',
+	async function submitCheckoutPayload(method) {
+		const payload = {
+			customer_name: 'Khách lẻ',
+			staff_name: 'Nhân viên',
+			payment_method: method,
+			items: Array.from(cartStore.values()).map((item) => ({
+				id: Number(item.id || 0),
+				name: String(item.tensanpham || ''),
+				code: String(item.masanpham || ''),
+				price: Number(item.giasanpham || 0),
+				quantity: Number(item.qty || 0),
+			})),
 		};
 
-		allSales.unshift(invoice);
+		let lastError = new Error('Không thể thanh toán đơn tại quầy');
+		for (const url of getCheckoutApiCandidates()) {
+			try {
+				const response = await fetch(url, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload),
+				});
+
+				const data = await response.json();
+				if (!response.ok || !data.ok) {
+					lastError = new Error(data.message || ('HTTP ' + response.status));
+					continue;
+				}
+
+				return data;
+			} catch (error) {
+				lastError = error;
+			}
+		}
+
+		throw lastError;
+	}
+
+	async function finalizeCheckout(method, options = {}) {
+		const shouldSpeak = Boolean(options.speakSuccess);
+		const shouldShowSuccessAlert = !shouldSpeak;
+		const checkoutBtn = document.getElementById('checkoutBtn');
+		if (checkoutBtn) {
+			checkoutBtn.disabled = true;
+			checkoutBtn.textContent = 'Đang xử lý...';
+		}
+
+		let total = getCartTotal();
+		let createdInvoice = null;
+		try {
+			const created = await submitCheckoutPayload(method);
+			createdInvoice = (created && created.data) ? created.data : null;
+			if (createdInvoice && typeof createdInvoice === 'object') {
+				total = Number(createdInvoice.tongtien || total);
+			}
+		} catch (error) {
+			if (checkoutBtn) {
+				checkoutBtn.disabled = false;
+				checkoutBtn.textContent = 'Thanh toán';
+			}
+			alert('Thanh toán thất bại: ' + String(error.message || error));
+			throw error;
+		}
+
 		cartStore.clear();
 		closeTransferPopup();
 		renderCart();
-		renderSales();
+		await loadProducts();
 		if (shouldSpeak) {
 			speakPaymentSuccess(total);
 		}
 		if (shouldShowSuccessAlert) {
 			alert('Thanh toán thành công. Tổng tiền: ' + formatVnd(total));
+		}
+
+		if (checkoutBtn) {
+			checkoutBtn.disabled = false;
+			checkoutBtn.textContent = 'Thanh toán';
 		}
 
 		if (realtimeApi && typeof realtimeApi.publish === 'function') {
@@ -672,7 +644,6 @@
 		if (realtimeLoadTimer) window.clearTimeout(realtimeLoadTimer);
 		realtimeLoadTimer = window.setTimeout(() => {
 			realtimeLoadTimer = null;
-			loadSales();
 			loadProducts();
 		}, 180);
 	}
@@ -688,7 +659,7 @@
 		});
 	}
 
-	function checkoutCart() {
+	async function checkoutCart() {
 		const items = Array.from(cartStore.values());
 		if (!items.length) {
 			alert('Giỏ hàng đang trống.');
@@ -703,64 +674,7 @@
 			return;
 		}
 
-		finalizeCheckout(method);
-	}
-
-	function applyFilter(list, keyword) {
-		const key = String(keyword || '').trim().toLowerCase();
-		if (!key) return list;
-		return list.filter((item) => {
-			const code = String(item.mahoadon || '').toLowerCase();
-			const customer = String(item.tenkhachhang || '').toLowerCase();
-			const staff = String(item.tennhanvien || '').toLowerCase();
-			return code.includes(key) || customer.includes(key) || staff.includes(key);
-		});
-	}
-
-	function refreshSummary(list) {
-		document.getElementById('sellTotal').textContent = String(list.length);
-		const revenue = list.reduce((sum, item) => sum + Number(item.tongtien || 0), 0);
-		document.getElementById('sellRevenue').textContent = formatVnd(revenue);
-		const completed = list.filter((item) => String(item.trangthai || '').toLowerCase() === 'hoan_tat').length;
-		document.getElementById('sellCompleted').textContent = String(completed);
-	}
-
-	function renderSales() {
-		const tbody = document.getElementById('sellTableBody');
-		if (!tbody) return;
-
-		const rows = applyFilter(allSales, currentFilter);
-		refreshSummary(rows);
-
-		if (!rows.length) {
-			tbody.innerHTML = '<tr><td colspan="7">Không tìm thấy đơn bán phù hợp.</td></tr>';
-			return;
-		}
-
-		tbody.innerHTML = rows.map((item) => `
-			<tr>
-				<td>${escapeHtml(item.mahoadon)}</td>
-				<td>${escapeHtml(item.tenkhachhang)}</td>
-				<td>${escapeHtml(item.tennhanvien)}</td>
-				<td>${escapeHtml(item.ngayban)}</td>
-				<td>${escapeHtml(formatVnd(item.tongtien))}</td>
-				<td>${escapeHtml(paymentText(item.phuongthucthanhtoan))}</td>
-				<td><span class="status-badge ${statusBadgeClass(item.trangthai)}">${statusText(item.trangthai)}</span></td>
-			</tr>
-		`).join('');
-	}
-
-	async function loadSales() {
-		const tbody = document.getElementById('sellTableBody');
-		if (tbody) tbody.innerHTML = '<tr><td colspan="7">Đang tải dữ liệu bán hàng...</td></tr>';
-
-		try {
-			const payload = await fetchSalesPayload();
-			allSales = Array.isArray(payload.data) ? payload.data : [];
-			renderSales();
-		} catch (error) {
-			if (tbody) tbody.innerHTML = `<tr><td colspan="7">Lỗi tải dữ liệu: ${escapeHtml(error.message || 'Không xác định')}</td></tr>`;
-		}
+		await finalizeCheckout(method);
 	}
 
 	async function loadProducts() {
@@ -778,10 +692,6 @@
 		}
 	}
 
-	document.getElementById('sellSearchInput').addEventListener('input', (event) => {
-		currentFilter = event.target.value || '';
-		renderSales();
-	});
 	document.getElementById('productSearchInput').addEventListener('input', (event) => {
 		productFilter = event.target.value || '';
 		renderProducts();
@@ -792,9 +702,9 @@
 		closeTransferPopup();
 		renderCart();
 	});
-	document.getElementById('confirmTransferBtn').addEventListener('click', () => {
+	document.getElementById('confirmTransferBtn').addEventListener('click', async () => {
 		if (isAwaitingTransferConfirmation) {
-			finalizeCheckout('chuyen_khoan', { speakSuccess: true });
+			await finalizeCheckout('chuyen_khoan', { speakSuccess: true });
 		}
 	});
 	document.getElementById('cancelTransferPopupBtn').addEventListener('click', closeTransferPopup);
@@ -803,7 +713,6 @@
 	document.getElementById('checkoutBtn').addEventListener('click', checkoutCart);
 
 	bindRealtimeUpdates();
-	loadSales();
 	loadProducts();
 	renderCart();
 </script>

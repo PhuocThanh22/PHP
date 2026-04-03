@@ -3413,11 +3413,13 @@
         const cart = JSON.parse(localStorage.getItem('cart')) || [];
         const existing = cart.find(p => p.name === name);
         const safeQuantity = Math.max(1, parseInt(quantity, 10) || 1);
+        const normalizedImage = resolveProductImageUrl(image || '');
 
         if (existing) {
             existing.quantity += safeQuantity;
+            existing.image = resolveProductImageUrl(existing.image || normalizedImage);
         } else {
-            cart.push({ name, price, image, quantity: safeQuantity });
+            cart.push({ name, price, image: normalizedImage, quantity: safeQuantity });
         }
 
         localStorage.setItem('cart', JSON.stringify(cart));
@@ -3430,12 +3432,13 @@
         const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
         const index = wishlist.findIndex(p => p.name === name);
         let isLiked = false;
+        const normalizedImage = resolveProductImageUrl(image || '');
 
         if (index > -1) {
             wishlist.splice(index, 1);
             alert(`Đã xóa "${name}" khỏi yêu thích`);
         } else {
-            wishlist.push({ name, image, price });
+            wishlist.push({ name, image: normalizedImage, price });
             isLiked = true;
             alert(`Đã thêm "${name}" vào yêu thích!`);
         }

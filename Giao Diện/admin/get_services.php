@@ -947,7 +947,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
         $stmt->execute();
         $result = $stmt->get_result();
 
-        $data = [];
+        $rows = [];
         $summary = [
             'cho_duyet' => 0,
             'da_duyet' => 0,
@@ -960,12 +960,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $summary[$statusKey]++;
             }
 
-            $items = json_decode((string) ($row['chitiet_json'] ?? '[]'), true);
-            if (!is_array($items)) {
-                $items = [];
-            }
-
-            $data[] = [
+            $rows[] = [
                 'id' => (int) ($row['id'] ?? 0),
                 'donhang_id' => (int) ($row['donhang_id'] ?? 0),
                 'madonhang' => (string) ($row['madonhang'] ?? ''),
@@ -979,7 +974,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 'ldotuchoi' => (string) ($row['ldotuchoi'] ?? ''),
                 'nguoiduyet' => (string) ($row['nguoiduyet'] ?? ''),
                 'nguon' => (string) ($row['nguon'] ?? 'online'),
-                'items' => $items,
+                'chitiet_json' => (string) ($row['chitiet_json'] ?? '[]'),
                 'ngaytao' => (string) ($row['ngaytao'] ?? ''),
                 'ngaycapnhat' => (string) ($row['ngaycapnhat'] ?? ''),
             ];
@@ -987,6 +982,121 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
 
         $result->free();
         $stmt->close();
+
+        $detailByOrderId = [];
+        $orderIds = array_values(array_unique(array_filter(array_map(static function ($row) {
+            return (int) ($row['donhang_id'] ?? 0);
+        }, $rows))));
+
+        if (count($orderIds) > 0 && app_table_exists($conn, 'donhang_chitiet') && app_table_exists($conn, 'sanpham')) {
+            $inList = implode(',', array_map('intval', $orderIds));
+            $detailSql = "
+                SELECT
+                    ct.donhang_id,
+                    ct.sanpham_id,
+                    ct.masanpham,
+                    ct.tensanpham,
+                    ct.soluong,
+                    ct.dongia,
+                    COALESCE(
+                        NULLIF(TRIM(s.hinhanhsanpham), ''),
+                        (
+                            SELECT s2.hinhanhsanpham
+                            FROM sanpham s2
+                            WHERE ct.masanpham IS NOT NULL
+                              AND TRIM(ct.masanpham) <> ''
+                              AND s2.masanpham = ct.masanpham
+                            LIMIT 1
+                        ),
+                        (
+                            SELECT s3.hinhanhsanpham
+                            FROM sanpham s3
+                            WHERE ct.tensanpham IS NOT NULL
+                              AND TRIM(ct.tensanpham) <> ''
+                              AND LOWER(s3.tensanpham) = LOWER(ct.tensanpham)
+                            LIMIT 1
+                        ),
+                        ''
+                    ) AS hinhanh
+                FROM donhang_chitiet ct
+                LEFT JOIN sanpham s ON s.id = ct.sanpham_id
+                WHERE ct.donhang_id IN ({$inList})
+                ORDER BY ct.id ASC
+            ";
+
+            $detailResult = $conn->query($detailSql);
+            if ($detailResult) {
+                while ($detailRow = $detailResult->fetch_assoc()) {
+                    $detailOrderId = (int) ($detailRow['donhang_id'] ?? 0);
+                    if ($detailOrderId <= 0) {
+                        continue;
+                    }
+
+                    if (!isset($detailByOrderId[$detailOrderId])) {
+                        $detailByOrderId[$detailOrderId] = [];
+                    }
+
+                    $qty = (int) ($detailRow['soluong'] ?? 0);
+                    $price = (float) ($detailRow['dongia'] ?? 0);
+
+                    $detailByOrderId[$detailOrderId][] = [
+                        'id' => (int) ($detailRow['sanpham_id'] ?? 0),
+                        'name' => (string) ($detailRow['tensanpham'] ?? 'San pham'),
+                        'quantity' => $qty > 0 ? $qty : 1,
+                        'price' => $price,
+                        'image' => app_to_public_image_url((string) ($detailRow['hinhanh'] ?? '')),
+                    ];
+                }
+                $detailResult->free();
+            }
+        }
+
+        $data = [];
+        foreach ($rows as $row) {
+            $orderId = (int) ($row['donhang_id'] ?? 0);
+            $items = [];
+
+            if ($orderId > 0 && isset($detailByOrderId[$orderId])) {
+                $items = $detailByOrderId[$orderId];
+            } else {
+                $legacyItems = json_decode((string) ($row['chitiet_json'] ?? '[]'), true);
+                if (is_array($legacyItems)) {
+                    foreach ($legacyItems as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+
+                        $items[] = [
+                            'id' => (int) ($item['id'] ?? $item['product_id'] ?? $item['sanpham_id'] ?? 0),
+                            'name' => (string) ($item['name'] ?? $item['product_name'] ?? $item['title'] ?? $item['tensanpham'] ?? 'San pham'),
+                            'quantity' => (int) ($item['quantity'] ?? $item['qty'] ?? $item['soluong'] ?? 1),
+                            'price' => (float) ($item['price'] ?? $item['dongia'] ?? 0),
+                            'image' => app_to_public_image_url((string) ($item['image'] ?? $item['hinhanh'] ?? $item['hinhanhsanpham'] ?? '')),
+                        ];
+                    }
+                }
+            }
+
+            $data[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'donhang_id' => $orderId,
+                'madonhang' => (string) ($row['madonhang'] ?? ''),
+                'tenkhachhang' => (string) ($row['tenkhachhang'] ?? ''),
+                'sodienthoai' => (string) ($row['sodienthoai'] ?? ''),
+                'email' => (string) ($row['email'] ?? ''),
+                'diachi' => (string) ($row['diachi'] ?? ''),
+                'ghichu' => (string) ($row['ghichu'] ?? ''),
+                'tongtien' => (float) ($row['tongtien'] ?? 0),
+                'trangthai' => (string) ($row['trangthai'] ?? 'cho_duyet'),
+                'ldotuchoi' => (string) ($row['ldotuchoi'] ?? ''),
+                'nguoiduyet' => (string) ($row['nguoiduyet'] ?? ''),
+                'nguon' => (string) ($row['nguon'] ?? 'online'),
+                'items' => $items,
+                'ngaytao' => (string) ($row['ngaytao'] ?? ''),
+                'ngaycapnhat' => (string) ($row['ngaycapnhat'] ?? ''),
+            ];
+        }
+
         $conn->close();
 
         app_json_response([
@@ -1003,6 +1113,15 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
             app_json_response([
                 'ok' => false,
                 'message' => 'Khong the truy cap bang donhang_online',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        if (!app_ensure_order_tables($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the truy cap bang donhang/donhang_chitiet',
                 'error' => $conn->error,
             ], 500);
         }
@@ -1032,7 +1151,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
         }
 
         $findSql = "
-            SELECT id, donhang_id, madonhang
+            SELECT id, donhang_id, madonhang, trangthai, chitiet_json
             FROM donhang_online
             WHERE " . ($id > 0 ? 'id = ?' : 'madonhang = ?') . "
             LIMIT 1
@@ -1071,6 +1190,11 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
 
         $onlineId = (int) ($targetRow['id'] ?? 0);
         $internalOrderId = (int) ($targetRow['donhang_id'] ?? 0);
+        $oldStatus = trim((string) ($targetRow['trangthai'] ?? 'cho_duyet'));
+        $itemsFromOnline = json_decode((string) ($targetRow['chitiet_json'] ?? '[]'), true);
+        if (!is_array($itemsFromOnline)) {
+            $itemsFromOnline = [];
+        }
 
         $sql = "
             UPDATE donhang_online
@@ -1092,45 +1216,98 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
         $rejectText = $status === 'tu_choi' ? $rejectReason : '';
         $reviewerText = $reviewer !== '' ? $reviewer : 'staff';
 
-        $stmt->bind_param('sssi', $status, $rejectText, $reviewerText, $onlineId);
+        $conn->begin_transaction();
+        try {
+            $isTransitionToApproved = ($status === 'da_duyet' && $oldStatus !== 'da_duyet');
+            if ($isTransitionToApproved) {
+                $stockItems = app_prepare_order_items($itemsFromOnline);
 
-        $stmt->execute();
-        $stmt->close();
+                if (count($stockItems) === 0 && $internalOrderId > 0 && app_table_exists($conn, 'donhang_chitiet')) {
+                    $detailSql = "
+                        SELECT sanpham_id, soluong, dongia, masanpham, tensanpham
+                        FROM donhang_chitiet
+                        WHERE donhang_id = ?
+                    ";
+                    $detailStmt = $conn->prepare($detailSql);
+                    if ($detailStmt) {
+                        $detailStmt->bind_param('i', $internalOrderId);
+                        $detailStmt->execute();
+                        $detailResult = $detailStmt->get_result();
+                        while ($detailResult && ($detailRow = $detailResult->fetch_assoc())) {
+                            $stockItems[] = [
+                                'product_id' => (int) ($detailRow['sanpham_id'] ?? 0),
+                                'quantity' => (int) ($detailRow['soluong'] ?? 0),
+                                'price' => (float) ($detailRow['dongia'] ?? 0),
+                                'code' => (string) ($detailRow['masanpham'] ?? ''),
+                                'name' => (string) ($detailRow['tensanpham'] ?? ''),
+                            ];
+                        }
+                        if ($detailResult) {
+                            $detailResult->free();
+                        }
+                        $detailStmt->close();
+                    }
+                }
 
-        $orderStatus = app_map_online_to_order_status($status);
-        if ($internalOrderId > 0 && app_table_exists($conn, 'donhang')) {
-            $updateDonHangSql = "UPDATE donhang SET trangthaidonhang = ? WHERE id = ? LIMIT 1";
-            $updateDonHangStmt = $conn->prepare($updateDonHangSql);
-            if ($updateDonHangStmt) {
-                $updateDonHangStmt->bind_param('si', $orderStatus, $internalOrderId);
-                $updateDonHangStmt->execute();
-                $updateDonHangStmt->close();
+                if (count($stockItems) === 0) {
+                    throw new RuntimeException('Khong tim thay chi tiet san pham de tru kho cho don online nay');
+                }
+
+                [$stockOk, $stockMessage] = app_apply_stock_deduction($conn, $stockItems);
+                if (!$stockOk) {
+                    throw new RuntimeException($stockMessage !== '' ? $stockMessage : 'Khong the tru ton kho cho don online');
+                }
             }
-        }
 
-        if ($internalOrderId > 0 && app_table_exists($conn, 'lichsudonhang')) {
-            $historyNote = $status === 'tu_choi'
-                ? ('Nhan vien huy don online. Ly do: ' . ($rejectText !== '' ? $rejectText : 'Khong co'))
-                : ('Cap nhat don online boi: ' . $reviewerText);
+            $stmt->bind_param('sssi', $status, $rejectText, $reviewerText, $onlineId);
+            $stmt->execute();
+            $stmt->close();
 
-            $insertHistorySql = "
-                INSERT INTO lichsudonhang (donhang_id, trangthai, ghichu)
-                VALUES (?, ?, ?)
-            ";
-            $insertHistoryStmt = $conn->prepare($insertHistorySql);
-            if ($insertHistoryStmt) {
-                $insertHistoryStmt->bind_param('iss', $internalOrderId, $orderStatus, $historyNote);
-                $insertHistoryStmt->execute();
-                $insertHistoryStmt->close();
+            $orderStatus = app_map_online_to_order_status($status);
+            if ($internalOrderId > 0 && app_table_exists($conn, 'donhang')) {
+                $updateDonHangSql = "UPDATE donhang SET trangthaidonhang = ? WHERE id = ? LIMIT 1";
+                $updateDonHangStmt = $conn->prepare($updateDonHangSql);
+                if ($updateDonHangStmt) {
+                    $updateDonHangStmt->bind_param('si', $orderStatus, $internalOrderId);
+                    $updateDonHangStmt->execute();
+                    $updateDonHangStmt->close();
+                }
             }
+
+            if ($internalOrderId > 0 && app_table_exists($conn, 'lichsudonhang')) {
+                $historyNote = $status === 'tu_choi'
+                    ? ('Nhan vien huy don online. Ly do: ' . ($rejectText !== '' ? $rejectText : 'Khong co'))
+                    : ('Cap nhat don online boi: ' . $reviewerText);
+
+                $insertHistorySql = "
+                    INSERT INTO lichsudonhang (donhang_id, trangthai, ghichu)
+                    VALUES (?, ?, ?)
+                ";
+                $insertHistoryStmt = $conn->prepare($insertHistorySql);
+                if ($insertHistoryStmt) {
+                    $insertHistoryStmt->bind_param('iss', $internalOrderId, $orderStatus, $historyNote);
+                    $insertHistoryStmt->execute();
+                    $insertHistoryStmt->close();
+                }
+            }
+
+            $conn->commit();
+            $conn->close();
+
+            app_json_response([
+                'ok' => true,
+                'message' => 'Cap nhat trang thai don online thanh cong',
+            ]);
+        } catch (Throwable $e) {
+            $stmt->close();
+            $conn->rollback();
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Cap nhat trang thai don online that bai',
+                'error' => $e->getMessage(),
+            ], 400);
         }
-
-        $conn->close();
-
-        app_json_response([
-            'ok' => true,
-            'message' => 'Cap nhat trang thai don online thanh cong',
-        ]);
     }
 
     return false;

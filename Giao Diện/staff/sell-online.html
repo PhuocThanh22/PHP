@@ -20,6 +20,103 @@
         .status-cho_duyet { background: #fff7dd; color: #946200; }
         .status-da_duyet { background: #e8f8ef; color: #136f3a; }
         .status-tu_choi { background: #ffe9e9; color: #b42318; }
+
+        .online-detail-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 3000;
+        }
+
+        .online-detail-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(92vw, 980px);
+            max-height: 88vh;
+            overflow: auto;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            padding: 16px;
+            z-index: 3001;
+            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.2);
+        }
+
+        .online-detail-backdrop[hidden],
+        .online-detail-modal[hidden] {
+            display: none !important;
+        }
+
+        .online-detail-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .online-detail-close {
+            border: 0;
+            background: transparent;
+            font-size: 28px;
+            line-height: 1;
+            color: #334155;
+            cursor: pointer;
+        }
+
+        .online-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .online-detail-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+
+        .online-detail-card h6 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .online-detail-meta {
+            margin: 0;
+            font-size: 14px;
+            color: #334155;
+            line-height: 1.7;
+        }
+
+        .online-reject-reason {
+            margin-top: 10px;
+        }
+
+        .online-reject-reason textarea {
+            width: 100%;
+            min-height: 70px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .online-detail-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 12px;
+        }
+
+        @media (max-width: 900px) {
+            .online-detail-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -30,8 +127,9 @@
 
     <div class="module-grid mb-3">
         <div class="module-card"><div class="module-title"><i class="bi bi-hourglass-split"></i><span>Chờ Duyệt</span></div><div id="sumChoDuyet" class="module-value">0</div><div class="module-desc">Đơn online mới</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-check2-circle"></i><span>Đã Duyệt</span></div><div id="sumDaDuyet" class="module-value">0</div><div class="module-desc">Đơn đã xác nhận</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-check2-circle"></i><span>Hoàn Thành</span></div><div id="sumDaDuyet" class="module-value">0</div><div class="module-desc">Đơn online đã duyệt</div></div>
         <div class="module-card"><div class="module-title"><i class="bi bi-x-circle"></i><span>Từ Chối</span></div><div id="sumTuChoi" class="module-value">0</div><div class="module-desc">Đơn bị từ chối</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-check-circle"></i><span>Đơn Hoàn Tất</span></div><div id="sumHoanTat" class="module-value">0</div><div class="module-desc">Đơn đã thanh toán thành công</div></div>
     </div>
 
     <div class="content-section">
@@ -41,7 +139,7 @@
                 <select id="statusFilter" class="form-select form-select-sm" style="width: 170px;">
                     <option value="">Tất cả trạng thái</option>
                     <option value="cho_duyet">Chờ duyệt</option>
-                    <option value="da_duyet">Đã duyệt</option>
+                    <option value="da_duyet">Hoàn thành</option>
                     <option value="tu_choi">Từ chối</option>
                 </select>
                 <input id="keywordInput" class="form-control form-control-sm" style="width: 220px;" placeholder="Mã đơn / tên / SĐT">
@@ -67,6 +165,51 @@
             </table>
         </div>
     </div>
+
+    <div id="onlineDetailBackdrop" class="online-detail-backdrop" hidden></div>
+    <div id="onlineDetailModal" class="online-detail-modal" role="dialog" aria-modal="true" aria-labelledby="onlineDetailTitle" hidden>
+        <div class="online-detail-head">
+            <h5 id="onlineDetailTitle" class="mb-0">Chi tiết đơn online</h5>
+            <button id="closeOnlineDetailBtn" type="button" class="online-detail-close" aria-label="Đóng">&times;</button>
+        </div>
+
+        <div class="online-detail-grid">
+            <div class="online-detail-card">
+                <h6>Thông tin đơn hàng</h6>
+                <p class="online-detail-meta" id="detailOrderMeta"></p>
+            </div>
+            <div class="online-detail-card">
+                <h6>Thông tin khách hàng</h6>
+                <p class="online-detail-meta" id="detailCustomerMeta"></p>
+            </div>
+        </div>
+
+        <div class="online-detail-card">
+            <h6>Sản phẩm đã đặt</h6>
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th>SL</th>
+                            <th>Đơn giá</th>
+                            <th>Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailItemsBody"></tbody>
+                </table>
+            </div>
+            <div class="online-reject-reason">
+                <label for="rejectReasonInput" class="form-label mb-1">Lý do hủy đơn (khi bấm Hủy)</label>
+                <textarea id="rejectReasonInput" placeholder="Nhập lý do hủy đơn online..."></textarea>
+            </div>
+            <div class="online-detail-actions">
+                <button id="closeOnlineDetailFooterBtn" type="button" class="btn btn-outline-secondary">Đóng</button>
+                <button id="detailApproveBtn" type="button" class="btn btn-success">Duyệt</button>
+                <button id="detailRejectBtn" type="button" class="btn btn-danger">Hủy đơn</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -76,11 +219,24 @@
     const sumChoDuyet = document.getElementById('sumChoDuyet');
     const sumDaDuyet = document.getElementById('sumDaDuyet');
     const sumTuChoi = document.getElementById('sumTuChoi');
+    const sumHoanTat = document.getElementById('sumHoanTat');
     const statusFilter = document.getElementById('statusFilter');
     const keywordInput = document.getElementById('keywordInput');
     const btnSearch = document.getElementById('btnSearch');
+    const onlineDetailBackdrop = document.getElementById('onlineDetailBackdrop');
+    const onlineDetailModal = document.getElementById('onlineDetailModal');
+    const closeOnlineDetailBtn = document.getElementById('closeOnlineDetailBtn');
+    const closeOnlineDetailFooterBtn = document.getElementById('closeOnlineDetailFooterBtn');
+    const detailOrderMeta = document.getElementById('detailOrderMeta');
+    const detailCustomerMeta = document.getElementById('detailCustomerMeta');
+    const detailItemsBody = document.getElementById('detailItemsBody');
+    const detailApproveBtn = document.getElementById('detailApproveBtn');
+    const detailRejectBtn = document.getElementById('detailRejectBtn');
+    const rejectReasonInput = document.getElementById('rejectReasonInput');
     const ONLINE_ORDER_SYNC_KEY = 'onlineOrderSyncSignal';
     const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+    let cachedOrders = [];
+    let activeOrder = null;
 
     const emitOrderStatusSyncSignal = (payload) => {
         const signal = {
@@ -149,9 +305,16 @@
 
     const toMoney = (value) => Number(value || 0).toLocaleString('vi-VN') + ' đ';
 
+    const esc = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
     const statusLabelMap = {
         cho_duyet: 'Chờ duyệt',
-        da_duyet: 'Đã duyệt',
+        da_duyet: 'Hoàn thành',
         tu_choi: 'Đã hủy'
     };
 
@@ -162,6 +325,17 @@
             '/phuocthanh/PHPCHINH/index.php?api=' + apiName + suffix,
             '/PHPCHINH/index.php?api=' + apiName + suffix,
             '/index.php?api=' + apiName + suffix
+        ];
+    };
+
+    const getSalesCandidates = () => {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        return [
+            `${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_sales`,
+            `${protocol}//localhost/PHPCHINH/index.php?api=get_sales`,
+            new URL('../../index.php?api=get_sales', window.location.href).toString(),
+            '/PHPCHINH/index.php?api=get_sales',
+            '/index.php?api=get_sales'
         ];
     };
 
@@ -206,34 +380,177 @@
         throw lastError;
     }
 
+    async function loadCompletedSalesCount() {
+        if (!sumHoanTat) return;
+        let lastError = null;
+
+        for (const url of getSalesCandidates()) {
+            try {
+                const sep = url.includes('?') ? '&' : '?';
+                const response = await fetch(url + sep + '_t=' + Date.now(), { cache: 'no-store' });
+                if (!response.ok) {
+                    lastError = new Error('HTTP ' + response.status);
+                    continue;
+                }
+
+                const payload = await response.json();
+                if (!payload.ok) {
+                    lastError = new Error(payload.message || 'API lỗi');
+                    continue;
+                }
+
+                const rows = Array.isArray(payload.data) ? payload.data : [];
+                const completed = rows.filter((item) => String(item.trangthai || '').toLowerCase() === 'hoan_tat').length;
+                sumHoanTat.textContent = String(completed);
+                return;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        sumHoanTat.textContent = '0';
+        if (lastError) {
+            // fallback on API failure
+        }
+    }
+
+    function closeOrderDetailModal() {
+        if (onlineDetailBackdrop) onlineDetailBackdrop.hidden = true;
+        if (onlineDetailModal) onlineDetailModal.hidden = true;
+        activeOrder = null;
+    }
+
+    function setDetailActionState(status) {
+        const s = String(status || '').toLowerCase();
+        const locked = s === 'da_duyet' || s === 'tu_choi';
+        if (detailApproveBtn) detailApproveBtn.disabled = locked;
+        if (detailRejectBtn) detailRejectBtn.disabled = locked;
+        if (rejectReasonInput) rejectReasonInput.disabled = (s === 'da_duyet');
+    }
+
+    function renderOrderItems(items) {
+        if (!detailItemsBody) return;
+
+        const rows = Array.isArray(items) ? items : [];
+        if (!rows.length) {
+            detailItemsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Không có chi tiết sản phẩm.</td></tr>';
+            return;
+        }
+
+        detailItemsBody.innerHTML = rows.map((item) => {
+            const qty = Number(item.quantity || item.qty || item.soluong || 0);
+            const price = Number(item.price || item.dongia || 0);
+            const line = qty * price;
+            const name = String(item.name || item.tensanpham || 'Sản phẩm');
+            return `
+                <tr>
+                    <td>${esc(name)}</td>
+                    <td>${qty}</td>
+                    <td>${esc(toMoney(price))}</td>
+                    <td>${esc(toMoney(line))}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function openOrderDetailModal(order) {
+        if (!order || !onlineDetailBackdrop || !onlineDetailModal) return;
+
+        activeOrder = order;
+        const statusLabel = statusLabelMap[String(order.trangthai || '').toLowerCase()] || String(order.trangthai || '');
+        const rejectReason = String(order.ldotuchoi || '').trim();
+
+        if (detailOrderMeta) {
+            detailOrderMeta.innerHTML = [
+                `Mã đơn: <b>${esc(order.madonhang || '')}</b>`,
+                `Trạng thái: <b>${esc(statusLabel)}</b>`,
+                `Tổng tiền: <b>${esc(toMoney(order.tongtien || 0))}</b>`,
+                `Ngày tạo: ${esc(order.ngaytao || '')}`,
+                rejectReason ? `Lý do hủy: ${esc(rejectReason)}` : ''
+            ].filter(Boolean).join('<br>');
+        }
+
+        if (detailCustomerMeta) {
+            detailCustomerMeta.innerHTML = [
+                `Khách hàng: <b>${esc(order.tenkhachhang || '')}</b>`,
+                `SĐT: ${esc(order.sodienthoai || '')}`,
+                `Email: ${esc(order.email || '')}`,
+                `Địa chỉ: ${esc(order.diachi || '')}`,
+                `Ghi chú: ${esc(order.ghichu || '')}`
+            ].join('<br>');
+        }
+
+        if (rejectReasonInput) {
+            rejectReasonInput.value = rejectReason;
+        }
+
+        renderOrderItems(order.items || []);
+        setDetailActionState(order.trangthai || 'cho_duyet');
+
+        onlineDetailBackdrop.hidden = false;
+        onlineDetailModal.hidden = false;
+    }
+
+    async function updateActiveOrderStatus(nextStatus) {
+        if (!activeOrder || !activeOrder.id) return;
+        const id = Number(activeOrder.id || 0);
+        if (id <= 0) return;
+
+        if (nextStatus === 'tu_choi') {
+            const reason = String(rejectReasonInput?.value || '').trim();
+            if (!reason) {
+                alert('Vui lòng nhập lý do hủy đơn trước khi xác nhận.');
+                return;
+            }
+
+            await callPost('update_online_order_status', {
+                id,
+                status: 'tu_choi',
+                reviewer: 'staff',
+                reject_reason: reason
+            });
+            emitOrderStatusSyncSignal({ id, status: 'tu_choi' });
+        } else {
+            await callPost('update_online_order_status', {
+                id,
+                status: 'da_duyet',
+                reviewer: 'staff'
+            });
+            // Trạng thái da_duyet được hiển thị với nhãn "Hoàn thành".
+            emitOrderStatusSyncSignal({ id, status: 'da_duyet' });
+        }
+
+        closeOrderDetailModal();
+        await loadOrders();
+    }
+
     function renderRows(rows) {
         if (!Array.isArray(rows) || rows.length === 0) {
             ordersBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Chưa có đơn online.</td></tr>';
             return;
         }
 
+        cachedOrders = rows.slice();
+
         ordersBody.innerHTML = rows.map((item) => {
             const status = String(item.trangthai || 'cho_duyet');
             const statusLabel = statusLabelMap[status] || status;
             const rejectReason = item.ldotuchoi ? ('<div class="small text-danger">Lý do: ' + item.ldotuchoi + '</div>') : '';
-            const disableApprove = status === 'da_duyet' ? 'disabled' : '';
-            const disableReject = status === 'tu_choi' ? 'disabled' : '';
 
             return `
                 <tr>
-                    <td><strong>${item.madonhang || ''}</strong></td>
-                    <td>${item.tenkhachhang || ''}</td>
-                    <td>${item.sodienthoai || ''}</td>
+                    <td><strong>${esc(item.madonhang || '')}</strong></td>
+                    <td>${esc(item.tenkhachhang || '')}</td>
+                    <td>${esc(item.sodienthoai || '')}</td>
                     <td>${toMoney(item.tongtien)}</td>
                     <td>
                         <span class="status-pill status-${status}">${statusLabel}</span>
                         ${rejectReason}
                     </td>
-                    <td>${item.ngaytao || ''}</td>
+                    <td>${esc(item.ngaytao || '')}</td>
                     <td>
                         <div class="online-actions">
-                            <button class="btn btn-success" ${disableApprove} data-action="approve" data-id="${item.id}">Duyệt</button>
-                            <button class="btn btn-danger" ${disableReject} data-action="reject" data-id="${item.id}">Hủy đơn</button>
+                            <button class="btn btn-primary" data-action="view" data-id="${item.id}">Xem</button>
                         </div>
                     </td>
                 </tr>
@@ -254,11 +571,13 @@
             sumChoDuyet.textContent = String(payload.summary?.cho_duyet || 0);
             sumDaDuyet.textContent = String(payload.summary?.da_duyet || 0);
             sumTuChoi.textContent = String(payload.summary?.tu_choi || 0);
+            loadCompletedSalesCount();
             renderRows(payload.data || []);
             statusText.textContent = 'Đã tải ' + (payload.count || 0) + ' đơn online.';
         } catch (err) {
             ordersBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Lỗi tải dữ liệu: ' + String(err.message || err) + '</td></tr>';
             statusText.textContent = 'Không thể tải dữ liệu.';
+            sumHoanTat.textContent = '0';
         }
     }
 
@@ -270,29 +589,32 @@
         const action = button.getAttribute('data-action');
         if (id <= 0 || !action) return;
 
+        if (action !== 'view') return;
+
+        const target = cachedOrders.find((row) => Number(row.id || 0) === id);
+        if (!target) return;
+        openOrderDetailModal(target);
+    });
+
+    detailApproveBtn.addEventListener('click', async () => {
         try {
-            if (action === 'approve') {
-                await callPost('update_online_order_status', {
-                    id,
-                    status: 'da_duyet',
-                    reviewer: 'staff'
-                });
-                emitOrderStatusSyncSignal({ id, status: 'da_duyet' });
-            } else if (action === 'reject') {
-                const reason = prompt('Nhập lý do từ chối đơn online:', 'Thông tin chưa hợp lệ') || '';
-                await callPost('update_online_order_status', {
-                    id,
-                    status: 'tu_choi',
-                    reviewer: 'staff',
-                    reject_reason: reason.trim()
-                });
-                emitOrderStatusSyncSignal({ id, status: 'tu_choi' });
-            }
-            await loadOrders();
+            await updateActiveOrderStatus('da_duyet');
         } catch (err) {
-            alert('Cập nhật thất bại: ' + String(err.message || err));
+            alert('Duyệt đơn thất bại: ' + String(err.message || err));
         }
     });
+
+    detailRejectBtn.addEventListener('click', async () => {
+        try {
+            await updateActiveOrderStatus('tu_choi');
+        } catch (err) {
+            alert('Hủy đơn thất bại: ' + String(err.message || err));
+        }
+    });
+
+    closeOnlineDetailBtn.addEventListener('click', closeOrderDetailModal);
+    closeOnlineDetailFooterBtn.addEventListener('click', closeOrderDetailModal);
+    onlineDetailBackdrop.addEventListener('click', closeOrderDetailModal);
 
     btnSearch.addEventListener('click', loadOrders);
     keywordInput.addEventListener('keydown', (event) => {
@@ -304,6 +626,7 @@
 
     bindRealtimeUpdates();
     loadOrders();
+    loadCompletedSalesCount();
 })();
 </script>
 </body>
