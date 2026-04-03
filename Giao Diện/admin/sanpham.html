@@ -6,7 +6,7 @@
     <title>Sản Phẩm</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="admin-style.css?v=20260403-2">
     <style>
         #spTableBody tr {
             cursor: pointer;
@@ -101,7 +101,16 @@
         <div class="section-header"><h3><i class="bi bi-box-seam text-warning me-2"></i>Danh Sách Sản Phẩm</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Tên Sản Phẩm</th><th>Danh Mục</th><th>Số Lượng</th><th>Giá</th><th>Trạng Thái</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th style="width:44px;"><input id="spSelectAll" type="checkbox" aria-label="Chọn tất cả sản phẩm"></th>
+                        <th>Tên Sản Phẩm</th>
+                        <th>Danh Mục</th>
+                        <th>Số Lượng</th>
+                        <th>Giá</th>
+                        <th>Trạng Thái</th>
+                    </tr>
+                </thead>
                 <tbody id="spTableBody"></tbody>
             </table>
         </div>
@@ -151,7 +160,15 @@
 
                 <div class="service-form-group full">
                     <label for="editCategoryImageFile">Ảnh danh mục</label>
-                    <input class="service-form-control" id="editCategoryImageFile" type="file" accept="image/*">
+                    <div class="upload-square-field">
+                        <input class="upload-square-input" id="editCategoryImageFile" type="file" accept="image/*">
+                        <label for="editCategoryImageFile" class="upload-square-box" aria-label="Tải ảnh danh mục">
+                            <i class="bi bi-plus-lg upload-square-plus"></i>
+                            <span class="upload-square-title">Kéo thả ảnh hoặc tệp vào đây để tải lên</span>
+                            <span class="upload-square-btn"><i class="bi bi-cloud-upload"></i> Tải lên</span>
+                            <small class="upload-square-types">Hỗ trợ: JPG, PNG, JPEG, BMP, WEBP</small>
+                        </label>
+                    </div>
                     <small id="editCategoryImageHint" class="text-muted"></small>
                 </div>
             </div>
@@ -207,7 +224,15 @@
 
                 <div class="service-form-group full">
                     <label for="editProductImage">Hình ảnh</label>
-                    <input class="service-form-control" id="editProductImage" type="file" accept="image/*">
+                    <div class="upload-square-field">
+                        <input class="upload-square-input" id="editProductImage" type="file" accept="image/*">
+                        <label for="editProductImage" class="upload-square-box" aria-label="Tải ảnh sản phẩm">
+                            <i class="bi bi-plus-lg upload-square-plus"></i>
+                            <span class="upload-square-title">Kéo thả ảnh hoặc tệp vào đây để tải lên</span>
+                            <span class="upload-square-btn"><i class="bi bi-cloud-upload"></i> Tải lên</span>
+                            <small class="upload-square-types">Hỗ trợ: JPG, PNG, JPEG, BMP, WEBP</small>
+                        </label>
+                    </div>
                     <small id="editProductImageHint" class="text-muted"></small>
                 </div>
             </div>
@@ -228,6 +253,7 @@
     let currentFilter = '';
     let productEditMode = 'update';
     let selectedProductId = '';
+    const selectedProductIds = new Set();
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -377,11 +403,54 @@
         return 'Còn hàng';
     }
 
+    function placeholderImageDataUrl() {
+        return "data:image/svg+xml;utf8," + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">'
+            + '<rect width="320" height="320" fill="#f1f5f9"/>'
+            + '<path d="M44 232l62-62 38 38 58-58 74 82H44z" fill="#cbd5e1"/>'
+            + '<circle cx="112" cy="110" r="24" fill="#cbd5e1"/>'
+            + '<text x="160" y="286" text-anchor="middle" fill="#64748b" font-size="20" font-family="Arial">No Image</text>'
+            + '</svg>'
+        );
+    }
+
+    function getAppBasePath() {
+        const path = String(window.location.pathname || '');
+        const marker = '/Giao';
+        const idx = path.lastIndexOf(marker);
+        return idx >= 0 ? path.slice(0, idx) : '/phuocthanh/PHPCHINH';
+    }
+
+    function toAbsoluteAssetUrl(pathValue) {
+        let cleaned = String(pathValue || '').trim().replace(/\\/g, '/');
+        if (!cleaned) return '';
+
+        cleaned = cleaned
+            .replace(/Giao Diện\/admin\/anhdata\//gi, 'anhdata/')
+            .replace(/Giao%20Di%E1%BB%87n\/admin\/anhdata\//gi, 'anhdata/')
+            .replace(/Giao Diện\/user\/anhdata\//gi, 'anhdata/')
+            .replace(/Giao%20Di%E1%BB%87n\/user\/anhdata\//gi, 'anhdata/');
+
+        if (/^(https?:)?\/\//i.test(cleaned) || cleaned.startsWith('data:')) return cleaned;
+
+        const appBase = getAppBasePath();
+        if (cleaned.startsWith('/')) {
+            if (cleaned.includes('/anhdata/')) return window.location.origin + cleaned;
+            return window.location.origin + appBase + cleaned;
+        }
+
+        const marker = 'anhdata/';
+        const markerIndex = cleaned.toLowerCase().indexOf(marker);
+        if (markerIndex >= 0) {
+            return `${window.location.origin}${appBase}/${cleaned.slice(markerIndex).replace(/^\/+/, '')}`;
+        }
+
+        return `${window.location.origin}${appBase}/${cleaned.replace(/^\/+/, '')}`;
+    }
+
     function normalizeImage(src) {
-        const value = String(src || '').trim();
-        if (!value) return 'https://via.placeholder.com/100?text=No+Image';
-        if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/')) return value;
-        return '../../' + value.replace(/^\/+/, '');
+        const absolute = toAbsoluteAssetUrl(src);
+        return absolute || placeholderImageDataUrl();
     }
 
     function getApiCandidates(apiName) {
@@ -451,18 +520,59 @@
         });
     }
 
+    function syncProductSelectAllState() {
+        const selectAll = document.getElementById('spSelectAll');
+        if (!selectAll) return;
+
+        const rows = filterProducts(allProducts, currentFilter);
+        if (!rows.length) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
+        }
+
+        const selectedCount = rows.filter((item) => selectedProductIds.has(String(item.id))).length;
+        selectAll.checked = selectedCount === rows.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < rows.length;
+    }
+
+    function toggleProductSelection(productId, checked) {
+        const id = String(productId);
+        if (checked) {
+            selectedProductIds.add(id);
+        } else {
+            selectedProductIds.delete(id);
+        }
+        syncProductSelectAllState();
+    }
+
+    function toggleAllProducts(checked) {
+        const rows = filterProducts(allProducts, currentFilter);
+        rows.forEach((item) => {
+            const id = String(item.id);
+            if (checked) {
+                selectedProductIds.add(id);
+            } else {
+                selectedProductIds.delete(id);
+            }
+        });
+        renderByCurrentFilter();
+    }
+
     function renderProducts(rows) {
         const tbody = document.getElementById('spTableBody');
         if (!tbody) return;
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="5">Không tìm thấy sản phẩm phù hợp.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6">Không tìm thấy sản phẩm phù hợp.</td></tr>';
             hideProductDetail();
+            syncProductSelectAllState();
             return;
         }
 
         tbody.innerHTML = rows.map((item) => `
             <tr data-product-id="${item.id}" class="${String(selectedProductId) === String(item.id) ? 'is-selected' : ''}" onclick="showProductDetail(${item.id})">
+                <td onclick="event.stopPropagation()"><input type="checkbox" ${selectedProductIds.has(String(item.id)) ? 'checked' : ''} onchange="toggleProductSelection(${item.id}, this.checked)"></td>
                 <td>${escapeHtml(item.tensanpham)}</td>
                 <td>${escapeHtml(item.tendanhmuc)}</td>
                 <td>${escapeHtml(item.soluongsanpham)}</td>
@@ -470,6 +580,8 @@
                 <td><span class="status-badge ${statusBadgeClass(item.trangthaisanpham)}">${statusText(item.trangthaisanpham)}</span></td>
             </tr>
         `).join('');
+
+        syncProductSelectAllState();
     }
 
     function hideProductDetail() {
@@ -507,7 +619,27 @@
         const status = document.getElementById('productDetailStatus');
         if (!image || !code || !name || !category || !qty || !price || !status) return false;
 
-        image.src = normalizeImage(product.hinhanhsanpham);
+        const imageSourceRaw = product.hinhanhsanpham || product.hinhanh || '';
+        const imageSource = normalizeImage(imageSourceRaw);
+        const appBase = getAppBasePath();
+        const fallbackCandidates = [
+            imageSource,
+            toAbsoluteAssetUrl(String(imageSourceRaw || '').replace('/phuocthanh/PHPCHINH/', '/PHPCHINH/')),
+            toAbsoluteAssetUrl(String(imageSourceRaw || '').replace('/PHPCHINH/', '/phuocthanh/PHPCHINH/')),
+            `${window.location.origin}${appBase}/anhdata/products/default.jpg`,
+            placeholderImageDataUrl(),
+        ].filter(Boolean);
+
+        let fallbackIndex = 0;
+        image.onerror = () => {
+            fallbackIndex += 1;
+            if (fallbackIndex < fallbackCandidates.length) {
+                image.src = fallbackCandidates[fallbackIndex];
+            } else {
+                image.onerror = null;
+            }
+        };
+        image.src = fallbackCandidates[0];
         code.textContent = String(product.masanpham || '-');
         name.textContent = String(product.tensanpham || '-');
         category.textContent = String(product.tendanhmuc || '-');
@@ -728,7 +860,7 @@
         const searchEl = document.getElementById('productSearchInput');
         if (searchEl) searchEl.value = '';
 
-        tbody.innerHTML = '<tr><td colspan="5">Đang tải dữ liệu sản phẩm...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">Đang tải dữ liệu sản phẩm...</td></tr>';
 
         try {
             const payload = await fetchProductsPayload();
@@ -738,7 +870,7 @@
             refreshSummary();
 
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="5">Chưa có dữ liệu sản phẩm.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6">Chưa có dữ liệu sản phẩm.</td></tr>';
                 tbody.dataset.loaded = '1';
                 hideProductDetail();
                 return;
@@ -747,7 +879,7 @@
             renderByCurrentFilter();
             tbody.dataset.loaded = '1';
         } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="5">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
             hideProductDetail();
         }
     }
@@ -828,34 +960,36 @@
     }
 
     async function deleteProductBySearch() {
-        const keyword = String(document.getElementById('productSearchInput')?.value || '').trim().toLowerCase();
-        if (!keyword) {
-            showNotice('Nhập tên hoặc mã sản phẩm trong ô tìm kiếm để xóa.', 'warning');
+        const selectedIds = Array.from(selectedProductIds).filter((id) => productStore.has(String(id)));
+        if (!selectedIds.length) {
+            showNotice('Vui lòng chọn ít nhất 1 sản phẩm cần xóa.', 'warning');
             return;
         }
 
-        const target = filterProducts(allProducts, keyword)[0];
-        if (!target) {
-            showNotice('Không tìm thấy sản phẩm để xóa.', 'warning');
-            return;
-        }
-
-        const ok = confirm(`Bạn có chắc muốn xóa sản phẩm "${target.tensanpham}" (${target.masanpham || 'N/A'})?`);
+        const ok = confirm(`Bạn có chắc muốn xóa ${selectedIds.length} sản phẩm đã chọn?`);
         if (!ok) return;
 
         try {
-            await mutateProduct('delete', { id: target.id });
-            allProducts = allProducts.filter((item) => String(item.id) !== String(target.id));
-            productStore.delete(String(target.id));
+            let deletedCount = 0;
+            for (const id of selectedIds) {
+                const target = productStore.get(String(id));
+                if (!target) continue;
 
-            if (String(selectedProductId) === String(target.id)) {
-                hideProductDetail();
-                selectedProductId = '';
+                await mutateProduct('delete', { id: target.id });
+                allProducts = allProducts.filter((item) => String(item.id) !== String(target.id));
+                productStore.delete(String(target.id));
+                selectedProductIds.delete(String(target.id));
+                deletedCount += 1;
+
+                if (String(selectedProductId) === String(target.id)) {
+                    hideProductDetail();
+                    selectedProductId = '';
+                }
             }
 
             refreshSummary();
             renderByCurrentFilter();
-            showNotice(`Xóa sản phẩm "${target.tensanpham}" thành công.`, 'success');
+            showNotice(`Đã xóa ${deletedCount} sản phẩm đã chọn.`, 'success');
         } catch (error) {
             showNotice('Xóa sản phẩm thất bại: ' + getErrorMessage(error), 'error');
         }
@@ -888,6 +1022,21 @@
         if (!selectedProductId) return;
         hideProductDetail();
         editProduct(selectedProductId);
+    });
+    document.getElementById('spSelectAll').addEventListener('change', (event) => {
+        toggleAllProducts(Boolean(event.target.checked));
+    });
+    document.getElementById('editCategoryImageFile').addEventListener('change', (event) => {
+        const file = event.target.files?.[0] || null;
+        if (file) {
+            setCategoryImageHint(`Đã chọn: ${file.name}`);
+        }
+    });
+    document.getElementById('editProductImage').addEventListener('change', (event) => {
+        const file = event.target.files?.[0] || null;
+        if (file) {
+            setProductImageHint(`Đã chọn: ${file.name}`);
+        }
     });
 
     document.getElementById('categoryEditForm').addEventListener('submit', async (event) => {

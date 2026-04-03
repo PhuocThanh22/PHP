@@ -6,7 +6,7 @@
     <title>Dịch Vụ</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="admin-style.css?v=20260403-2">
 </head>
 <body>
     <div class="page-wrap">
@@ -39,6 +39,7 @@
             <form id="serviceEditForm">
                 <div class="service-modal-body">
                     <input type="hidden" id="editServiceId">
+                    <input type="hidden" id="editServiceImagePath">
 
                     <div class="service-form-group full">
                         <label for="editServiceName">Tên dịch vụ</label>
@@ -62,6 +63,20 @@
                             <option value="khonghoatdong">Ngừng hoạt động</option>
                         </select>
                     </div>
+
+                    <div class="service-form-group full">
+                        <label for="editServiceImage">Hình ảnh dịch vụ</label>
+                        <div class="upload-square-field">
+                            <input class="upload-square-input" id="editServiceImage" type="file" accept="image/*">
+                            <label for="editServiceImage" class="upload-square-box" aria-label="Tải ảnh dịch vụ">
+                                <i class="bi bi-plus-lg upload-square-plus"></i>
+                                <span class="upload-square-title">Kéo thả ảnh hoặc tệp vào đây để tải lên</span>
+                                <span class="upload-square-btn"><i class="bi bi-cloud-upload"></i> Tải lên</span>
+                                <small class="upload-square-types">Hỗ trợ: JPG, PNG, JPEG, BMP, WEBP</small>
+                            </label>
+                        </div>
+                        <small id="editServiceImageHint" class="text-muted"></small>
+                    </div>
                 </div>
 
                 <div class="service-modal-footer">
@@ -77,6 +92,7 @@
         let allServices = [];
         let currentFilter = '';
         let editMode = 'update';
+        const selectedServiceIds = new Set();
 
         function escapeHtml(value) {
             return String(value)
@@ -96,6 +112,19 @@
             if (typeof error === 'string') return error;
             if (error.message) return error.message;
             return 'Lỗi không xác định';
+        }
+
+        function normalizeImage(src) {
+            const value = String(src || '').trim();
+            if (!value) return '';
+            if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/')) return value;
+            if (/^[A-Za-z]:[\\/]/.test(value)) return value.replace(/\\/g, '/');
+            return '../../' + value.replace(/^\/+/, '');
+        }
+
+        function setServiceImageHint(text) {
+            const hintEl = document.getElementById('editServiceImageHint');
+            if (hintEl) hintEl.textContent = String(text || '');
         }
 
         let noticeTimer = null;
@@ -212,6 +241,49 @@
             return new Error(errorMessage);
         }
 
+        async function uploadImageFile(file, type = 'services') {
+            if (!(file instanceof File)) return '';
+
+            const candidates = [
+                'get_services.php?api=upload_image',
+                new URL('get_services.php?api=upload_image', window.location.href).toString(),
+            ];
+            let lastError = new Error('Khong the tai anh len');
+
+            for (const candidate of candidates) {
+                const separator = candidate.includes('?') ? '&' : '?';
+                const url = `${candidate}${separator}_t=${Date.now()}`;
+
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('type', type);
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (!response.ok) {
+                        lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                        continue;
+                    }
+
+                    const payload = await response.json();
+                    if (!payload.ok) {
+                        lastError = new Error(payload.message || 'Upload that bai');
+                        continue;
+                    }
+
+                    return String(payload.data?.path || '');
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            throw lastError;
+        }
+
         function getServiceVisual(serviceName) {
             const name = String(serviceName || '').toLowerCase();
             if (name.includes('cắt') || name.includes('tỉa') || name.includes('groom')) return { typeClass: 'type-grooming', icon: 'bi-scissors' };
@@ -232,6 +304,45 @@
             });
         }
 
+        function syncServiceSelectAllState() {
+            const selectAll = document.getElementById('serviceSelectAll');
+            if (!selectAll) return;
+
+            const filtered = getFilteredServices(allServices, currentFilter);
+            if (!filtered.length) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+                return;
+            }
+
+            const selectedCount = filtered.filter((item) => selectedServiceIds.has(String(item.id))).length;
+            selectAll.checked = selectedCount === filtered.length;
+            selectAll.indeterminate = selectedCount > 0 && selectedCount < filtered.length;
+        }
+
+        function toggleServiceSelection(serviceId, checked) {
+            const id = String(serviceId);
+            if (checked) {
+                selectedServiceIds.add(id);
+            } else {
+                selectedServiceIds.delete(id);
+            }
+            syncServiceSelectAllState();
+        }
+
+        function toggleAllServices(checked) {
+            const filtered = getFilteredServices(allServices, currentFilter);
+            filtered.forEach((item) => {
+                const id = String(item.id);
+                if (checked) {
+                    selectedServiceIds.add(id);
+                } else {
+                    selectedServiceIds.delete(id);
+                }
+            });
+            renderByCurrentFilter();
+        }
+
         function renderServices(rows) {
             const grid = document.getElementById('serviceGrid');
             if (!grid) return;
@@ -248,11 +359,20 @@
                 const statusText = isActive ? 'Hoạt động' : 'Ngừng hoạt động';
                 const activeClass = isActive ? 'is-active' : 'is-inactive';
                 const createdAt = row.ngaytaodichvu ? new Date(row.ngaytaodichvu).toLocaleDateString('vi-VN') : 'N/A';
+                const checked = selectedServiceIds.has(String(row.id)) ? 'checked' : '';
 
                 return `
                     <div class="service-card ${visual.typeClass} ${activeClass}" data-service-id="${row.id}">
                         <div class="service-card-header">
                             <div class="service-title"><span class="service-title-icon"><i class="bi ${visual.icon}"></i></span><span class="js-service-name">${escapeHtml(row.tendichvu)}</span></div>
+                            <input
+                                type="checkbox"
+                                aria-label="Chọn dịch vụ ${escapeHtml(row.tendichvu)}"
+                                class="service-card-checkbox-inline"
+                                ${checked}
+                                onchange="toggleServiceSelection(${row.id}, this.checked)"
+                                onclick="event.stopPropagation()"
+                            >
                         </div>
                         <div class="service-meta">
                             <div><i class="bi bi-hash"></i> Mã dịch vụ: ${row.id}</div>
@@ -267,6 +387,8 @@
                     </div>
                 `;
             }).join('');
+
+            syncServiceSelectAllState();
         }
 
         function renderByCurrentFilter() {
@@ -405,35 +527,40 @@
             document.getElementById('serviceEditTitle').textContent = 'Thêm dịch vụ mới';
             document.getElementById('saveServiceBtn').textContent = 'Thêm mới';
             document.getElementById('editServiceId').value = '';
+            document.getElementById('editServiceImagePath').value = '';
             document.getElementById('editServiceName').value = '';
             document.getElementById('editServicePrice').value = 0;
             document.getElementById('editServiceDuration').value = 30;
             document.getElementById('editServiceStatus').value = 'hoatdong';
+            document.getElementById('editServiceImage').value = '';
+            setServiceImageHint('Chọn ảnh dịch vụ từ máy tính (tối đa 5MB).');
             openServiceModal();
         }
 
         async function deleteServiceBySearch() {
-            const keyword = String(document.getElementById('serviceSearchInput')?.value || '').trim().toLowerCase();
-            if (!keyword) {
-                showNotice('Nhập mã hoặc tên dịch vụ cần xóa trong ô tìm kiếm.', 'warning');
+            const selectedIds = Array.from(selectedServiceIds).filter((id) => serviceStore.has(String(id)));
+            if (!selectedIds.length) {
+                showNotice('Vui lòng chọn ít nhất 1 dịch vụ cần xóa.', 'warning');
                 return;
             }
 
-            const target = getFilteredServices(allServices, keyword)[0];
-            if (!target) {
-                showNotice('Không tìm thấy dịch vụ để xóa.', 'warning');
-                return;
-            }
-
-            const ok = confirm(`Bạn có chắc muốn xóa dịch vụ "${target.tendichvu}" (ID: ${target.id})?`);
+            const ok = confirm(`Bạn có chắc muốn xóa ${selectedIds.length} dịch vụ đã chọn?`);
             if (!ok) return;
 
+            let deletedCount = 0;
             try {
-                await mutateService('delete', { id: target.id });
-                allServices = allServices.filter((item) => String(item.id) !== String(target.id));
-                serviceStore.delete(String(target.id));
+                for (const id of selectedIds) {
+                    const target = serviceStore.get(String(id));
+                    if (!target) continue;
+                    await mutateService('delete', { id: target.id });
+                    allServices = allServices.filter((item) => String(item.id) !== String(target.id));
+                    serviceStore.delete(String(target.id));
+                    selectedServiceIds.delete(String(target.id));
+                    deletedCount += 1;
+                }
+
                 renderByCurrentFilter();
-                showNotice(`Xóa dịch vụ "${target.tendichvu}" thành công.`, 'success');
+                showNotice(`Đã xóa ${deletedCount} dịch vụ đã chọn.`, 'success');
             } catch (error) {
                 showNotice('Xóa dịch vụ thất bại: ' + getErrorMessage(error), 'error');
             }
@@ -449,10 +576,14 @@
             document.getElementById('saveServiceBtn').textContent = 'Lưu thay đổi';
 
             document.getElementById('editServiceId').value = service.id;
+            document.getElementById('editServiceImagePath').value = String(service.hinhanhdichvu || '').trim();
             document.getElementById('editServiceName').value = service.tendichvu || '';
             document.getElementById('editServicePrice').value = Number(service.giadichvu || 0);
             document.getElementById('editServiceDuration').value = Number(service.thoigiandichvu || 0);
             document.getElementById('editServiceStatus').value = service.trangthaidichvu === 'hoatdong' ? 'hoatdong' : 'khonghoatdong';
+            document.getElementById('editServiceImage').value = '';
+            const currentImage = String(service.hinhanhdichvu || '').trim();
+            setServiceImageHint(currentImage ? 'Để trống nếu giữ ảnh hiện tại, hoặc chọn ảnh mới để thay thế.' : 'Dịch vụ chưa có ảnh, hãy chọn ảnh từ máy tính.');
 
             openServiceModal();
         }
@@ -516,16 +647,24 @@
             const price = Number(document.getElementById('editServicePrice').value || 0);
             const duration = Number(document.getElementById('editServiceDuration').value || 0);
             const status = document.getElementById('editServiceStatus').value;
+            const imageFile = document.getElementById('editServiceImage').files?.[0] || null;
+            const currentImagePath = String(document.getElementById('editServiceImagePath').value || '').trim();
 
             if (!name) return;
 
             try {
+                let uploadedImagePath = currentImagePath;
+                if (imageFile) {
+                    uploadedImagePath = await uploadImageFile(imageFile, 'services');
+                }
+
                 if (editMode === 'create') {
                     const res = await mutateService('create', {
                         tendichvu: name,
                         giadichvu: price,
                         thoigiandichvu: duration,
                         trangthaidichvu: status,
+                        hinhanhdichvu: uploadedImagePath,
                     });
 
                     const created = res.data || {};
@@ -541,6 +680,7 @@
                         giadichvu: price,
                         thoigiandichvu: duration,
                         trangthaidichvu: status,
+                        hinhanhdichvu: uploadedImagePath,
                     });
 
                     const updated = res.data || {};
@@ -559,6 +699,13 @@
         document.getElementById('serviceSearchInput').addEventListener('input', (event) => {
             currentFilter = event.target.value || '';
             renderByCurrentFilter();
+        });
+
+        document.getElementById('editServiceImage').addEventListener('change', (event) => {
+            const file = event.target.files?.[0] || null;
+            if (file) {
+                setServiceImageHint(`Đã chọn: ${file.name}`);
+            }
         });
 
         document.addEventListener('keydown', (event) => {

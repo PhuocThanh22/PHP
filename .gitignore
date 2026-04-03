@@ -1,0 +1,9 @@
+# Ignore image assets
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.bmp
+*.avif
+*.svg

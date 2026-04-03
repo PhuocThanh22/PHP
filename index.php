@@ -400,6 +400,8 @@ function app_to_public_image_url(string $imagePath): string
     if (app_starts_with($path, '/')) {
         $path = str_replace('Giao Diện/user/anhdata/', 'anhdata/', $path);
         $path = str_replace('Giao%20Di%E1%BB%87n/user/anhdata/', 'anhdata/', $path);
+        $path = str_replace('Giao Diện/admin/anhdata/', 'anhdata/', $path);
+        $path = str_replace('Giao%20Di%E1%BB%87n/admin/anhdata/', 'anhdata/', $path);
         return str_replace(' ', '%20', $path);
     }
 
@@ -409,8 +411,12 @@ function app_to_public_image_url(string $imagePath): string
 
     if (app_starts_with($path, 'Giao Diện/user/anhdata/')) {
         $path = substr($path, strlen('Giao Diện/user/'));
+    } elseif (app_starts_with($path, 'Giao Diện/admin/anhdata/')) {
+        $path = substr($path, strlen('Giao Diện/admin/'));
     } elseif (app_starts_with($path, 'user/anhdata/')) {
         $path = substr($path, strlen('user/'));
+    } elseif (app_starts_with($path, 'admin/anhdata/')) {
+        $path = substr($path, strlen('admin/'));
     }
 
     $basePath = app_base_path();

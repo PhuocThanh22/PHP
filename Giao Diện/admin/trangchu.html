@@ -27,10 +27,7 @@
                 <div class="home-account">
                     <div class="home-account-info">
                         <span class="home-account-name">Tài khoản đăng nhập</span>
-                        <select id="homeRoleSelect" class="home-account-role" aria-label="Chọn vai trò">
-                            <option value="admin">Admin</option>
-                            <option value="nhan-vien">Nhân viên</option>
-                        </select>
+                        <span id="homeRoleDisplay" class="home-account-role" aria-label="Vai trò tài khoản">Admin</span>
                     </div>
                     <span class="home-avatar" id="homeAvatar">AD</span>
                 </div>
@@ -375,24 +372,28 @@
             });
         }
 
-        const roleSelect = document.getElementById('homeRoleSelect');
+        const roleDisplay = document.getElementById('homeRoleDisplay');
         const homeAvatar = document.getElementById('homeAvatar');
 
         function syncHomeRole() {
-            if (!roleSelect || !homeAvatar) return;
-            const isAdmin = roleSelect.value === 'admin';
+            if (!roleDisplay || !homeAvatar) return;
+
+            const sessionApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+            const currentRole = sessionApi && typeof sessionApi.getCurrentRole === 'function'
+                ? sessionApi.getCurrentRole()
+                : 'admin';
+            const isAdmin = currentRole === 'admin';
+
+            roleDisplay.textContent = isAdmin ? 'Admin' : 'Nhân viên';
             homeAvatar.textContent = isAdmin ? 'AD' : 'NV';
 
-            roleSelect.classList.toggle('role-admin', isAdmin);
-            roleSelect.classList.toggle('role-staff', !isAdmin);
+            roleDisplay.classList.toggle('role-admin', isAdmin);
+            roleDisplay.classList.toggle('role-staff', !isAdmin);
             homeAvatar.classList.toggle('avatar-admin', isAdmin);
             homeAvatar.classList.toggle('avatar-staff', !isAdmin);
         }
 
-        if (roleSelect) {
-            roleSelect.addEventListener('change', syncHomeRole);
-            syncHomeRole();
-        }
+        syncHomeRole();
 
         updateChart('invoices');
     </script>

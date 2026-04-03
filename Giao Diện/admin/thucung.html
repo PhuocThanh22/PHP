@@ -111,7 +111,15 @@
         <div class="section-header"><h3><i class="bi bi-heart-fill text-warning me-2"></i>Danh Sách Thú Cưng</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Tên Thú Cưng</th><th>Loại</th><th>Chủ Sở Hữu</th><th>Trạng Thái</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th style="width:44px;"><input id="petSelectAll" type="checkbox" aria-label="Chọn tất cả thú cưng"></th>
+                        <th>Tên Thú Cưng</th>
+                        <th>Loại</th>
+                        <th>Chủ Sở Hữu</th>
+                        <th>Trạng Thái</th>
+                    </tr>
+                </thead>
                 <tbody id="petTableBody"></tbody>
             </table>
         </div>
@@ -203,6 +211,7 @@
     let petMode = 'update';
     let selectedPetId = '';
     let customerOptions = [];
+    const selectedPetIds = new Set();
 
     function escapeHtml(value) {
         return String(value)
@@ -494,6 +503,45 @@
         });
     }
 
+    function syncPetSelectAllState() {
+        const selectAll = document.getElementById('petSelectAll');
+        if (!selectAll) return;
+
+        const rows = getFilteredPets();
+        if (!rows.length) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
+        }
+
+        const selectedCount = rows.filter((item) => selectedPetIds.has(String(item.id))).length;
+        selectAll.checked = selectedCount === rows.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < rows.length;
+    }
+
+    function togglePetSelection(petId, checked) {
+        const id = String(petId);
+        if (checked) {
+            selectedPetIds.add(id);
+        } else {
+            selectedPetIds.delete(id);
+        }
+        syncPetSelectAllState();
+    }
+
+    function toggleAllPets(checked) {
+        const rows = getFilteredPets();
+        rows.forEach((item) => {
+            const id = String(item.id);
+            if (checked) {
+                selectedPetIds.add(id);
+            } else {
+                selectedPetIds.delete(id);
+            }
+        });
+        renderPets();
+    }
+
     function renderPets() {
         const tbody = document.getElementById('petTableBody');
         if (!tbody) return;
@@ -503,8 +551,9 @@
         if (!hasSelected) selectedPetId = '';
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="4">Không tìm thấy thú cưng phù hợp.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5">Không tìm thấy thú cưng phù hợp.</td></tr>';
             hidePetDetail();
+            syncPetSelectAllState();
             return;
         }
 
@@ -515,6 +564,7 @@
                 : (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định');
             return `
                 <tr data-pet-id="${row.id}" class="${String(selectedPetId) === String(row.id) ? 'is-selected' : ''}" onclick="showPetDetail(${row.id})">
+                    <td onclick="event.stopPropagation()"><input type="checkbox" ${selectedPetIds.has(String(row.id)) ? 'checked' : ''} onchange="togglePetSelection(${row.id}, this.checked)"></td>
                     <td>${escapeHtml(row.tenthucung || '-')}</td>
                     <td>${escapeHtml(row.loaithucung || '-')}</td>
                     <td>${escapeHtml(ownerText)}</td>
@@ -522,6 +572,8 @@
                 </tr>
             `;
         }).join('');
+
+        syncPetSelectAllState();
     }
 
     async function loadPets(forceReload = false) {
@@ -529,7 +581,7 @@
         if (!tbody) return;
         if (tbody.dataset.loaded === '1' && !forceReload) return;
 
-        tbody.innerHTML = '<tr><td colspan="4">Đang tải dữ liệu thú cưng...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">Đang tải dữ liệu thú cưng...</td></tr>';
 
         try {
             await loadCustomerOptions(forceReload);
@@ -542,7 +594,7 @@
             renderPets();
             tbody.dataset.loaded = '1';
         } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="4">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
         }
     }
 
@@ -637,33 +689,35 @@
     }
 
     async function deletePetBySearch() {
-        const keyword = String(document.getElementById('petSearchInput')?.value || '').trim().toLowerCase();
-        if (!keyword) {
-            showNotice('Nhập từ khóa để xóa thú cưng.', 'warning');
+        const selectedIds = Array.from(selectedPetIds).filter((id) => petStore.has(String(id)));
+        if (!selectedIds.length) {
+            showNotice('Vui lòng chọn ít nhất 1 thú cưng cần xóa.', 'warning');
             return;
         }
 
-        const target = getFilteredPets()[0];
-        if (!target) {
-            showNotice('Không tìm thấy thú cưng để xóa.', 'warning');
-            return;
-        }
-
-        if (!confirm(`Bạn có chắc muốn xóa hồ sơ thú cưng "${target.tenthucung}" (ID: ${target.id})?`)) return;
+        if (!confirm(`Bạn có chắc muốn xóa ${selectedIds.length} hồ sơ thú cưng đã chọn?`)) return;
 
         try {
-            await mutatePet('delete', { id: target.id });
-            allPets = allPets.filter((item) => String(item.id) !== String(target.id));
-            petStore.delete(String(target.id));
+            let deletedCount = 0;
+            for (const id of selectedIds) {
+                const target = petStore.get(String(id));
+                if (!target) continue;
 
-            if (String(selectedPetId) === String(target.id)) {
-                selectedPetId = '';
-                hidePetDetail();
+                await mutatePet('delete', { id: target.id });
+                allPets = allPets.filter((item) => String(item.id) !== String(target.id));
+                petStore.delete(String(target.id));
+                selectedPetIds.delete(String(target.id));
+                deletedCount += 1;
+
+                if (String(selectedPetId) === String(target.id)) {
+                    selectedPetId = '';
+                    hidePetDetail();
+                }
             }
 
             updatePetSummary();
             renderPets();
-            showNotice(`Xóa thú cưng "${target.tenthucung}" thành công.`, 'success');
+            showNotice(`Đã xóa ${deletedCount} hồ sơ thú cưng đã chọn.`, 'success');
         } catch (error) {
             showNotice('Xóa thú cưng thất bại: ' + getErrorMessage(error), 'error');
         }
@@ -684,6 +738,9 @@
         if (!selectedPetId) return;
         hidePetDetail();
         editPet(selectedPetId);
+    });
+    document.getElementById('petSelectAll').addEventListener('change', (event) => {
+        toggleAllPets(Boolean(event.target.checked));
     });
 
     document.getElementById('petModal').addEventListener('click', (event) => {

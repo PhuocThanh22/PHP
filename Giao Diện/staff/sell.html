@@ -199,9 +199,6 @@
 				<i class="bi bi-search"></i>
 				<input id="sellSearchInput" type="text" placeholder="Tìm theo mã hóa đơn, khách hàng hoặc nhân viên..." aria-label="Tìm đơn bán">
 			</div>
-			<div class="service-toolbar-actions">
-				<button class="btn btn-outline-secondary" type="button" id="reloadSellBtn"><i class="bi bi-arrow-clockwise me-1"></i>Tải lại</button>
-			</div>
 		</div>
 	</div>
 
@@ -218,7 +215,6 @@
 				<h4>Danh Sách Sản Phẩm</h4>
 				<div class="sell-toolbar">
 					<input id="productSearchInput" type="text" placeholder="Tìm theo tên hoặc mã sản phẩm..." aria-label="Tìm sản phẩm">
-					<button class="btn btn-outline-secondary btn-sm" type="button" id="reloadProductsBtn"><i class="bi bi-arrow-clockwise"></i></button>
 				</div>
 				<div class="data-table">
 					<table>
@@ -282,6 +278,8 @@
 		accountName: 'PET SHOP',
 	};
 	let isAwaitingTransferConfirmation = false;
+	const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+	let realtimeLoadTimer = null;
 
 	function escapeHtml(value) {
 		return String(value ?? '')
@@ -659,6 +657,35 @@
 		if (shouldShowSuccessAlert) {
 			alert('Thanh toán thành công. Tổng tiền: ' + formatVnd(total));
 		}
+
+		if (realtimeApi && typeof realtimeApi.publish === 'function') {
+			realtimeApi.publish('entity_changed', {
+				type: 'pos_checkout_completed',
+				at: Date.now(),
+				method,
+				total
+			});
+		}
+	}
+
+	function scheduleRealtimeRefresh() {
+		if (realtimeLoadTimer) window.clearTimeout(realtimeLoadTimer);
+		realtimeLoadTimer = window.setTimeout(() => {
+			realtimeLoadTimer = null;
+			loadSales();
+			loadProducts();
+		}, 180);
+	}
+
+	function bindRealtimeUpdates() {
+		if (!realtimeApi || typeof realtimeApi.subscribe !== 'function') return;
+
+		realtimeApi.subscribe((event) => {
+			if (!event || !event.type) return;
+			if (event.type === 'entity_changed' || event.type === 'order_status_changed' || event.type === 'manual_refresh') {
+				scheduleRealtimeRefresh();
+			}
+		});
 	}
 
 	function checkoutCart() {
@@ -760,8 +787,6 @@
 		renderProducts();
 	});
 	document.getElementById('paymentMethodSelect').addEventListener('change', updateTransferBox);
-	document.getElementById('reloadSellBtn').addEventListener('click', loadSales);
-	document.getElementById('reloadProductsBtn').addEventListener('click', loadProducts);
 	document.getElementById('clearCartBtn').addEventListener('click', () => {
 		cartStore.clear();
 		closeTransferPopup();
@@ -777,6 +802,7 @@
 	document.getElementById('transferPopupBackdrop').addEventListener('click', closeTransferPopup);
 	document.getElementById('checkoutBtn').addEventListener('click', checkoutCart);
 
+	bindRealtimeUpdates();
 	loadSales();
 	loadProducts();
 	renderCart();

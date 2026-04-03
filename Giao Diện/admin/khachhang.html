@@ -111,7 +111,15 @@
         <div class="section-header"><h3><i class="bi bi-people text-warning me-2"></i>Danh Sách Khách Hàng</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Khách Hàng</th><th>SĐT</th><th>Loại</th><th>Số Thú Cưng</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th style="width:44px;"><input id="customerSelectAll" type="checkbox" aria-label="Chọn tất cả khách hàng"></th>
+                        <th>Khách Hàng</th>
+                        <th>SĐT</th>
+                        <th>Loại</th>
+                        <th>Số Thú Cưng</th>
+                    </tr>
+                </thead>
                 <tbody id="customerTableBody"></tbody>
             </table>
         </div>
@@ -199,6 +207,7 @@
     let customerFilter = '';
     let customerMode = 'update';
     let selectedCustomerId = '';
+    const selectedCustomerIds = new Set();
 
     function escapeHtml(value) {
         return String(value)
@@ -458,6 +467,45 @@
         });
     }
 
+    function syncCustomerSelectAllState() {
+        const selectAll = document.getElementById('customerSelectAll');
+        if (!selectAll) return;
+
+        const rows = getFilteredCustomers();
+        if (!rows.length) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
+        }
+
+        const selectedCount = rows.filter((item) => selectedCustomerIds.has(String(item.id))).length;
+        selectAll.checked = selectedCount === rows.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < rows.length;
+    }
+
+    function toggleCustomerSelection(customerId, checked) {
+        const id = String(customerId);
+        if (checked) {
+            selectedCustomerIds.add(id);
+        } else {
+            selectedCustomerIds.delete(id);
+        }
+        syncCustomerSelectAllState();
+    }
+
+    function toggleAllCustomers(checked) {
+        const rows = getFilteredCustomers();
+        rows.forEach((item) => {
+            const id = String(item.id);
+            if (checked) {
+                selectedCustomerIds.add(id);
+            } else {
+                selectedCustomerIds.delete(id);
+            }
+        });
+        renderCustomers();
+    }
+
     function renderCustomers() {
         const tbody = document.getElementById('customerTableBody');
         if (!tbody) return;
@@ -467,19 +515,23 @@
         if (!hasSelected) selectedCustomerId = '';
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="4">Không tìm thấy khách hàng phù hợp.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5">Không tìm thấy khách hàng phù hợp.</td></tr>';
             hideCustomerDetail();
+            syncCustomerSelectAllState();
             return;
         }
 
         tbody.innerHTML = rows.map((row) => `
             <tr data-customer-id="${row.id}" class="${String(selectedCustomerId) === String(row.id) ? 'is-selected' : ''}" onclick="showCustomerDetail(${row.id})">
+                <td onclick="event.stopPropagation()"><input type="checkbox" ${selectedCustomerIds.has(String(row.id)) ? 'checked' : ''} onchange="toggleCustomerSelection(${row.id}, this.checked)"></td>
                 <td>${escapeHtml(row.tenkhachhang || '-')}</td>
                 <td>${escapeHtml(row.sodienthoaikhachhang || '-')}</td>
                 <td><span class="status-badge ${String(row.loaikhachhang) === 'vip' ? 'success' : 'warning'}">${customerTypeText(row.loaikhachhang)}</span></td>
                 <td>${Number(row.so_thu_cung || 0)}</td>
             </tr>
         `).join('');
+
+        syncCustomerSelectAllState();
     }
 
     async function loadCustomers(forceReload = false) {
@@ -487,7 +539,7 @@
         if (!tbody) return;
         if (tbody.dataset.loaded === '1' && !forceReload) return;
 
-        tbody.innerHTML = '<tr><td colspan="4">Đang tải dữ liệu khách hàng...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">Đang tải dữ liệu khách hàng...</td></tr>';
 
         try {
             const payload = await fetchPayload('get_customers');
@@ -499,7 +551,7 @@
             renderCustomers();
             tbody.dataset.loaded = '1';
         } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="4">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
         }
     }
 
@@ -601,33 +653,35 @@
     }
 
     async function deleteCustomerBySearch() {
-        const keyword = String(document.getElementById('customerSearchInput')?.value || '').trim().toLowerCase();
-        if (!keyword) {
-            showNotice('Nhập mã, tên, email hoặc số điện thoại khách hàng cần xóa.', 'warning');
+        const selectedIds = Array.from(selectedCustomerIds).filter((id) => customerStore.has(String(id)));
+        if (!selectedIds.length) {
+            showNotice('Vui lòng chọn ít nhất 1 khách hàng cần xóa.', 'warning');
             return;
         }
 
-        const target = getFilteredCustomers()[0];
-        if (!target) {
-            showNotice('Không tìm thấy khách hàng để xóa.', 'warning');
-            return;
-        }
-
-        if (!confirm(`Bạn có chắc muốn xóa khách hàng "${target.tenkhachhang}" (ID: ${target.id})?`)) return;
+        if (!confirm(`Bạn có chắc muốn xóa ${selectedIds.length} khách hàng đã chọn?`)) return;
 
         try {
-            await mutateCustomer('delete', { id: target.id });
-            allCustomers = allCustomers.filter((item) => String(item.id) !== String(target.id));
-            customerStore.delete(String(target.id));
+            let deletedCount = 0;
+            for (const id of selectedIds) {
+                const target = customerStore.get(String(id));
+                if (!target) continue;
 
-            if (String(selectedCustomerId) === String(target.id)) {
-                selectedCustomerId = '';
-                hideCustomerDetail();
+                await mutateCustomer('delete', { id: target.id });
+                allCustomers = allCustomers.filter((item) => String(item.id) !== String(target.id));
+                customerStore.delete(String(target.id));
+                selectedCustomerIds.delete(String(target.id));
+                deletedCount += 1;
+
+                if (String(selectedCustomerId) === String(target.id)) {
+                    selectedCustomerId = '';
+                    hideCustomerDetail();
+                }
             }
 
             updateCustomerSummary();
             renderCustomers();
-            showNotice(`Xóa khách hàng "${target.tenkhachhang}" thành công.`, 'success');
+            showNotice(`Đã xóa ${deletedCount} khách hàng đã chọn.`, 'success');
         } catch (error) {
             showNotice('Xóa khách hàng thất bại: ' + getErrorMessage(error), 'error');
         }
@@ -648,6 +702,9 @@
         if (!selectedCustomerId) return;
         hideCustomerDetail();
         editCustomer(selectedCustomerId);
+    });
+    document.getElementById('customerSelectAll').addEventListener('change', (event) => {
+        toggleAllCustomers(Boolean(event.target.checked));
     });
 
     document.getElementById('customerModal').addEventListener('click', (event) => {

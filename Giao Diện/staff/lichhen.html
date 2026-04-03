@@ -25,7 +25,6 @@
 <div class="page-wrap">
     <div class="top-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h2><i class="bi bi-calendar-check text-success me-2"></i>Lịch Hẹn Dịch Vụ</h2>
-        <button id="refreshBtn" class="btn btn-success btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Làm mới</button>
     </div>
 
     <div class="content-section mb-3">
@@ -81,8 +80,9 @@
     const keywordInput = document.getElementById('keywordInput');
     const statusInput = document.getElementById('statusInput');
     const summaryText = document.getElementById('summaryText');
-    const refreshBtn = document.getElementById('refreshBtn');
     const filterBtn = document.getElementById('filterBtn');
+    const BOOKING_SYNC_KEY = 'serviceBookingSyncSignal';
+    const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
 
     const statusMeta = {
         choduyet: { label: 'Chờ duyệt', cls: 'status-pending' },
@@ -173,6 +173,70 @@
         return { ok: false, message: lastMessage };
     };
 
+    const emitBookingSyncSignal = (payload) => {
+        const signal = {
+            time: Date.now(),
+            source: 'staff',
+            ...payload
+        };
+
+        try {
+            localStorage.setItem(BOOKING_SYNC_KEY, JSON.stringify(signal));
+        } catch (e) {
+            // ignore storage errors
+        }
+
+        if ('BroadcastChannel' in window) {
+            try {
+                const channel = new BroadcastChannel('service-booking-sync');
+                channel.postMessage(signal);
+                channel.close();
+            } catch (e) {
+                // ignore channel errors
+            }
+        }
+
+        if (realtimeApi && typeof realtimeApi.publish === 'function') {
+            realtimeApi.publish('entity_changed', signal);
+        }
+    };
+
+    let realtimeLoadTimer = null;
+    const scheduleRealtimeLoad = () => {
+        if (realtimeLoadTimer) window.clearTimeout(realtimeLoadTimer);
+        realtimeLoadTimer = window.setTimeout(() => {
+            realtimeLoadTimer = null;
+            loadData();
+        }, 160);
+    };
+
+    const bindRealtimeUpdates = () => {
+        window.addEventListener('storage', (event) => {
+            if (event.key !== BOOKING_SYNC_KEY || !event.newValue) return;
+            scheduleRealtimeLoad();
+        });
+
+        if ('BroadcastChannel' in window) {
+            try {
+                const channel = new BroadcastChannel('service-booking-sync');
+                channel.addEventListener('message', () => {
+                    scheduleRealtimeLoad();
+                });
+            } catch (e) {
+                // ignore channel errors
+            }
+        }
+
+        if (realtimeApi && typeof realtimeApi.subscribe === 'function') {
+            realtimeApi.subscribe((event) => {
+                if (!event || !event.type) return;
+                if (event.type === 'entity_changed' || event.type === 'manual_refresh') {
+                    scheduleRealtimeLoad();
+                }
+            });
+        }
+    };
+
     const renderRows = (rows) => {
         if (!rows.length) {
             bodyEl.innerHTML = '<tr><td colspan="7" class="text-muted">Không có lịch hẹn phù hợp.</td></tr>';
@@ -247,11 +311,11 @@
             return;
         }
 
+        emitBookingSyncSignal({ id, status });
         await loadData();
     });
 
     filterBtn.addEventListener('click', loadData);
-    refreshBtn.addEventListener('click', loadData);
     keywordInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -259,6 +323,7 @@
         }
     });
 
+    bindRealtimeUpdates();
     loadData();
 })();
 </script>

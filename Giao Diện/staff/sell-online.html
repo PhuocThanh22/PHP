@@ -26,7 +26,6 @@
 <div class="page-wrap">
     <div class="top-header d-flex justify-content-between align-items-center">
         <h2 class="mb-0"><i class="bi bi-shop-window me-2"></i>Bán Hàng Online</h2>
-        <button class="btn btn-outline-primary btn-sm" id="btnReload"><i class="bi bi-arrow-repeat me-1"></i>Tải lại</button>
     </div>
 
     <div class="module-grid mb-3">
@@ -80,8 +79,8 @@
     const statusFilter = document.getElementById('statusFilter');
     const keywordInput = document.getElementById('keywordInput');
     const btnSearch = document.getElementById('btnSearch');
-    const btnReload = document.getElementById('btnReload');
     const ONLINE_ORDER_SYNC_KEY = 'onlineOrderSyncSignal';
+    const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
 
     const emitOrderStatusSyncSignal = (payload) => {
         const signal = {
@@ -104,6 +103,47 @@
             } catch (e) {
                 // ignore channel errors
             }
+        }
+
+        if (realtimeApi && typeof realtimeApi.publish === 'function') {
+            realtimeApi.publish('order_status_changed', signal);
+            realtimeApi.publish('entity_changed', signal);
+        }
+    };
+
+    let realtimeLoadTimer = null;
+    const scheduleRealtimeLoad = () => {
+        if (realtimeLoadTimer) window.clearTimeout(realtimeLoadTimer);
+        realtimeLoadTimer = window.setTimeout(() => {
+            realtimeLoadTimer = null;
+            loadOrders();
+        }, 160);
+    };
+
+    const bindRealtimeUpdates = () => {
+        window.addEventListener('storage', (event) => {
+            if (event.key !== ONLINE_ORDER_SYNC_KEY || !event.newValue) return;
+            scheduleRealtimeLoad();
+        });
+
+        if ('BroadcastChannel' in window) {
+            try {
+                const channel = new BroadcastChannel('online-order-sync');
+                channel.addEventListener('message', () => {
+                    scheduleRealtimeLoad();
+                });
+            } catch (e) {
+                // ignore channel errors
+            }
+        }
+
+        if (realtimeApi && typeof realtimeApi.subscribe === 'function') {
+            realtimeApi.subscribe((event) => {
+                if (!event || !event.type) return;
+                if (event.type === 'entity_changed' || event.type === 'order_status_changed' || event.type === 'manual_refresh') {
+                    scheduleRealtimeLoad();
+                }
+            });
         }
     };
 
@@ -255,7 +295,6 @@
     });
 
     btnSearch.addEventListener('click', loadOrders);
-    btnReload.addEventListener('click', loadOrders);
     keywordInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -263,12 +302,8 @@
         }
     });
 
+    bindRealtimeUpdates();
     loadOrders();
-    setInterval(() => {
-        if (document.visibilityState === 'visible') {
-            loadOrders();
-        }
-    }, 5000);
 })();
 </script>
 </body>

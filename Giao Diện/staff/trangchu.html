@@ -10,7 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="staff-style.css?v=20260321-5">
+    <link rel="stylesheet" href="staff-style.css?v=20260403-1">
 </head>
 <body class="home-no-scroll">
     <div class="page-wrap">
@@ -27,11 +27,9 @@
                 <div class="home-account">
                     <div class="home-account-info">
                         <span class="home-account-name">Tài khoản đăng nhập</span>
-                        <select id="homeRoleSelect" class="home-account-role" aria-label="Chọn vai trò">
-                            <option value="staff">Nhân viên</option>
-                        </select>
+                        <span id="homeRoleDisplay" class="home-account-role" aria-label="Vai trò tài khoản">Nhân viên</span>
                     </div>
-                    <span class="home-avatar" id="homeAvatar">AD</span>
+                    <span class="home-avatar" id="homeAvatar">NV</span>
                 </div>
             </div>
         </div>
@@ -374,18 +372,28 @@
             });
         }
 
-        const roleSelect = document.getElementById('homeRoleSelect');
+        const roleDisplay = document.getElementById('homeRoleDisplay');
         const homeAvatar = document.getElementById('homeAvatar');
 
         function syncHomeRole() {
-            if (!roleSelect || !homeAvatar) return;
-            homeAvatar.textContent = roleSelect.value === 'admin' ? 'AD' : 'NV';
+            if (!roleDisplay || !homeAvatar) return;
+
+            const sessionApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+            const currentRole = sessionApi && typeof sessionApi.getCurrentRole === 'function'
+                ? sessionApi.getCurrentRole()
+                : 'staff';
+            const isAdmin = currentRole === 'admin';
+
+            roleDisplay.textContent = isAdmin ? 'Admin' : 'Nhân viên';
+            homeAvatar.textContent = isAdmin ? 'AD' : 'NV';
+
+            roleDisplay.classList.toggle('role-admin', isAdmin);
+            roleDisplay.classList.toggle('role-staff', !isAdmin);
+            homeAvatar.classList.toggle('avatar-admin', isAdmin);
+            homeAvatar.classList.toggle('avatar-staff', !isAdmin);
         }
 
-        if (roleSelect) {
-            roleSelect.addEventListener('change', syncHomeRole);
-            syncHomeRole();
-        }
+        syncHomeRole();
 
         updateChart('invoices');
     </script>

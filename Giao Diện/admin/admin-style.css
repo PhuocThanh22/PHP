@@ -547,6 +547,7 @@ body.home-no-scroll .page-wrap {
     display: grid;
     gap: 2px;
     text-align: right;
+    justify-items: end;
 }
 
 .home-account-name {
@@ -557,14 +558,23 @@ body.home-no-scroll .page-wrap {
 }
 
 .home-account-role {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    max-width: max-content;
+    min-width: 0;
     border: 1px solid #86efac;
     border-radius: 8px;
     font-size: 12px;
-    padding: 3px 8px;
+    line-height: 1.1;
+    padding: 2px 7px;
     color: #166534;
     background: #f0fdf4;
     outline: none;
     font-weight: 600;
+    justify-self: end;
+    white-space: nowrap;
 }
 
 .home-account-role:focus {
@@ -885,6 +895,24 @@ body.home-no-scroll .page-wrap {
     gap: 8px;
 }
 
+.select-all-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    user-select: none;
+}
+
+.select-all-wrap input,
+.data-table input[type="checkbox"],
+.service-select-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: #1F8F4D;
+}
+
 .service-card {
     border: 2px solid #dbe2ea;
     border-radius: 12px;
@@ -894,6 +922,7 @@ body.home-no-scroll .page-wrap {
     display: flex;
     flex-direction: column;
     min-height: 252px;
+    position: relative;
 }
 
 .service-card.is-active {
@@ -916,9 +945,75 @@ body.home-no-scroll .page-wrap {
 .service-card-header {
     display: flex;
     align-items: flex-start;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 10px;
     margin-bottom: 8px;
+    padding-right: 0;
+}
+
+.service-select-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    padding: 0;
+}
+
+.service-select-item .service-select-checkbox {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+}
+
+.service-card-checkwrap {
+    display: none;
+}
+
+.service-card-checkbox {
+    display: none;
+}
+
+.service-card-checkmark {
+    position: absolute;
+    inset: 0;
+    border: 2px solid #15803d;
+    border-radius: 4px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+}
+
+.service-card-checkwrap .service-card-checkbox:checked + .service-card-checkmark {
+    background: #15803d;
+    border-color: #15803d;
+}
+
+.service-card-checkwrap .service-card-checkbox:checked + .service-card-checkmark::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 6px;
+    height: 11px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.service-card-checkbox-inline {
+    width: 18px;
+    height: 18px;
+    margin: 2px 0 0 8px;
+    flex: 0 0 auto;
+    accent-color: #15803d;
+    cursor: pointer;
 }
 
 .service-title {
@@ -1097,6 +1192,102 @@ body.home-no-scroll .page-wrap {
 .service-form-control:focus {
     border-color: #4ade80;
     box-shadow: 0 0 0 3px rgba(31, 143, 77, 0.12);
+}
+
+.upload-square-field {
+    display: block;
+}
+
+.upload-square-input {
+    display: none !important;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    clip-path: inset(50%) !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    z-index: -1 !important;
+}
+
+#editServiceImage,
+#editCategoryImageFile,
+#editProductImage {
+    display: none !important;
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+}
+
+.upload-square-box {
+    width: 100%;
+    min-height: 230px;
+    border: 2px dashed #d0d7de;
+    border-radius: 16px;
+    background: #f8fafc;
+    color: #1f2937;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    text-align: center;
+    padding: 24px 20px;
+}
+
+.upload-square-box:hover {
+    border-color: #9aa4b2;
+    background: #f1f5f9;
+}
+
+.upload-square-plus {
+    font-size: 40px;
+    line-height: 1;
+    color: #6b7280;
+}
+
+.upload-square-title {
+    max-width: 480px;
+    color: #111827;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.upload-square-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #1f2937;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.upload-square-types {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.upload-square-input:focus + .upload-square-box {
+    border-color: #9aa4b2;
+    box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25);
 }
 
 .service-modal-footer {
