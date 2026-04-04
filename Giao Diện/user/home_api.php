@@ -797,7 +797,632 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         ]);
     }
 
+    if ($api === 'get_order_reviews') {
+        if (!app_ensure_order_review_schema($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang danh gia',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $input = app_input_payload();
+        $userId = (int) ($_GET['user_id'] ?? $input['user_id'] ?? 0);
+        $userEmail = trim((string) ($_GET['user_email'] ?? $input['user_email'] ?? ''));
+        $userPhone = app_digits_only((string) ($_GET['user_phone'] ?? $input['user_phone'] ?? ''));
+
+        $customerId = app_find_customer_id_for_identity($conn, $userId, $userEmail, $userPhone);
+        if ($customerId <= 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => true,
+                'count' => 0,
+                'data' => [],
+            ]);
+        }
+
+                $sql = "
+                        SELECT dg.madonhang, dg.sosao, dg.noidung, dg.ngaytao
+                        FROM danhgiasanpham dg
+                        INNER JOIN (
+                                SELECT madonhang, MAX(id) AS max_id
+                                FROM danhgiasanpham
+                                WHERE khachhang_id = ?
+                                    AND madonhang IS NOT NULL
+                                    AND TRIM(madonhang) <> ''
+                                GROUP BY madonhang
+                        ) latest ON latest.max_id = dg.id
+                        ORDER BY dg.ngaytao DESC, dg.id DESC
+                        LIMIT 300
+                ";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the tai danh gia',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $stmt->bind_param('i', $customerId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $rows = [];
+        while ($result && ($row = $result->fetch_assoc())) {
+            $rows[] = [
+                'order_id' => (string) ($row['madonhang'] ?? ''),
+                'rating' => (int) ($row['sosao'] ?? 0),
+                'comment' => (string) ($row['noidung'] ?? ''),
+                'created_at' => (string) ($row['ngaytao'] ?? ''),
+            ];
+        }
+
+        if ($result) {
+            $result->free();
+        }
+        $stmt->close();
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'count' => count($rows),
+            'data' => $rows,
+        ]);
+    }
+
+    if ($api === 'save_order_review') {
+        if (!app_ensure_order_review_schema($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang danh gia',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $input = app_input_payload();
+        $orderCode = trim((string) ($input['order_id'] ?? ''));
+        $rating = (int) ($input['rating'] ?? 0);
+        $comment = trim((string) ($input['comment'] ?? ''));
+        $userId = (int) ($input['user_id'] ?? 0);
+        $userEmail = trim((string) ($input['user_email'] ?? ''));
+        $userPhone = app_digits_only((string) ($input['user_phone'] ?? ''));
+
+        if ($orderCode === '') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Thieu ma don hang',
+            ], 400);
+        }
+
+        if ($rating < 1 || $rating > 5) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'So sao phai tu 1 den 5',
+            ], 400);
+        }
+
+        if ($comment === '') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Vui long nhap noi dung danh gia',
+            ], 400);
+        }
+
+        $customerId = app_find_or_create_customer_for_identity($conn, $userId, $userEmail, $userPhone);
+        if ($customerId <= 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong xac dinh duoc khach hang',
+            ], 403);
+        }
+
+        $ownedOrder = app_find_online_order_for_review($conn, $orderCode, $userEmail, $userPhone);
+        if (!is_array($ownedOrder)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay don hang hop le de danh gia',
+            ], 404);
+        }
+
+        $orderStatus = app_lower(trim((string) ($ownedOrder['trangthai'] ?? '')));
+        if ($orderStatus !== 'da_duyet') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Chi duoc danh gia don da hoan thanh',
+            ], 400);
+        }
+
+        $orderOnlineId = (int) ($ownedOrder['id'] ?? 0);
+        $productIds = app_find_online_order_product_ids_for_review($conn, $ownedOrder);
+        if (count($productIds) === 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay san pham hop le trong don hang de danh gia',
+            ], 400);
+        }
+
+        $conn->begin_transaction();
+        try {
+            $cleanupSql = "
+                DELETE FROM danhgiasanpham
+                WHERE khachhang_id = ?
+                  AND madonhang = ?
+                  AND sanpham_id IS NULL
+            ";
+            $cleanupStmt = $conn->prepare($cleanupSql);
+            if (!$cleanupStmt) {
+                throw new RuntimeException('Khong the don du lieu danh gia cu');
+            }
+            $cleanupStmt->bind_param('is', $customerId, $orderCode);
+            $cleanupStmt->execute();
+            $cleanupStmt->close();
+
+            $checkSql = "
+                SELECT id
+                FROM danhgiasanpham
+                WHERE khachhang_id = ?
+                  AND madonhang = ?
+                  AND sanpham_id = ?
+                LIMIT 1
+            ";
+            $checkStmt = $conn->prepare($checkSql);
+            if (!$checkStmt) {
+                throw new RuntimeException('Khong the kiem tra danh gia hien tai');
+            }
+
+            $updateSql = "
+                UPDATE danhgiasanpham
+                SET sosao = ?,
+                    noidung = ?,
+                    trangthai = 'approved',
+                    donhang_online_id = NULLIF(?, 0),
+                    ngaytao = NOW()
+                WHERE id = ?
+                LIMIT 1
+            ";
+            $updateStmt = $conn->prepare($updateSql);
+            if (!$updateStmt) {
+                $checkStmt->close();
+                throw new RuntimeException('Khong the cap nhat danh gia');
+            }
+
+            $insertSql = "
+                INSERT INTO danhgiasanpham
+                    (sanpham_id, donhang_online_id, madonhang, khachhang_id, sosao, noidung, trangthai)
+                VALUES
+                    (?, NULLIF(?, 0), ?, ?, ?, ?, 'approved')
+            ";
+            $insertStmt = $conn->prepare($insertSql);
+            if (!$insertStmt) {
+                $checkStmt->close();
+                $updateStmt->close();
+                throw new RuntimeException('Khong the tao danh gia');
+            }
+
+            foreach ($productIds as $productId) {
+                $checkStmt->bind_param('isi', $customerId, $orderCode, $productId);
+                $checkStmt->execute();
+                $checkResult = $checkStmt->get_result();
+                $existing = $checkResult ? $checkResult->fetch_assoc() : null;
+                if ($checkResult) {
+                    $checkResult->free();
+                }
+
+                if (is_array($existing)) {
+                    $reviewId = (int) ($existing['id'] ?? 0);
+                    $updateStmt->bind_param('isii', $rating, $comment, $orderOnlineId, $reviewId);
+                    if (!$updateStmt->execute()) {
+                        throw new RuntimeException('Cap nhat danh gia that bai');
+                    }
+                } else {
+                    $insertStmt->bind_param('iisiis', $productId, $orderOnlineId, $orderCode, $customerId, $rating, $comment);
+                    if (!$insertStmt->execute()) {
+                        throw new RuntimeException('Luu danh gia that bai');
+                    }
+                }
+            }
+
+            $checkStmt->close();
+            $updateStmt->close();
+            $insertStmt->close();
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the luu danh gia don hang',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'message' => 'Da luu danh gia don hang',
+            'data' => [
+                'order_id' => $orderCode,
+                'product_count' => count($productIds),
+                'rating' => $rating,
+                'comment' => $comment,
+                'created_at' => date('Y-m-d H:i:s'),
+            ],
+        ]);
+    }
+
     return false;
+}
+
+function app_digits_only(string $value): string
+{
+    return preg_replace('/[^0-9]/', '', $value) ?? '';
+}
+
+function app_index_exists(mysqli $conn, string $table, string $indexName): bool
+{
+    $safeTable = $conn->real_escape_string($table);
+    $safeIndex = $conn->real_escape_string($indexName);
+    $sql = "SHOW INDEX FROM `{$safeTable}` WHERE Key_name = '{$safeIndex}'";
+    $result = $conn->query($sql);
+    if (!$result) {
+        return false;
+    }
+    $exists = $result->num_rows > 0;
+    $result->free();
+    return $exists;
+}
+
+function app_ensure_order_review_schema(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'danhgiasanpham')) {
+        $createSql = "
+            CREATE TABLE danhgiasanpham (
+                id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                sanpham_id INT NULL,
+                donhang_online_id INT NULL,
+                madonhang VARCHAR(50) NULL,
+                khachhang_id INT NOT NULL,
+                sosao TINYINT NOT NULL,
+                noidung TEXT NULL,
+                trangthai ENUM('pending','approved','rejected') NOT NULL DEFAULT 'approved',
+                ngaytao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_danhgiasanpham_khachhang (khachhang_id),
+                KEY idx_danhgiasanpham_madonhang (madonhang),
+                UNIQUE KEY uq_danhgia_order_customer_product (khachhang_id, madonhang, sanpham_id),
+                CONSTRAINT fk_danhgiasanpham_khachhang FOREIGN KEY (khachhang_id)
+                    REFERENCES khachhang(id) ON DELETE CASCADE ON UPDATE CASCADE,
+                CONSTRAINT danhgiasanpham_chk_1 CHECK (sosao BETWEEN 1 AND 5)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ";
+
+        return (bool) $conn->query($createSql);
+    }
+
+    if (app_column_exists($conn, 'danhgiasanpham', 'sanpham_id')) {
+        if (!$conn->query('ALTER TABLE danhgiasanpham MODIFY COLUMN sanpham_id INT NULL')) {
+            return false;
+        }
+    }
+
+    if (!app_column_exists($conn, 'danhgiasanpham', 'donhang_online_id')) {
+        if (!$conn->query('ALTER TABLE danhgiasanpham ADD COLUMN donhang_online_id INT NULL AFTER sanpham_id')) {
+            return false;
+        }
+    }
+
+    if (!app_column_exists($conn, 'danhgiasanpham', 'madonhang')) {
+        if (!$conn->query('ALTER TABLE danhgiasanpham ADD COLUMN madonhang VARCHAR(50) NULL AFTER donhang_online_id')) {
+            return false;
+        }
+    }
+
+    if (!app_index_exists($conn, 'danhgiasanpham', 'idx_danhgiasanpham_madonhang')) {
+        if (!$conn->query('ALTER TABLE danhgiasanpham ADD INDEX idx_danhgiasanpham_madonhang (madonhang)')) {
+            return false;
+        }
+    }
+
+    if (app_index_exists($conn, 'danhgiasanpham', 'uq_danhgia_order_customer')) {
+        if (!$conn->query('ALTER TABLE danhgiasanpham DROP INDEX uq_danhgia_order_customer')) {
+            return false;
+        }
+    }
+
+    if (!app_index_exists($conn, 'danhgiasanpham', 'uq_danhgia_order_customer_product')) {
+        if (!$conn->query('ALTER TABLE danhgiasanpham ADD UNIQUE KEY uq_danhgia_order_customer_product (khachhang_id, madonhang, sanpham_id)')) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function app_find_customer_id_for_identity(mysqli $conn, int $userId, string $userEmail, string $userPhone): int
+{
+    if (!app_table_exists($conn, 'khachhang')) {
+        return 0;
+    }
+
+    $email = trim($userEmail);
+    $phone = app_digits_only($userPhone);
+
+    if ($email === '' && $userId > 0 && app_table_exists($conn, 'nguoidung')) {
+        $userSql = 'SELECT emailnguoidung FROM nguoidung WHERE id = ? LIMIT 1';
+        $userStmt = $conn->prepare($userSql);
+        if ($userStmt) {
+            $userStmt->bind_param('i', $userId);
+            $userStmt->execute();
+            $userResult = $userStmt->get_result();
+            $userRow = $userResult ? $userResult->fetch_assoc() : null;
+            if ($userResult) {
+                $userResult->free();
+            }
+            $userStmt->close();
+            if (is_array($userRow)) {
+                $email = trim((string) ($userRow['emailnguoidung'] ?? ''));
+            }
+        }
+    }
+
+    if ($email === '' && $phone === '') {
+        return 0;
+    }
+
+    $sql = "
+        SELECT id
+        FROM khachhang
+        WHERE ((emailkhachhang IS NOT NULL AND LOWER(emailkhachhang) = LOWER(?))
+            OR (REPLACE(REPLACE(REPLACE(COALESCE(sodienthoaikhachhang, ''), ' ', ''), '.', ''), '-', '') = ?))
+        LIMIT 1
+    ";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return 0;
+    }
+    $stmt->bind_param('ss', $email, $phone);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    if ($result) {
+        $result->free();
+    }
+    $stmt->close();
+
+    return is_array($row) ? (int) ($row['id'] ?? 0) : 0;
+}
+
+function app_find_or_create_customer_for_identity(mysqli $conn, int $userId, string $userEmail, string $userPhone): int
+{
+    $existingId = app_find_customer_id_for_identity($conn, $userId, $userEmail, $userPhone);
+    if ($existingId > 0) {
+        return $existingId;
+    }
+
+    if (!app_table_exists($conn, 'khachhang')) {
+        return 0;
+    }
+
+    $name = 'Khach hang';
+    if ($userId > 0 && app_table_exists($conn, 'nguoidung')) {
+        $userSql = 'SELECT tennguoidung FROM nguoidung WHERE id = ? LIMIT 1';
+        $userStmt = $conn->prepare($userSql);
+        if ($userStmt) {
+            $userStmt->bind_param('i', $userId);
+            $userStmt->execute();
+            $userResult = $userStmt->get_result();
+            $userRow = $userResult ? $userResult->fetch_assoc() : null;
+            if ($userResult) {
+                $userResult->free();
+            }
+            $userStmt->close();
+            if (is_array($userRow)) {
+                $name = trim((string) ($userRow['tennguoidung'] ?? '')) ?: $name;
+            }
+        }
+    }
+
+    $email = trim($userEmail);
+    $phone = app_digits_only($userPhone);
+    if ($email === '' && $phone === '') {
+        return 0;
+    }
+
+    $insertSql = "
+        INSERT INTO khachhang
+            (tenkhachhang, sodienthoaikhachhang, emailkhachhang, tongchitieukhachhang, loaikhachhang)
+        VALUES
+            (?, ?, ?, 0, 'thuong')
+    ";
+    $insertStmt = $conn->prepare($insertSql);
+    if (!$insertStmt) {
+        return 0;
+    }
+    $insertStmt->bind_param('sss', $name, $phone, $email);
+    $ok = $insertStmt->execute();
+    $newId = (int) $insertStmt->insert_id;
+    $insertStmt->close();
+
+    if (!$ok || $newId <= 0) {
+        return app_find_customer_id_for_identity($conn, $userId, $userEmail, $userPhone);
+    }
+
+    return $newId;
+}
+
+function app_find_online_order_for_review(mysqli $conn, string $orderCode, string $userEmail, string $userPhone): ?array
+{
+    if (!app_table_exists($conn, 'donhang_online')) {
+        return null;
+    }
+
+    $sql = "
+        SELECT id, donhang_id, madonhang, email, sodienthoai, trangthai, chitiet_json
+        FROM donhang_online
+        WHERE madonhang = ?
+        LIMIT 1
+    ";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return null;
+    }
+
+    $stmt->bind_param('s', $orderCode);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    if ($result) {
+        $result->free();
+    }
+    $stmt->close();
+
+    if (!is_array($row)) {
+        return null;
+    }
+
+    $orderEmail = app_lower(trim((string) ($row['email'] ?? '')));
+    $orderPhone = app_digits_only((string) ($row['sodienthoai'] ?? ''));
+    $identityEmail = app_lower(trim($userEmail));
+    $identityPhone = app_digits_only($userPhone);
+
+    $matchedByEmail = ($identityEmail !== '' && $orderEmail !== '' && hash_equals($orderEmail, $identityEmail));
+    $matchedByPhone = ($identityPhone !== '' && $orderPhone !== '' && hash_equals($orderPhone, $identityPhone));
+
+    if (!$matchedByEmail && !$matchedByPhone) {
+        return null;
+    }
+
+    return $row;
+}
+
+function app_find_online_order_product_ids_for_review(mysqli $conn, array $onlineOrder): array
+{
+    $productIds = [];
+    $productNames = [];
+
+    $donhangId = (int) ($onlineOrder['donhang_id'] ?? 0);
+    if ($donhangId > 0 && app_table_exists($conn, 'donhang_chitiet')) {
+        $sql = "
+            SELECT DISTINCT sanpham_id
+            FROM donhang_chitiet
+            WHERE donhang_id = ?
+              AND sanpham_id IS NOT NULL
+              AND sanpham_id > 0
+        ";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param('i', $donhangId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($result && ($row = $result->fetch_assoc())) {
+                $productId = (int) ($row['sanpham_id'] ?? 0);
+                if ($productId > 0) {
+                    $productIds[] = $productId;
+                }
+            }
+            if ($result) {
+                $result->free();
+            }
+            $stmt->close();
+        }
+
+        if (count($productIds) === 0) {
+            $nameSql = "
+                SELECT DISTINCT tensanpham
+                FROM donhang_chitiet
+                WHERE donhang_id = ?
+                  AND TRIM(COALESCE(tensanpham, '')) <> ''
+            ";
+            $nameStmt = $conn->prepare($nameSql);
+            if ($nameStmt) {
+                $nameStmt->bind_param('i', $donhangId);
+                $nameStmt->execute();
+                $nameResult = $nameStmt->get_result();
+                while ($nameResult && ($nameRow = $nameResult->fetch_assoc())) {
+                    $name = trim((string) ($nameRow['tensanpham'] ?? ''));
+                    if ($name !== '') {
+                        $productNames[] = $name;
+                    }
+                }
+                if ($nameResult) {
+                    $nameResult->free();
+                }
+                $nameStmt->close();
+            }
+        }
+    }
+
+    if (count($productIds) === 0) {
+        $rawItems = (string) ($onlineOrder['chitiet_json'] ?? '[]');
+        $decodedItems = json_decode($rawItems, true);
+        if (is_array($decodedItems)) {
+            foreach ($decodedItems as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $productId = (int) ($item['product_id'] ?? $item['id'] ?? 0);
+                if ($productId > 0) {
+                    $productIds[] = $productId;
+                    continue;
+                }
+
+                $name = trim((string) ($item['name'] ?? ''));
+                if ($name !== '') {
+                    $productNames[] = $name;
+                }
+            }
+        }
+    }
+
+    if (count($productIds) === 0 && count($productNames) > 0 && app_table_exists($conn, 'sanpham')) {
+        $normalizedNames = array_values(array_unique(array_filter(array_map(static function ($value): string {
+            return trim((string) $value);
+        }, $productNames), static function ($value): bool {
+            return $value !== '';
+        })));
+
+        foreach ($normalizedNames as $name) {
+            $sql = "
+                SELECT MAX(id) AS id
+                FROM sanpham
+                WHERE LOWER(TRIM(tensanpham)) = LOWER(TRIM(?))
+                LIMIT 1
+            ";
+            $stmt = $conn->prepare($sql);
+            if (!$stmt) {
+                continue;
+            }
+            $stmt->bind_param('s', $name);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result ? $result->fetch_assoc() : null;
+            if ($result) {
+                $result->free();
+            }
+            $stmt->close();
+
+            $productId = (int) ($row['id'] ?? 0);
+            if ($productId > 0) {
+                $productIds[] = $productId;
+            }
+        }
+    }
+
+    $productIds = array_values(array_unique(array_filter(array_map('intval', $productIds), static function ($value): bool {
+        return $value > 0;
+    })));
+
+    return $productIds;
 }
 
 function app_social_start_session(): void

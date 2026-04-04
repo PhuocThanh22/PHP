@@ -101,6 +101,26 @@ function app_admin_upload_image(array $file, string $group): array
     return [true, $relativePath, ''];
 }
 
+function app_admin_normalize_datetime_input(string $value): ?string
+{
+    $raw = trim($value);
+    if ($raw === '') {
+        return null;
+    }
+
+    $normalized = str_replace('T', ' ', $raw);
+    if (strlen($normalized) === 16) {
+        $normalized .= ':00';
+    }
+
+    $timestamp = strtotime($normalized);
+    if ($timestamp === false) {
+        return null;
+    }
+
+    return date('Y-m-d H:i:s', $timestamp);
+}
+
 function app_handle_admin_api(mysqli $conn, string $api): bool
 {
     if ($api === 'upload_image') {
@@ -368,6 +388,8 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
 
         if ($entity === 'products') {
             app_ensure_product_subcategory_column($conn);
+            app_ensure_product_discount_columns($conn);
+            app_ensure_product_info_column($conn);
 
             if ($action === 'create') {
                 $name = trim((string) ($input['tensanpham'] ?? ''));
@@ -379,10 +401,35 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $qty = (int) ($input['soluongsanpham'] ?? 0);
                 $status = trim((string) ($input['trangthaisanpham'] ?? 'conhang'));
                 $image = trim((string) ($input['hinhanhsanpham'] ?? ''));
+                $info = trim((string) ($input['thongtin'] ?? ''));
+                $discountPercent = (float) ($input['phantramgiamgia'] ?? 0);
+                $discountStart = app_admin_normalize_datetime_input((string) ($input['thoigianbatdaugiam'] ?? ''));
+                $discountEnd = app_admin_normalize_datetime_input((string) ($input['thoigianketthucgiam'] ?? ''));
 
                 if ($name === '') {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Ten san pham khong hop le'], 400);
+                }
+
+                if ($discountPercent < 0 || $discountPercent > 100) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Phan tram giam gia phai trong khoang 0-100'], 400);
+                }
+
+                if ($discountPercent <= 0) {
+                    $discountPercent = 0;
+                    $discountStart = null;
+                    $discountEnd = null;
+                } else {
+                    if ($discountStart === null || $discountEnd === null) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Vui long nhap day du thoi gian bat dau va ket thuc giam gia'], 400);
+                    }
+
+                    if ($discountStart >= $discountEnd) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Thoi gian ket thuc giam gia phai lon hon thoi gian bat dau'], 400);
+                    }
                 }
 
                 $danhmucId = $categoryId > 0 ? $categoryId : app_resolve_category_id($conn, $categoryName);
@@ -395,13 +442,13 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     $code = 'SP' . str_pad((string) time(), 10, '0', STR_PAD_LEFT);
                 }
 
-                $stmt = $conn->prepare('INSERT INTO sanpham (tensanpham, danhmuc_id, danhmuccon, masanpham, giasanpham, soluongsanpham, trangthaisanpham, hinhanhsanpham) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmt = $conn->prepare('INSERT INTO sanpham (tensanpham, danhmuc_id, danhmuccon, masanpham, giasanpham, phantramgiamgia, thoigianbatdaugiam, thoigianketthucgiam, soluongsanpham, trangthaisanpham, hinhanhsanpham, thongtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the them san pham', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sissdiss', $name, $danhmucId, $subcategoryName, $code, $price, $qty, $status, $image);
+                $stmt->bind_param('sissddssisss', $name, $danhmucId, $subcategoryName, $code, $price, $discountPercent, $discountStart, $discountEnd, $qty, $status, $image, $info);
                 $ok = $stmt->execute();
                 $newId = (int) $conn->insert_id;
                 $stmt->close();
@@ -410,7 +457,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Them san pham that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query("SELECT s.id, s.tensanpham, s.danhmuc_id, COALESCE(NULLIF(TRIM(s.danhmuccon), ''), '') AS danhmuccon, COALESCE(d.tendanhmuc, 'Chua phan loai') AS tendanhmuc, s.masanpham, s.giasanpham, s.soluongsanpham, s.trangthaisanpham, s.hinhanhsanpham FROM sanpham s LEFT JOIN danhmuc d ON d.id = s.danhmuc_id WHERE s.id = {$newId} LIMIT 1");
+                $rowResult = $conn->query("SELECT s.id, s.tensanpham, s.danhmuc_id, COALESCE(NULLIF(TRIM(s.danhmuccon), ''), '') AS danhmuccon, COALESCE(d.tendanhmuc, 'Chua phan loai') AS tendanhmuc, s.masanpham, s.giasanpham, COALESCE(s.phantramgiamgia, 0) AS phantramgiamgia, s.thoigianbatdaugiam, s.thoigianketthucgiam, s.soluongsanpham, s.trangthaisanpham, s.hinhanhsanpham, COALESCE(s.thongtin, '') AS thongtin FROM sanpham s LEFT JOIN danhmuc d ON d.id = s.danhmuc_id WHERE s.id = {$newId} LIMIT 1");
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
@@ -431,13 +478,38 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $qty = (int) ($input['soluongsanpham'] ?? 0);
                 $status = trim((string) ($input['trangthaisanpham'] ?? 'conhang'));
                 $image = trim((string) ($input['hinhanhsanpham'] ?? ''));
+                $info = trim((string) ($input['thongtin'] ?? ''));
+                $discountPercent = (float) ($input['phantramgiamgia'] ?? 0);
+                $discountStart = app_admin_normalize_datetime_input((string) ($input['thoigianbatdaugiam'] ?? ''));
+                $discountEnd = app_admin_normalize_datetime_input((string) ($input['thoigianketthucgiam'] ?? ''));
 
                 if ($id <= 0 || $name === '') {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Du lieu cap nhat san pham khong hop le'], 400);
                 }
 
-                $existingResult = $conn->query('SELECT danhmuc_id, masanpham, hinhanhsanpham FROM sanpham WHERE id = ' . $id . ' LIMIT 1');
+                if ($discountPercent < 0 || $discountPercent > 100) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Phan tram giam gia phai trong khoang 0-100'], 400);
+                }
+
+                if ($discountPercent <= 0) {
+                    $discountPercent = 0;
+                    $discountStart = null;
+                    $discountEnd = null;
+                } else {
+                    if ($discountStart === null || $discountEnd === null) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Vui long nhap day du thoi gian bat dau va ket thuc giam gia'], 400);
+                    }
+
+                    if ($discountStart >= $discountEnd) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Thoi gian ket thuc giam gia phai lon hon thoi gian bat dau'], 400);
+                    }
+                }
+
+                $existingResult = $conn->query('SELECT danhmuc_id, masanpham, hinhanhsanpham, COALESCE(thongtin, "") AS thongtin, COALESCE(phantramgiamgia, 0) AS phantramgiamgia, thoigianbatdaugiam, thoigianketthucgiam FROM sanpham WHERE id = ' . $id . ' LIMIT 1');
                 $existing = $existingResult ? $existingResult->fetch_assoc() : null;
                 if ($existingResult) {
                     $existingResult->free();
@@ -464,13 +536,17 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     $image = (string) ($existing['hinhanhsanpham'] ?? '');
                 }
 
-                $stmt = $conn->prepare('UPDATE sanpham SET tensanpham = ?, danhmuc_id = ?, danhmuccon = ?, masanpham = ?, giasanpham = ?, soluongsanpham = ?, trangthaisanpham = ?, hinhanhsanpham = ? WHERE id = ?');
+                if ($info === '') {
+                    $info = (string) ($existing['thongtin'] ?? '');
+                }
+
+                $stmt = $conn->prepare('UPDATE sanpham SET tensanpham = ?, danhmuc_id = ?, danhmuccon = ?, masanpham = ?, giasanpham = ?, phantramgiamgia = ?, thoigianbatdaugiam = ?, thoigianketthucgiam = ?, soluongsanpham = ?, trangthaisanpham = ?, hinhanhsanpham = ?, thongtin = ? WHERE id = ?');
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the cap nhat san pham', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sissdissi', $name, $danhmucId, $subcategoryName, $code, $price, $qty, $status, $image, $id);
+                $stmt->bind_param('sissddssisssi', $name, $danhmucId, $subcategoryName, $code, $price, $discountPercent, $discountStart, $discountEnd, $qty, $status, $image, $info, $id);
                 $ok = $stmt->execute();
                 $stmt->close();
                 if (!$ok) {
@@ -478,7 +554,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Cap nhat san pham that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query("SELECT s.id, s.tensanpham, s.danhmuc_id, COALESCE(NULLIF(TRIM(s.danhmuccon), ''), '') AS danhmuccon, COALESCE(d.tendanhmuc, 'Chua phan loai') AS tendanhmuc, s.masanpham, s.giasanpham, s.soluongsanpham, s.trangthaisanpham, s.hinhanhsanpham FROM sanpham s LEFT JOIN danhmuc d ON d.id = s.danhmuc_id WHERE s.id = {$id} LIMIT 1");
+                $rowResult = $conn->query("SELECT s.id, s.tensanpham, s.danhmuc_id, COALESCE(NULLIF(TRIM(s.danhmuccon), ''), '') AS danhmuccon, COALESCE(d.tendanhmuc, 'Chua phan loai') AS tendanhmuc, s.masanpham, s.giasanpham, COALESCE(s.phantramgiamgia, 0) AS phantramgiamgia, s.thoigianbatdaugiam, s.thoigianketthucgiam, s.soluongsanpham, s.trangthaisanpham, s.hinhanhsanpham, COALESCE(s.thongtin, '') AS thongtin FROM sanpham s LEFT JOIN danhmuc d ON d.id = s.danhmuc_id WHERE s.id = {$id} LIMIT 1");
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();

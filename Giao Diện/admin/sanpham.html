@@ -132,6 +132,7 @@
                     <div><b>Danh mục:</b> <span id="productDetailCategory">-</span></div>
                     <div><b>Số lượng:</b> <span id="productDetailQty">-</span></div>
                     <div><b>Giá:</b> <span id="productDetailPrice">-</span></div>
+                    <div><b>Giảm giá:</b> <span id="productDetailDiscount">-</span></div>
                     <div><b>Trạng thái:</b> <span id="productDetailStatus">-</span></div>
                 </div>
             </div>
@@ -222,6 +223,25 @@
                     </select>
                 </div>
 
+                <div class="service-form-group">
+                    <label for="editProductDiscountPercent">Giảm giá (%)</label>
+                    <input class="service-form-control" id="editProductDiscountPercent" type="number" min="0" max="100" step="0.01" value="0">
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editProductDiscountStart">Bắt đầu giảm giá</label>
+                    <input class="service-form-control" id="editProductDiscountStart" type="datetime-local">
+                </div>
+
+                <div class="service-form-group">
+                    <label for="editProductDiscountEnd">Kết thúc giảm giá</label>
+                    <input class="service-form-control" id="editProductDiscountEnd" type="datetime-local">
+                </div>
+
+                <div class="service-form-group full">
+                    <small id="editProductDiscountHint" class="text-muted">Nhập phần trăm giảm giá từ 0-100. Khi > 0, cần chọn thời gian bắt đầu và kết thúc.</small>
+                </div>
+
                 <div class="service-form-group full">
                     <label for="editProductImage">Hình ảnh</label>
                     <div class="upload-square-field">
@@ -266,6 +286,86 @@
 
     function formatVnd(value) {
         return new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' đ';
+    }
+
+    function toSqlDateTimeFromInput(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        return raw.replace('T', ' ') + (raw.length === 16 ? ':00' : '');
+    }
+
+    function toInputDateTime(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        const normalized = raw.replace(' ', 'T');
+        return normalized.length >= 16 ? normalized.slice(0, 16) : normalized;
+    }
+
+    function parseDbDateTime(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return null;
+        const parsed = new Date(raw.replace(' ', 'T'));
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function normalizeDiscountPercent(value) {
+        const number = Number(value || 0);
+        if (!Number.isFinite(number)) return 0;
+        return Math.max(0, Math.min(100, number));
+    }
+
+    function isDiscountActive(product) {
+        const percent = normalizeDiscountPercent(product.phantramgiamgia);
+        if (percent <= 0) return false;
+
+        const start = parseDbDateTime(product.thoigianbatdaugiam);
+        const end = parseDbDateTime(product.thoigianketthucgiam);
+        if (!start || !end) return false;
+
+        const now = new Date();
+        return now >= start && now <= end;
+    }
+
+    function formatDiscountRange(product) {
+        const percent = normalizeDiscountPercent(product.phantramgiamgia);
+        if (percent <= 0) return 'Không có giảm giá';
+
+        const start = parseDbDateTime(product.thoigianbatdaugiam);
+        const end = parseDbDateTime(product.thoigianketthucgiam);
+        if (!start || !end) return `${percent}% (chưa đủ thời gian áp dụng)`;
+
+        const timeFormat = new Intl.DateTimeFormat('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        });
+        const status = isDiscountActive(product) ? 'Đang áp dụng' : 'Chưa/đã hết hạn';
+        return `${percent}% (${status}) - ${timeFormat.format(start)} đến ${timeFormat.format(end)}`;
+    }
+
+    function updateDiscountHint() {
+        const hintEl = document.getElementById('editProductDiscountHint');
+        const price = Number(document.getElementById('editProductPrice')?.value || 0);
+        const discountPercent = normalizeDiscountPercent(document.getElementById('editProductDiscountPercent')?.value || 0);
+        const start = String(document.getElementById('editProductDiscountStart')?.value || '').trim();
+        const end = String(document.getElementById('editProductDiscountEnd')?.value || '').trim();
+
+        if (!hintEl) return;
+
+        if (discountPercent <= 0) {
+            hintEl.textContent = 'Không áp dụng giảm giá. Giá bán: ' + formatVnd(price);
+            return;
+        }
+
+        const discounted = Math.max(0, Math.round(price * (1 - discountPercent / 100)));
+        if (!start || !end) {
+            hintEl.textContent = `Giá sau giảm dự kiến: ${formatVnd(discounted)}. Vui lòng nhập thời gian bắt đầu và kết thúc.`;
+            return;
+        }
+
+        hintEl.textContent = `Giá sau giảm dự kiến: ${formatVnd(discounted)} (giảm ${discountPercent}%). Áp dụng từ ${start} đến ${end}.`;
     }
 
     function getErrorMessage(error) {
@@ -495,6 +595,14 @@
         if (hintEl) hintEl.textContent = String(text || '');
     }
 
+    function normalizeProductRecord(item) {
+        const normalized = { ...(item || {}) };
+        normalized.phantramgiamgia = normalizeDiscountPercent(item?.phantramgiamgia || 0);
+        normalized.thoigianbatdaugiam = String(item?.thoigianbatdaugiam || '').trim();
+        normalized.thoigianketthucgiam = String(item?.thoigianketthucgiam || '').trim();
+        return normalized;
+    }
+
     function refreshSummary() {
         const totalEl = document.getElementById('spTotal');
         const lowStockEl = document.getElementById('spLowStock');
@@ -576,7 +684,7 @@
                 <td>${escapeHtml(item.tensanpham)}</td>
                 <td>${escapeHtml(item.tendanhmuc)}</td>
                 <td>${escapeHtml(item.soluongsanpham)}</td>
-                <td>${escapeHtml(formatVnd(item.giasanpham))}</td>
+                <td>${escapeHtml(formatVnd(item.giasanpham))}${isDiscountActive(item) ? `<br><small class="text-success">Còn ${escapeHtml(String(item.phantramgiamgia))}%: ${escapeHtml(formatVnd(Math.round(Number(item.giasanpham || 0) * (1 - Number(item.phantramgiamgia || 0) / 100))))}</small>` : ''}</td>
                 <td><span class="status-badge ${statusBadgeClass(item.trangthaisanpham)}">${statusText(item.trangthaisanpham)}</span></td>
             </tr>
         `).join('');
@@ -616,8 +724,9 @@
         const category = document.getElementById('productDetailCategory');
         const qty = document.getElementById('productDetailQty');
         const price = document.getElementById('productDetailPrice');
+        const discount = document.getElementById('productDetailDiscount');
         const status = document.getElementById('productDetailStatus');
-        if (!image || !code || !name || !category || !qty || !price || !status) return false;
+        if (!image || !code || !name || !category || !qty || !price || !discount || !status) return false;
 
         const imageSourceRaw = product.hinhanhsanpham || product.hinhanh || '';
         const imageSource = normalizeImage(imageSourceRaw);
@@ -644,7 +753,14 @@
         name.textContent = String(product.tensanpham || '-');
         category.textContent = String(product.tendanhmuc || '-');
         qty.textContent = String(product.soluongsanpham ?? '-');
-        price.textContent = formatVnd(product.giasanpham);
+        if (isDiscountActive(product)) {
+            const percent = normalizeDiscountPercent(product.phantramgiamgia);
+            const reduced = Math.max(0, Math.round(Number(product.giasanpham || 0) * (1 - percent / 100)));
+            price.textContent = `${formatVnd(reduced)} (giá gốc ${formatVnd(product.giasanpham)})`;
+        } else {
+            price.textContent = formatVnd(product.giasanpham);
+        }
+        discount.textContent = formatDiscountRange(product);
         status.textContent = statusText(product.trangthaisanpham);
 
         return true;
@@ -865,7 +981,7 @@
         try {
             const payload = await fetchProductsPayload();
             const rows = Array.isArray(payload.data) ? payload.data : [];
-            allProducts = rows.map((item) => ({ ...item }));
+            allProducts = rows.map((item) => normalizeProductRecord(item));
             allProducts.forEach((item) => productStore.set(String(item.id), item));
             refreshSummary();
 
@@ -920,8 +1036,12 @@
         document.getElementById('editProductPrice').value = 0;
         document.getElementById('editProductQty').value = 0;
         document.getElementById('editProductStatus').value = 'conhang';
+        document.getElementById('editProductDiscountPercent').value = 0;
+        document.getElementById('editProductDiscountStart').value = '';
+        document.getElementById('editProductDiscountEnd').value = '';
         document.getElementById('editProductImage').value = '';
         setProductImageHint('Chọn ảnh sản phẩm từ máy tính (tối đa 5MB).');
+        updateDiscountHint();
         openProductModal();
     }
 
@@ -939,9 +1059,13 @@
         document.getElementById('editProductPrice').value = Number(product.giasanpham || 0);
         document.getElementById('editProductQty').value = Number(product.soluongsanpham || 0);
         document.getElementById('editProductStatus').value = String(product.trangthaisanpham || 'conhang');
+        document.getElementById('editProductDiscountPercent').value = normalizeDiscountPercent(product.phantramgiamgia || 0);
+        document.getElementById('editProductDiscountStart').value = toInputDateTime(product.thoigianbatdaugiam || '');
+        document.getElementById('editProductDiscountEnd').value = toInputDateTime(product.thoigianketthucgiam || '');
         document.getElementById('editProductImage').value = '';
         const hasImage = String(product.hinhanhsanpham || '').trim() !== '';
         setProductImageHint(hasImage ? 'Để trống nếu giữ ảnh hiện tại, hoặc chọn ảnh mới để thay thế.' : 'Sản phẩm chưa có ảnh, hãy chọn ảnh từ máy tính.');
+        updateDiscountHint();
         openProductModal();
     }
 
@@ -1038,6 +1162,10 @@
             setProductImageHint(`Đã chọn: ${file.name}`);
         }
     });
+    document.getElementById('editProductPrice').addEventListener('input', updateDiscountHint);
+    document.getElementById('editProductDiscountPercent').addEventListener('input', updateDiscountHint);
+    document.getElementById('editProductDiscountStart').addEventListener('change', updateDiscountHint);
+    document.getElementById('editProductDiscountEnd').addEventListener('change', updateDiscountHint);
 
     document.getElementById('categoryEditForm').addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -1087,10 +1215,25 @@
         const price = Number(document.getElementById('editProductPrice').value || 0);
         const qty = Number(document.getElementById('editProductQty').value || 0);
         const status = document.getElementById('editProductStatus').value;
+        const discountPercent = normalizeDiscountPercent(document.getElementById('editProductDiscountPercent').value || 0);
+        const discountStartRaw = document.getElementById('editProductDiscountStart').value;
+        const discountEndRaw = document.getElementById('editProductDiscountEnd').value;
+        const discountStart = toSqlDateTimeFromInput(discountStartRaw);
+        const discountEnd = toSqlDateTimeFromInput(discountEndRaw);
         const imageFile = document.getElementById('editProductImage').files?.[0] || null;
 
         if (!name || categoryId <= 0) {
             showNotice('Vui lòng nhập tên sản phẩm và chọn danh mục.', 'warning');
+            return;
+        }
+
+        if (discountPercent > 0 && (!discountStart || !discountEnd)) {
+            showNotice('Vui lòng nhập đủ thời gian bắt đầu và kết thúc giảm giá.', 'warning');
+            return;
+        }
+
+        if (discountPercent > 0 && new Date(discountStartRaw) >= new Date(discountEndRaw)) {
+            showNotice('Thời gian kết thúc giảm giá phải lớn hơn thời gian bắt đầu.', 'warning');
             return;
         }
 
@@ -1107,12 +1250,15 @@
                     danhmuc_id: categoryId,
                     tendanhmuc: categoryName,
                     giasanpham: price,
+                    phantramgiamgia: discountPercent,
+                    thoigianbatdaugiam: discountStart,
+                    thoigianketthucgiam: discountEnd,
                     soluongsanpham: qty,
                     trangthaisanpham: status,
                     hinhanhsanpham: uploadedImagePath,
                 });
 
-                const newProduct = res.data || {};
+                const newProduct = normalizeProductRecord(res.data || {});
                 allProducts.unshift(newProduct);
                 productStore.set(String(newProduct.id), newProduct);
                 showNotice(`Thêm sản phẩm "${newProduct.tensanpham || name}" thành công.`, 'success');
@@ -1125,12 +1271,15 @@
                     danhmuc_id: categoryId,
                     tendanhmuc: categoryName,
                     giasanpham: price,
+                    phantramgiamgia: discountPercent,
+                    thoigianbatdaugiam: discountStart,
+                    thoigianketthucgiam: discountEnd,
                     soluongsanpham: qty,
                     trangthaisanpham: status,
                     hinhanhsanpham: uploadedImagePath,
                 });
 
-                const updated = res.data || {};
+                const updated = normalizeProductRecord(res.data || {});
                 allProducts = allProducts.map((item) => String(item.id) === id ? updated : item);
                 productStore.set(id, updated);
                 showNotice(`Cập nhật sản phẩm "${updated.tensanpham || name}" thành công.`, 'success');

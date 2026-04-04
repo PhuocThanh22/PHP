@@ -212,6 +212,42 @@ function app_ensure_product_subcategory_column(mysqli $conn): bool
     return (bool) $conn->query("ALTER TABLE sanpham ADD COLUMN danhmuccon VARCHAR(120) NULL AFTER danhmuc_id");
 }
 
+function app_ensure_product_discount_columns(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'sanpham')) {
+        return false;
+    }
+
+    $ok = true;
+
+    if (!app_column_exists($conn, 'sanpham', 'phantramgiamgia')) {
+        $ok = (bool) $conn->query("ALTER TABLE sanpham ADD COLUMN phantramgiamgia DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER giasanpham") && $ok;
+    }
+
+    if (!app_column_exists($conn, 'sanpham', 'thoigianbatdaugiam')) {
+        $ok = (bool) $conn->query("ALTER TABLE sanpham ADD COLUMN thoigianbatdaugiam DATETIME NULL AFTER phantramgiamgia") && $ok;
+    }
+
+    if (!app_column_exists($conn, 'sanpham', 'thoigianketthucgiam')) {
+        $ok = (bool) $conn->query("ALTER TABLE sanpham ADD COLUMN thoigianketthucgiam DATETIME NULL AFTER thoigianbatdaugiam") && $ok;
+    }
+
+    return $ok;
+}
+
+function app_ensure_product_info_column(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'sanpham')) {
+        return false;
+    }
+
+    if (app_column_exists($conn, 'sanpham', 'thongtin')) {
+        return true;
+    }
+
+    return (bool) $conn->query("ALTER TABLE sanpham ADD COLUMN thongtin TEXT NULL AFTER hinhanhsanpham");
+}
+
 function app_input_payload(): array
 {
     $rawBody = (string) file_get_contents('php://input');

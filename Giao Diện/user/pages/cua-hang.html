@@ -162,7 +162,12 @@
             <div>
                 <h2 id="qvName" style="font-size: 24px; font-weight: 700; margin: 0 0 15px 0;"></h2>
                 <p id="qvCategory" style="color: #1F8F4D; font-size: 14px; font-weight: 600; margin: 0 0 10px 0;"></p>
-                <p id="qvDescription" style="color: #666; line-height: 1.6; margin-bottom: 20px;"></p>
+                <p id="qvDescription" style="color: #666; line-height: 1.6; margin-bottom: 14px;"></p>
+                <div style="margin-bottom: 14px; border: 1px solid #eef2f7; border-radius: 10px; padding: 10px; background: #f8fafc;">
+                    <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Đánh giá sản phẩm</div>
+                    <div id="qvReviewSummary" style="font-size: 13px; color: #475569; margin-bottom: 8px;">Chưa có đánh giá.</div>
+                    <div id="qvReviewList" style="max-height: 150px; overflow: auto; display: grid; gap: 8px;"></div>
+                </div>
                 <p id="qvPrice" style="font-size: 28px; font-weight: 700; color: #1F8F4D; margin: 20px 0;"></p>
                 <button onclick="addToCartFromQV()" style="width: 100%; background: #000; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
                     <i data-feather="shopping-cart" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
@@ -745,7 +750,25 @@
         font-size: 22px;
         font-weight: 800;
         margin: 0;
-        line-height: 1;
+        line-height: 1.1;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .product-price-old {
+        color: #9ca3af;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: line-through;
+    }
+
+    .product-discount-period {
+        margin: 4px 0 0;
+        color: #059669;
+        font-size: 11px;
+        font-weight: 600;
     }
 
     .breed-card {
@@ -2276,6 +2299,63 @@
         imageElement.src = fallbackImage;
     };
 
+    const parseApiDateTime = (value) => {
+        const raw = String(value || '').trim();
+        if (!raw) return null;
+        const parsed = new Date(raw.replace(' ', 'T'));
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const formatMoneyNoSuffix = (value) => {
+        const amount = Number(value || 0);
+        const safe = Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0;
+        return new Intl.NumberFormat('vi-VN').format(safe);
+    };
+
+    const formatDateTimeShort = (value) => {
+        const date = parseApiDateTime(value);
+        if (!date) return '';
+        return new Intl.DateTimeFormat('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        }).format(date);
+    };
+
+    const computeProductDiscount = (item, basePrice) => {
+        const price = Number(basePrice || 0);
+        const percentRaw = Number(item?.phantramgiamgia || 0);
+        const percent = Number.isFinite(percentRaw) ? Math.max(0, Math.min(100, percentRaw)) : 0;
+        const start = parseApiDateTime(item?.thoigianbatdaugiam);
+        const end = parseApiDateTime(item?.thoigianketthucgiam);
+
+        if (percent <= 0 || !start || !end || start >= end) {
+            return {
+                hasDiscount: false,
+                percent: 0,
+                finalPrice: price,
+                oldPrice: price,
+                periodText: '',
+            };
+        }
+
+        const now = new Date();
+        const active = now >= start && now <= end;
+        const finalPrice = active
+            ? Math.max(0, Math.round(price * (1 - percent / 100)))
+            : price;
+
+        return {
+            hasDiscount: active,
+            percent,
+            finalPrice,
+            oldPrice: price,
+            periodText: `Áp dụng đến ${formatDateTimeShort(item?.thoigianketthucgiam)}`,
+        };
+    };
+
     const mapApiProductToUiProduct = (item) => {
         const id = parseInt(item?.id, 10) || 0;
         const name = String(item?.tensanpham || '').trim() || `Sản phẩm #${id}`;
@@ -2288,23 +2368,128 @@
         });
         const dbImageRaw = String(item?.hinhanhsanpham || '').trim();
         const priceNumber = Number(item?.giasanpham || 0);
-        const price = Number.isFinite(priceNumber) && priceNumber > 0
-            ? new Intl.NumberFormat('vi-VN').format(Math.round(priceNumber))
-            : '0';
+        const safeBasePrice = Number.isFinite(priceNumber) && priceNumber > 0 ? priceNumber : 0;
+        const discountInfo = computeProductDiscount(item, safeBasePrice);
 
         const quantity = parseInt(item?.soluongsanpham, 10) || 0;
-        const badge = quantity > 0 && quantity <= 10 ? 'sale' : null;
+        const badge = discountInfo.hasDiscount ? 'sale' : (quantity > 0 && quantity <= 10 ? 'sale' : null);
 
         return {
             id,
             name,
             category,
             subcategory,
-            price,
+            productCode: String(item?.masanpham || '').trim(),
+            price: formatMoneyNoSuffix(discountInfo.finalPrice),
+            originalPrice: formatMoneyNoSuffix(discountInfo.oldPrice),
+            priceValue: discountInfo.finalPrice,
+            originalPriceValue: discountInfo.oldPrice,
+            hasDiscount: discountInfo.hasDiscount,
+            discountPercent: discountInfo.percent,
+            discountPeriodText: discountInfo.hasDiscount ? discountInfo.periodText : '',
             image: resolveProductImageUrl(dbImageRaw || item?.hinhanhsanpham),
-            description: String(item?.masanpham || '').trim() || `Sản phẩm thuộc danh mục ${category}`,
+            description: String(item?.thongtin || '').trim() || `Sản phẩm thuộc danh mục ${category}`,
             badge,
         };
+    };
+
+    const getProductReviewsApiCandidates = (productId) => {
+        const base = window.location.href;
+        const pid = encodeURIComponent(String(productId || 0));
+        const candidates = [];
+
+        const safePush = (builder) => {
+            try {
+                const value = builder();
+                if (value && !candidates.includes(value)) {
+                    candidates.push(value);
+                }
+            } catch (error) {
+                // bo qua endpoint loi
+            }
+        };
+
+        safePush(() => new URL(`home_api.php?api=get_product_reviews&product_id=${pid}&limit=20`, base).toString());
+        safePush(() => new URL(`../../index.php?api=get_product_reviews&product_id=${pid}&limit=20`, base).toString());
+        safePush(() => new URL(`/PHPCHINH/index.php?api=get_product_reviews&product_id=${pid}&limit=20`, base).toString());
+        safePush(() => new URL(`/index.php?api=get_product_reviews&product_id=${pid}&limit=20`, base).toString());
+
+        const pathname = String(window.location.pathname || '');
+        const markerIndexRaw = pathname.indexOf('/Giao Diện/');
+        const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
+        const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
+
+        if (markerIndex > 0) {
+            const projectBase = pathname.slice(0, markerIndex);
+            safePush(() => `${window.location.origin}${projectBase}/index.php?api=get_product_reviews&product_id=${pid}&limit=20`);
+        }
+
+        return candidates;
+    };
+
+    const fetchProductReviews = async (productId) => {
+        const candidates = getProductReviewsApiCandidates(productId);
+
+        for (const endpoint of candidates) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) continue;
+                const payload = await response.json();
+                if (!payload?.ok || !Array.isArray(payload?.data)) continue;
+
+                return {
+                    summary: payload.summary || { avg_rating: 0, review_count: 0 },
+                    data: payload.data,
+                };
+            } catch (error) {
+                // thu endpoint tiep theo
+            }
+        }
+
+        return {
+            summary: { avg_rating: 0, review_count: 0 },
+            data: [],
+        };
+    };
+
+    const renderProductReviewsIntoQuickView = (payload) => {
+        const summaryNode = document.getElementById('qvReviewSummary');
+        const listNode = document.getElementById('qvReviewList');
+        if (!summaryNode || !listNode) return;
+
+        const summary = payload?.summary || { avg_rating: 0, review_count: 0 };
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+
+        if (!rows.length) {
+            summaryNode.textContent = 'Chưa có đánh giá cho sản phẩm này.';
+            listNode.innerHTML = '';
+            return;
+        }
+
+        const avg = Number(summary.avg_rating || 0);
+        const count = Number(summary.review_count || rows.length);
+        summaryNode.textContent = `Trung bình: ${avg.toFixed(1)}/5 (${count} đánh giá)`;
+
+        listNode.innerHTML = rows.slice(0, 6).map((review) => {
+            const rating = Math.max(1, Math.min(5, Number(review.rating || 0)));
+            const stars = `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`;
+            const customerName = String(review.customer_name || 'Khach hang').trim();
+            const comment = String(review.comment || '').trim() || 'Khong co noi dung.';
+            return `
+                <div style="border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff;">
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+                        <strong style="font-size:12px;color:#0f172a;">${customerName}</strong>
+                        <span style="font-size:12px;color:#eab308;">${stars}</span>
+                    </div>
+                    <div style="font-size:12px;color:#475569;margin-top:4px;line-height:1.4;">${comment}</div>
+                </div>
+            `;
+        }).join('');
     };
 
     const normalizeFallbackProductsSubcategory = () => {
@@ -2317,6 +2502,17 @@
                 subcategory: product.subcategory,
             }),
         }));
+    };
+
+    const getProductPriceNumber = (product) => {
+        const direct = Number(product?.priceValue);
+        if (Number.isFinite(direct) && direct >= 0) {
+            return direct;
+        }
+
+        const digits = String(product?.price || '').replace(/[^0-9]/g, '');
+        const parsed = parseInt(digits, 10);
+        return Number.isFinite(parsed) ? parsed : 0;
     };
 
     const getProductsApiCandidates = () => {
@@ -2502,7 +2698,7 @@
             const subcategoryName = detectProductSubcategory({
                 category: categoryName,
                 name: String(product?.name || '').trim(),
-                code: String(product?.description || '').trim(),
+                code: String(product?.productCode || '').trim(),
                 subcategory: String(product?.subcategory || '').trim(),
             });
 
@@ -2661,16 +2857,36 @@
 
     window.handleBreedImageFallback = handleBreedImageFallback;
 
-    const openQuickViewWithData = (item) => {
+    const openQuickViewWithData = async (item) => {
         if (!item) return;
 
         currentQVProduct = item;
         document.getElementById('qvImage').src = item.image || '';
         document.getElementById('qvName').textContent = item.name || '';
         document.getElementById('qvCategory').textContent = item.category || '';
-        document.getElementById('qvDescription').textContent = item.description || '';
-        document.getElementById('qvPrice').textContent = `${item.price || 'Liên hệ'}`;
+        document.getElementById('qvDescription').textContent = item.description || 'Thong tin san pham dang duoc cap nhat.';
+
+        const summaryNode = document.getElementById('qvReviewSummary');
+        const listNode = document.getElementById('qvReviewList');
+        if (summaryNode) summaryNode.textContent = 'Dang tai danh gia...';
+        if (listNode) listNode.innerHTML = '';
+
+        const qvPrice = document.getElementById('qvPrice');
+        if (qvPrice) {
+            if (item.hasDiscount && item.originalPrice) {
+                qvPrice.innerHTML = `${item.price || '0'}₫ <span style="font-size:16px;color:#9ca3af;text-decoration:line-through;font-weight:600;">${item.originalPrice}₫</span>`;
+            } else {
+                qvPrice.textContent = `${item.price || 'Liên hệ'}`;
+            }
+        }
         document.getElementById('quickViewModal').style.display = 'flex';
+
+        if (Number(item.id || 0) > 0) {
+            const reviewPayload = await fetchProductReviews(item.id);
+            renderProductReviewsIntoQuickView(reviewPayload);
+        } else {
+            renderProductReviewsIntoQuickView({ summary: { avg_rating: 0, review_count: 0 }, data: [] });
+        }
     };
 
     const syncCustomSelectFromNative = (customSelect) => {
@@ -2796,7 +3012,8 @@
                 <div class="product-info">
                     <h3 class="product-name">${product.name}</h3>
                     <p class="product-category">${product.category}</p>
-                    <p class="product-price">${product.price}₫</p>
+                    <p class="product-price">${product.price}₫${product.hasDiscount ? `<span class="product-price-old">${product.originalPrice}₫</span>` : ''}</p>
+                    ${product.hasDiscount && product.discountPeriodText ? `<p class="product-discount-period">${product.discountPeriodText}</p>` : ''}
                     <div class="product-corner-actions">
                         <button class="product-corner-btn buy" data-action="buy-now" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Mua ngay">Mua</button>
                         <button class="product-corner-btn detail" data-action="quick-view" data-product-id="${product.id}" title="Xem chi tiết">Chi tiết</button>
@@ -3227,7 +3444,7 @@
                     detectProductSubcategory({
                         category: product.category,
                         name: product.name,
-                        code: product.description,
+                        code: product.productCode,
                         subcategory: product.subcategory,
                     })
                 );
@@ -3238,7 +3455,7 @@
 
             // Price filter
             if (priceRange) {
-                const price = parseInt(product.price.replace(/[^0-9]/g, ''));
+                const price = getProductPriceNumber(product);
                 const [min, max] = priceRange.split('-').map(p => parseInt(p) * 1000 || Infinity);
                 if (price < min || price > max) return false;
             }
@@ -3248,9 +3465,9 @@
 
         // Sort
         if (sort === 'price-asc') {
-            filtered.sort((a, b) => parseInt(a.price.replace(/[^0-9]/g, '')) - parseInt(b.price.replace(/[^0-9]/g, '')));
+            filtered.sort((a, b) => getProductPriceNumber(a) - getProductPriceNumber(b));
         } else if (sort === 'price-desc') {
-            filtered.sort((a, b) => parseInt(b.price.replace(/[^0-9]/g, '')) - parseInt(a.price.replace(/[^0-9]/g, '')));
+            filtered.sort((a, b) => getProductPriceNumber(b) - getProductPriceNumber(a));
         } else if (sort === 'newest') {
             filtered.sort((a, b) => b.id - a.id);
         }
@@ -3334,10 +3551,7 @@
     const openQuickView = (productId) => {
         const product = products.find(p => p.id === productId);
         if (product) {
-            openQuickViewWithData({
-                ...product,
-                price: `${product.price}₫`
-            });
+            openQuickViewWithData(product);
         }
     };
 

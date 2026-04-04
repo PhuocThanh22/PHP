@@ -828,6 +828,8 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
 
     if ($api === 'get_products') {
         app_ensure_product_subcategory_column($conn);
+        app_ensure_product_discount_columns($conn);
+        app_ensure_product_info_column($conn);
 
         $sql = "
             SELECT
@@ -838,13 +840,16 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 COALESCE(d.tendanhmuc, 'Chua phan loai') AS tendanhmuc,
                 s.masanpham,
                 s.giasanpham,
+                COALESCE(s.phantramgiamgia, 0) AS phantramgiamgia,
+                s.thoigianbatdaugiam,
+                s.thoigianketthucgiam,
                 s.soluongsanpham,
                 s.trangthaisanpham,
-                s.hinhanhsanpham
+                s.hinhanhsanpham,
+                COALESCE(s.thongtin, '') AS thongtin
             FROM sanpham s
             LEFT JOIN danhmuc d ON d.id = s.danhmuc_id
-            ORDER BY s.id DESC
-            LIMIT 100
+            ORDER BY s.id ASC
         ";
         $result = $conn->query($sql);
 
@@ -877,9 +882,13 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'tendanhmuc' => (string) $row['tendanhmuc'],
                 'masanpham' => (string) $row['masanpham'],
                 'giasanpham' => (float) $row['giasanpham'],
+                'phantramgiamgia' => (float) ($row['phantramgiamgia'] ?? 0),
+                'thoigianbatdaugiam' => (string) ($row['thoigianbatdaugiam'] ?? ''),
+                'thoigianketthucgiam' => (string) ($row['thoigianketthucgiam'] ?? ''),
                 'soluongsanpham' => $qty,
                 'trangthaisanpham' => (string) $row['trangthaisanpham'],
                 'hinhanhsanpham' => app_to_public_image_url((string) ($row['hinhanhsanpham'] ?? '')),
+                'thongtin' => (string) ($row['thongtin'] ?? ''),
             ];
         }
 
@@ -895,6 +904,97 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'category_count' => count($categorySet),
             ],
             'data' => $data,
+        ]);
+    }
+
+    if ($api === 'get_product_reviews') {
+        $productId = (int) ($_GET['product_id'] ?? 0);
+        $limit = (int) ($_GET['limit'] ?? 20);
+        if ($limit <= 0 || $limit > 100) {
+            $limit = 20;
+        }
+
+        if ($productId <= 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'product_id khong hop le',
+            ], 400);
+        }
+
+        if (!app_table_exists($conn, 'danhgiasanpham')) {
+            $conn->close();
+            app_json_response([
+                'ok' => true,
+                'count' => 0,
+                'summary' => [
+                    'avg_rating' => 0,
+                    'review_count' => 0,
+                ],
+                'data' => [],
+            ]);
+        }
+
+        $sql = "
+            SELECT
+                dg.id,
+                dg.sosao,
+                dg.noidung,
+                dg.trangthai,
+                dg.ngaytao,
+                COALESCE(NULLIF(TRIM(k.tenkhachhang), ''), 'Khach hang') AS tenkhachhang
+            FROM danhgiasanpham dg
+            LEFT JOIN khachhang k ON k.id = dg.khachhang_id
+            WHERE dg.sanpham_id = ?
+              AND dg.sosao BETWEEN 1 AND 5
+            ORDER BY dg.ngaytao DESC, dg.id DESC
+            LIMIT ?
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the tai danh gia san pham',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $stmt->bind_param('ii', $productId, $limit);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $rows = [];
+        $sumRating = 0;
+        while ($result && ($row = $result->fetch_assoc())) {
+            $rating = (int) ($row['sosao'] ?? 0);
+            $sumRating += $rating;
+            $rows[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'rating' => $rating,
+                'comment' => (string) ($row['noidung'] ?? ''),
+                'status' => (string) ($row['trangthai'] ?? ''),
+                'created_at' => (string) ($row['ngaytao'] ?? ''),
+                'customer_name' => (string) ($row['tenkhachhang'] ?? 'Khach hang'),
+            ];
+        }
+
+        if ($result) {
+            $result->free();
+        }
+        $stmt->close();
+        $conn->close();
+
+        $count = count($rows);
+        app_json_response([
+            'ok' => true,
+            'count' => $count,
+            'summary' => [
+                'avg_rating' => $count > 0 ? round($sumRating / $count, 1) : 0,
+                'review_count' => $count,
+            ],
+            'data' => $rows,
         ]);
     }
 
