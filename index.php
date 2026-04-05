@@ -665,32 +665,57 @@ function app_to_public_image_url(string $imagePath): string
         return $path;
     }
 
-    // Normalize legacy absolute paths stored from older UI flows.
-    if (app_starts_with($path, '/')) {
-        $path = str_replace('Giao Diện/user/anhdata/', 'anhdata/', $path);
-        $path = str_replace('Giao%20Di%E1%BB%87n/user/anhdata/', 'anhdata/', $path);
-        $path = str_replace('Giao Diện/admin/anhdata/', 'anhdata/', $path);
-        $path = str_replace('Giao%20Di%E1%BB%87n/admin/anhdata/', 'anhdata/', $path);
-        return str_replace(' ', '%20', $path);
+    $querySuffix = '';
+    $questionPos = strpos($path, '?');
+    if ($questionPos !== false) {
+        $querySuffix = substr($path, $questionPos);
+        $path = substr($path, 0, $questionPos);
     }
 
-    if (app_starts_with($path, './')) {
-        $path = substr($path, 2);
+    // Handle legacy file-system paths (e.g. C:/laragon/www/.../anhdata/...).
+    $anhdataPos = stripos($path, 'anhdata/');
+    if ($anhdataPos !== false) {
+        $path = substr($path, $anhdataPos);
+    }
+
+    while (app_starts_with($path, './') || app_starts_with($path, '../')) {
+        if (app_starts_with($path, './')) {
+            $path = substr($path, 2);
+            continue;
+        }
+        $path = substr($path, 3);
+    }
+
+    $path = ltrim($path, '/');
+
+    if (app_starts_with($path, 'phuocthanh/PHPCHINH/')) {
+        $path = substr($path, strlen('phuocthanh/PHPCHINH/'));
+    } elseif (app_starts_with($path, 'PHPCHINH/')) {
+        $path = substr($path, strlen('PHPCHINH/'));
     }
 
     if (app_starts_with($path, 'Giao Diện/user/anhdata/')) {
         $path = substr($path, strlen('Giao Diện/user/'));
     } elseif (app_starts_with($path, 'Giao Diện/admin/anhdata/')) {
         $path = substr($path, strlen('Giao Diện/admin/'));
+    } elseif (app_starts_with($path, 'Giao%20Di%E1%BB%87n/user/anhdata/')) {
+        $path = substr($path, strlen('Giao%20Di%E1%BB%87n/user/'));
+    } elseif (app_starts_with($path, 'Giao%20Di%E1%BB%87n/admin/anhdata/')) {
+        $path = substr($path, strlen('Giao%20Di%E1%BB%87n/admin/'));
     } elseif (app_starts_with($path, 'user/anhdata/')) {
         $path = substr($path, strlen('user/'));
     } elseif (app_starts_with($path, 'admin/anhdata/')) {
         $path = substr($path, strlen('admin/'));
     }
 
-    $basePath = app_base_path();
+    if ($path === '') {
+        return '';
+    }
+
     $encodedPath = str_replace(' ', '%20', ltrim($path, '/'));
-    return ($basePath !== '' ? $basePath : '') . '/' . $encodedPath;
+    $basePath = app_base_path();
+    $finalPath = ($basePath !== '' ? $basePath : '') . '/' . $encodedPath;
+    return $finalPath . $querySuffix;
 }
 
 function app_ensure_dichvu_image_column(mysqli $conn): bool

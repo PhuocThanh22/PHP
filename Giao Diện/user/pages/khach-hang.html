@@ -696,8 +696,8 @@
           <input type="file" id="customerAvatarInput" accept="image/jpeg,image/png,image/webp" hidden>
         </div>
         <div>
-          <div id="sidebarProfileName" style="font-size: 15px; font-weight: 700; color: #0f172a;">Khách hàng</div>
-          <div class="muted" id="sidebarProfileEmail">customer@example.com</div>
+          <div id="sidebarProfileName" style="font-size: 15px; font-weight: 700; color: #0f172a;">Khach hang</div>
+          <div class="muted" id="sidebarProfileEmail">Chua dang nhap</div>
         </div>
       </div>
 
@@ -1062,31 +1062,23 @@
         store.set(KEYS.profile, nextProfile);
       };
 
-      const authUserSnapshot = getCurrentAuthUser();
+      let authUserSnapshot = getCurrentAuthUser();
       if (!authUserSnapshot) {
-        if (typeof window.openAuthModal === 'function') {
-          window.openAuthModal('login', 'Vui lòng đăng nhập để vào Trung tâm khách hàng.');
-          if (typeof window.resetToHome === 'function') {
-            window.resetToHome();
-          }
-        } else {
-          try {
-            localStorage.setItem('pendingAuthPromptV2', JSON.stringify({
-              tab: 'login',
-              reason: 'Vui lòng đăng nhập để vào Trung tâm khách hàng.',
-              source: 'customer_center',
-              timestamp: Date.now()
-            }));
-          } catch (e) {
-            // ignore storage errors and continue redirect flow
-          }
-          if (typeof window.resetToHome === 'function') {
-            window.resetToHome();
-          } else {
-            window.location.href = '../home.html';
-          }
-        }
-        return;
+        const nextProfile = {
+          name: 'Khach hang',
+          email: '',
+          phone: '',
+          address: '',
+          avatar: '',
+          role: 'user'
+        };
+        store.set(KEYS.profile, nextProfile);
+        authUserSnapshot = {
+          id: 0,
+          role: 'user',
+          fullName: nextProfile.name,
+          email: nextProfile.email || ''
+        };
       }
 
       const currentRole = normalizeRole(authUserSnapshot?.role || '');
@@ -1208,13 +1200,23 @@
         if (!raw) return DEFAULT_PRODUCT_IMAGE;
         if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
 
+        let normalized = raw;
+        const anhdataIndex = normalized.toLowerCase().indexOf('anhdata/');
+        if (anhdataIndex >= 0) {
+          normalized = normalized.slice(anhdataIndex);
+        }
+
+        normalized = normalized.replace(/^\/+/, '');
+        normalized = normalized.replace(/^phuocthanh\/phpchinh\//i, '');
+        normalized = normalized.replace(/^phpchinh\//i, '');
+
         const pathname = String(window.location.pathname || '');
         const markerIndexRaw = pathname.indexOf('/Giao Diện/');
         const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
         const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
         const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
 
-        let normalized = raw.replace(/^\.\//, '');
+        normalized = normalized.replace(/^\.\//, '');
         normalized = normalized.replace(/^Giao Diện\/user\//i, '');
         normalized = normalized.replace(/^Giao%20Diện\/user\//i, '');
         normalized = normalized.replace(/^Giao Diện\//i, '');
@@ -1574,73 +1576,21 @@
 
       const seedData = () => {
         const defaultProfile = {
-          name: 'Khách hàng Pet Shop',
-          email: 'customer@example.com',
-          phone: '0909 123 456',
-          address: '123 Nguyễn Huệ, Quận 1, TP.HCM'
+          name: 'Khach hang',
+          email: '',
+          phone: '',
+          address: '',
+          avatar: '',
+          role: 'user'
         };
 
-        const defaultOrders = [
-          {
-            id: 'PS1001',
-            createdAt: '25/03/2026 10:30',
-            status: 'shipping',
-            paymentMethod: 'COD',
-            paymentStatus: 'Thanh toán khi nhận hàng',
-            items: [
-              { name: 'Thức ăn chó cao cấp', qty: 2, price: 420000, image: 'https://images.unsplash.com/photo-1600804340584-c7db2eacf0bf?w=200&h=200&fit=crop' },
-              { name: 'Khay vệ sinh mèo', qty: 1, price: 280000, image: 'https://images.unsplash.com/photo-1583512603805-3cc6b41f3edb?w=200&h=200&fit=crop' }
-            ]
-          },
-          {
-            id: 'PS0998',
-            createdAt: '20/03/2026 14:15',
-            status: 'delivered',
-            paymentMethod: 'BANK',
-            paymentStatus: 'Đã thanh toán',
-            items: [
-              { name: 'Dây dắt phản quang', qty: 1, price: 150000, image: 'https://images.unsplash.com/photo-1568572933382-74d440642117?w=200&h=200&fit=crop' },
-              { name: 'Giường cho chó', qty: 1, price: 980000, image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=200&fit=crop' }
-            ]
-          },
-          {
-            id: 'PS0992',
-            createdAt: '18/03/2026 09:42',
-            status: 'pending',
-            paymentMethod: 'MOMO',
-            paymentStatus: 'Đã thanh toán',
-            items: [
-              { name: 'Vòng cổ thú cưng', qty: 1, price: 120000, image: 'https://images.unsplash.com/photo-1601758260892-ae5f90d1f3f6?w=200&h=200&fit=crop' }
-            ]
-          }
-        ];
+        const defaultOrders = [];
 
-        const defaultNotifications = [
-          { id: idGen('n'), message: 'Đơn PS1001 đang trên đường giao đến bạn.', time: nowText(), read: false, type: 'order' },
-          { id: idGen('n'), message: 'Voucher PET10 giảm 10% vừa được thêm vào tài khoản.', time: nowText(), read: false, type: 'promo' }
-        ];
+        const defaultNotifications = [];
 
-        const defaultAddresses = [
-          {
-            id: idGen('a'),
-            name: 'Khách hàng Pet Shop',
-            phone: '0909 123 456',
-            line: '123 Nguyễn Huệ',
-            ward: 'Bến Nghé',
-            city: 'TP.HCM',
-            isDefault: true
-          }
-        ];
+        const defaultAddresses = [];
 
-        const defaultPaymentMethods = [
-          {
-            id: idGen('pm'),
-            type: 'COD',
-            label: 'Thanh toán khi nhận hàng',
-            number: '---',
-            isDefault: true
-          }
-        ];
+        const defaultPaymentMethods = [];
 
         const defaultVouchers = [
           { id: idGen('v'), code: 'PET10', title: 'Giảm 10%', desc: 'Giảm 10% tối đa 80.000₫', minOrder: 300000, expiry: '30/04/2026', status: 'available' },
@@ -1654,14 +1604,7 @@
         };
 
         if (!localStorage.getItem(KEYS.profile)) store.set(KEYS.profile, defaultProfile);
-        if (!localStorage.getItem(KEYS.orders)) {
-          const authUser = getCurrentAuthUser();
-          if (authUser && Number(authUser.id || 0) > 0) {
-            store.set(KEYS.orders, []);
-          } else {
-            store.set(KEYS.orders, defaultOrders);
-          }
-        }
+        if (!localStorage.getItem(KEYS.orders)) store.set(KEYS.orders, defaultOrders);
         if (!localStorage.getItem(KEYS.notifications)) store.set(KEYS.notifications, defaultNotifications);
         if (!localStorage.getItem(KEYS.reviews)) store.set(KEYS.reviews, []);
         if (!localStorage.getItem(KEYS.addresses)) store.set(KEYS.addresses, defaultAddresses);
@@ -1682,8 +1625,8 @@
 
       const renderSidebarProfile = () => {
         const profile = store.get(KEYS.profile, {});
-        document.getElementById('sidebarProfileName').textContent = profile.name || 'Khách hàng';
-        document.getElementById('sidebarProfileEmail').textContent = profile.email || 'customer@example.com';
+        document.getElementById('sidebarProfileName').textContent = profile.name || 'Khach hang';
+        document.getElementById('sidebarProfileEmail').textContent = profile.email || 'Chua dang nhap';
         const initials = (profile.name || 'KH').split(' ').filter(Boolean).slice(-2).map((p) => p[0]).join('').toUpperCase();
         const avatarButton = document.getElementById('customerAvatar');
         const avatarText = document.getElementById('customerAvatarText');
@@ -2214,10 +2157,34 @@
 
           if (btn.dataset.action === 'logout') {
             if (!confirm('Bạn có chắc chắn muốn đăng xuất?')) return;
+
             sessionStorage.removeItem('authUser');
             sessionStorage.removeItem('userSession');
-            sessionStorage.setItem('isLoggedIn', JSON.stringify(false));
-            localStorage.setItem('isLoggedIn', JSON.stringify(false));
+            sessionStorage.removeItem('customerPortalAuth');
+            sessionStorage.removeItem('pendingAuthPromptV2');
+            localStorage.removeItem('authUser');
+            localStorage.removeItem('userSession');
+            localStorage.removeItem('customerPortalAuth');
+            localStorage.removeItem('pendingAuthPromptV2');
+            sessionStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('isLoggedIn');
+            localStorage.setItem('isLoggedIn', 'false');
+
+            const guestProfile = {
+              name: 'Khach hang',
+              email: '',
+              phone: '',
+              address: '',
+              avatar: '',
+              role: 'user'
+            };
+            localStorage.setItem(KEYS.profile, JSON.stringify(guestProfile));
+
+            const authState = store.get(KEYS.auth, {});
+            store.set(KEYS.auth, {
+              ...(authState && typeof authState === 'object' ? authState : {}),
+              twoFactor: false
+            });
 
             if (window.AppSessionRealtime && typeof window.AppSessionRealtime.publish === 'function') {
               window.AppSessionRealtime.publish('auth_logout', {});

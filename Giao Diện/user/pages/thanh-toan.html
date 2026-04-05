@@ -449,6 +449,28 @@
 </div>
 
 <script>
+  const DIRECT_CHECKOUT_KEY = 'checkoutDirectItems';
+
+  const getCheckoutItems = () => {
+    try {
+      const directRaw = localStorage.getItem(DIRECT_CHECKOUT_KEY);
+      const directItems = directRaw ? JSON.parse(directRaw) : [];
+      if (Array.isArray(directItems) && directItems.length > 0) {
+        return { items: directItems, source: 'direct' };
+      }
+    } catch (e) {
+      // Ignore malformed direct checkout payload.
+    }
+
+    try {
+      const cartRaw = localStorage.getItem('cart');
+      const cartItems = cartRaw ? JSON.parse(cartRaw) : [];
+      return { items: Array.isArray(cartItems) ? cartItems : [], source: 'cart' };
+    } catch (e) {
+      return { items: [], source: 'cart' };
+    }
+  };
+
   (function bindAddressSelectors() {
     const provinceEl = document.getElementById('checkoutProvince');
     const districtEl = document.getElementById('checkoutDistrict');
@@ -610,7 +632,8 @@
   })();
 
   (function renderCheckoutOrder() {
-    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const checkoutData = getCheckoutItems();
+    const cart = checkoutData.items;
     const rowsEl = document.getElementById('checkoutOrderRows');
     const subtotalEl = document.getElementById('checkoutSubtotal');
     const totalEl = document.getElementById('checkoutTotal');
@@ -719,13 +742,23 @@
       if (!raw) return defaultProductImage;
       if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
 
+      let normalized = raw;
+      const anhdataIndex = normalized.toLowerCase().indexOf('anhdata/');
+      if (anhdataIndex >= 0) {
+        normalized = normalized.slice(anhdataIndex);
+      }
+
+      normalized = normalized.replace(/^\/+/, '');
+      normalized = normalized.replace(/^phuocthanh\/phpchinh\//i, '');
+      normalized = normalized.replace(/^phpchinh\//i, '');
+
       const pathname = String(window.location.pathname || '');
       const markerIndexRaw = pathname.indexOf('/Giao Diện/');
       const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
       const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
       const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
 
-      let normalized = raw.replace(/^\.\//, '');
+      normalized = normalized.replace(/^\.\//, '');
       normalized = normalized.replace(/^Giao Diện\/user\//i, '');
       normalized = normalized.replace(/^Giao%20Diện\/user\//i, '');
       normalized = normalized.replace(/^Giao Diện\//i, '');
@@ -1063,8 +1096,8 @@
       const addressDetail = (document.getElementById('checkoutAddressDetail')?.value || '').trim();
       const note = (document.querySelector('textarea')?.value || '').trim();
 
-      const cartRaw = localStorage.getItem('cart');
-      const cartItems = cartRaw ? JSON.parse(cartRaw) : [];
+      const checkoutData = getCheckoutItems();
+      const cartItems = checkoutData.items;
       const cartList = (Array.isArray(cartItems) ? cartItems : []).map((item) => ({
         ...item,
         image: normalizeProductImageUrl(item?.image || item?.hinhanh || item?.hinhanhsanpham || ''),
@@ -1133,7 +1166,11 @@
           orderCode: createdCode,
           total
         });
-        localStorage.removeItem('cart');
+        if (checkoutData.source === 'direct') {
+          localStorage.removeItem(DIRECT_CHECKOUT_KEY);
+        } else {
+          localStorage.removeItem('cart');
+        }
         showSuccessPopup({
           id: createdCode,
           customerName: (lastName + ' ' + firstName).trim(),

@@ -63,13 +63,23 @@
         if (!raw) return defaultProductImage;
         if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
 
+        let normalized = raw;
+        const anhdataIndex = normalized.toLowerCase().indexOf('anhdata/');
+        if (anhdataIndex >= 0) {
+            normalized = normalized.slice(anhdataIndex);
+        }
+
+        normalized = normalized.replace(/^\/+/, '');
+        normalized = normalized.replace(/^phuocthanh\/phpchinh\//i, '');
+        normalized = normalized.replace(/^phpchinh\//i, '');
+
         const pathname = String(window.location.pathname || '');
         const markerIndexRaw = pathname.indexOf('/Giao Diện/');
         const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
         const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
         const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
 
-        let normalized = raw.replace(/^\.\//, '');
+        normalized = normalized.replace(/^\.\//, '');
         normalized = normalized.replace(/^Giao Diện\/user\//i, '');
         normalized = normalized.replace(/^Giao%20Diện\/user\//i, '');
         normalized = normalized.replace(/^Giao Diện\//i, '');

@@ -33,16 +33,94 @@ function app_booking_ensure_table(mysqli $conn): bool
             nhanvien_id INT NULL,
             thoigianhen DATETIME NULL,
             trangthailichhen ENUM('choduyet','hoanthanh','huy') DEFAULT 'choduyet',
+            tenkhachhang VARCHAR(120) NULL,
+            sodienthoai VARCHAR(20) NULL,
+            email VARCHAR(190) NULL,
+            tendichvu VARCHAR(190) NULL,
+            giadichvu VARCHAR(80) NULL,
+            tenthucung VARCHAR(120) NULL,
+            loaithucung VARCHAR(60) NULL,
+            khunggio VARCHAR(60) NULL,
+            ghichu TEXT NULL,
+            ghichunhanvien TEXT NULL,
+            nguoidung_id INT NULL,
+            ngaytao DATETIME NULL,
+            ngaycapnhat DATETIME NULL,
             ghichulichhen TEXT NULL,
             PRIMARY KEY (id),
             KEY idx_lichhen_khachhang (khachhang_id),
             KEY idx_lichhen_dichvu (dichvu_id),
             KEY idx_lichhen_nhanvien (nhanvien_id),
-            KEY idx_lichhen_thoigian (thoigianhen)
+            KEY idx_lichhen_thoigian (thoigianhen),
+            KEY idx_lichhen_user (nguoidung_id),
+            KEY idx_lichhen_created (ngaytao)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ";
 
-    return (bool) $conn->query($sql);
+    if (!$conn->query($sql)) {
+        return false;
+    }
+
+    $renameMigrations = [
+        ['old' => 'customer_name', 'new' => 'tenkhachhang'],
+        ['old' => 'customer_phone', 'new' => 'sodienthoai'],
+        ['old' => 'customer_email', 'new' => 'email'],
+        ['old' => 'service_name', 'new' => 'tendichvu'],
+        ['old' => 'service_price', 'new' => 'giadichvu'],
+        ['old' => 'pet_name', 'new' => 'tenthucung'],
+        ['old' => 'pet_type', 'new' => 'loaithucung'],
+        ['old' => 'time_slot', 'new' => 'khunggio'],
+        ['old' => 'booking_note', 'new' => 'ghichu'],
+        ['old' => 'staff_note', 'new' => 'ghichunhanvien'],
+        ['old' => 'user_id', 'new' => 'nguoidung_id'],
+        ['old' => 'created_at', 'new' => 'ngaytao'],
+        ['old' => 'updated_at', 'new' => 'ngaycapnhat'],
+    ];
+
+    foreach ($renameMigrations as $rename) {
+        $old = (string) ($rename['old'] ?? '');
+        $new = (string) ($rename['new'] ?? '');
+        if ($old === '' || $new === '') {
+            continue;
+        }
+        if (app_column_exists($conn, 'lichhen', $old) && !app_column_exists($conn, 'lichhen', $new)) {
+            if (!$conn->query("ALTER TABLE lichhen RENAME COLUMN {$old} TO {$new}")) {
+                return false;
+            }
+        }
+    }
+
+    $columnMigrations = [
+        'tenkhachhang' => "ALTER TABLE lichhen ADD COLUMN tenkhachhang VARCHAR(120) NULL AFTER trangthailichhen",
+        'sodienthoai' => "ALTER TABLE lichhen ADD COLUMN sodienthoai VARCHAR(20) NULL AFTER tenkhachhang",
+        'email' => "ALTER TABLE lichhen ADD COLUMN email VARCHAR(190) NULL AFTER sodienthoai",
+        'tendichvu' => "ALTER TABLE lichhen ADD COLUMN tendichvu VARCHAR(190) NULL AFTER email",
+        'giadichvu' => "ALTER TABLE lichhen ADD COLUMN giadichvu VARCHAR(80) NULL AFTER tendichvu",
+        'tenthucung' => "ALTER TABLE lichhen ADD COLUMN tenthucung VARCHAR(120) NULL AFTER giadichvu",
+        'loaithucung' => "ALTER TABLE lichhen ADD COLUMN loaithucung VARCHAR(60) NULL AFTER tenthucung",
+        'khunggio' => "ALTER TABLE lichhen ADD COLUMN khunggio VARCHAR(60) NULL AFTER loaithucung",
+        'ghichu' => "ALTER TABLE lichhen ADD COLUMN ghichu TEXT NULL AFTER khunggio",
+        'ghichunhanvien' => "ALTER TABLE lichhen ADD COLUMN ghichunhanvien TEXT NULL AFTER ghichu",
+        'nguoidung_id' => "ALTER TABLE lichhen ADD COLUMN nguoidung_id INT NULL AFTER ghichunhanvien",
+        'ngaytao' => "ALTER TABLE lichhen ADD COLUMN ngaytao DATETIME NULL AFTER nguoidung_id",
+        'ngaycapnhat' => "ALTER TABLE lichhen ADD COLUMN ngaycapnhat DATETIME NULL AFTER ngaytao",
+    ];
+
+    foreach ($columnMigrations as $column => $migrationSql) {
+        if (!app_column_exists($conn, 'lichhen', $column)) {
+            if (!$conn->query($migrationSql)) {
+                return false;
+            }
+        }
+    }
+
+    if (!app_column_exists($conn, 'lichhen', 'ghichulichhen')) {
+        if (!$conn->query("ALTER TABLE lichhen ADD COLUMN ghichulichhen TEXT NULL AFTER ngaycapnhat")) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function app_booking_decode_note(string $note): array
@@ -486,8 +564,46 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         }
 
         $insertSql = "
-            INSERT INTO lichhen (khachhang_id, dichvu_id, thoigianhen, trangthailichhen, ghichulichhen)
-            VALUES (NULLIF(?, 0), NULLIF(?, 0), ?, 'choduyet', ?)
+            INSERT INTO lichhen (
+                khachhang_id,
+                dichvu_id,
+                thoigianhen,
+                trangthailichhen,
+                tenkhachhang,
+                sodienthoai,
+                email,
+                tendichvu,
+                giadichvu,
+                tenthucung,
+                loaithucung,
+                khunggio,
+                ghichu,
+                nguoidung_id,
+                ghichunhanvien,
+                ngaytao,
+                ngaycapnhat,
+                ghichulichhen
+            )
+            VALUES (
+                NULLIF(?, 0),
+                NULLIF(?, 0),
+                ?,
+                'choduyet',
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                '',
+                NOW(),
+                NOW(),
+                ?
+            )
         ";
         $insertStmt = $conn->prepare($insertSql);
         if (!$insertStmt) {
@@ -499,7 +615,23 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             ], 500);
         }
 
-        $insertStmt->bind_param('iiss', $customerId, $serviceId, $scheduledAt, $noteJson);
+        $insertStmt->bind_param(
+            'iissssssssssis',
+            $customerId,
+            $serviceId,
+            $scheduledAt,
+            $customerName,
+            $customerPhone,
+            $customerEmail,
+            $serviceName,
+            $servicePrice,
+            $petName,
+            $petType,
+            $timeSlot,
+            $note,
+            $userId,
+            $noteJson
+        );
         $ok = $insertStmt->execute();
         $bookingId = (int) $insertStmt->insert_id;
         $insertStmt->close();
@@ -554,6 +686,19 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 l.nhanvien_id,
                 l.thoigianhen,
                 l.trangthailichhen,
+                l.tenkhachhang,
+                l.sodienthoai,
+                l.email,
+                l.tendichvu,
+                l.giadichvu,
+                l.tenthucung,
+                l.loaithucung,
+                l.khunggio,
+                l.ghichu,
+                l.ghichunhanvien,
+                l.nguoidung_id,
+                l.ngaytao,
+                l.ngaycapnhat,
                 l.ghichulichhen,
                 k.tenkhachhang,
                 k.sodienthoaikhachhang,
@@ -593,14 +738,30 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 $status = 'choduyet';
             }
 
-            $customerPhone = (string) (($meta['customer_phone'] ?? '') !== '' ? $meta['customer_phone'] : ($row['sodienthoaikhachhang'] ?? ''));
-            $customerEmail = (string) (($meta['customer_email'] ?? '') !== '' ? $meta['customer_email'] : ($row['emailkhachhang'] ?? ''));
-            $customerName = (string) (($meta['customer_name'] ?? '') !== '' ? $meta['customer_name'] : ($row['tenkhachhang'] ?? 'Khach hang'));
-            $serviceName = (string) (($meta['service_name'] ?? '') !== '' ? $meta['service_name'] : ($row['tendichvu'] ?? 'Dich vu'));
+            $customerPhone = (string) (($row['sodienthoai'] ?? '') !== ''
+                ? $row['sodienthoai']
+                : (($meta['customer_phone'] ?? '') !== '' ? $meta['customer_phone'] : ($row['sodienthoaikhachhang'] ?? '')));
+            $customerEmail = (string) (($row['email'] ?? '') !== ''
+                ? $row['email']
+                : (($meta['customer_email'] ?? '') !== '' ? $meta['customer_email'] : ($row['emailkhachhang'] ?? '')));
+            $customerName = (string) (($row['tenkhachhang'] ?? '') !== ''
+                ? $row['tenkhachhang']
+                : (($meta['customer_name'] ?? '') !== '' ? $meta['customer_name'] : ($row['tenkhachhang'] ?? 'Khach hang')));
+            $serviceName = (string) (($row['tendichvu'] ?? '') !== ''
+                ? $row['tendichvu']
+                : (($meta['service_name'] ?? '') !== '' ? $meta['service_name'] : ($row['tendichvu'] ?? 'Dich vu')));
+            $servicePrice = (string) (($row['giadichvu'] ?? '') !== ''
+                ? $row['giadichvu']
+                : (($meta['service_price'] ?? '') !== '' ? $meta['service_price'] : ((float) ($row['giadichvu'] ?? 0))));
+            $petName = (string) (($row['tenthucung'] ?? '') !== '' ? $row['tenthucung'] : ($meta['pet_name'] ?? ''));
+            $petType = (string) (($row['loaithucung'] ?? '') !== '' ? $row['loaithucung'] : ($meta['pet_type'] ?? ''));
+            $timeSlot = (string) (($row['khunggio'] ?? '') !== '' ? $row['khunggio'] : ($meta['time_slot'] ?? ''));
+            $bookingNote = (string) (($row['ghichu'] ?? '') !== '' ? $row['ghichu'] : ($meta['note'] ?? ''));
+            $staffNote = (string) (($row['ghichunhanvien'] ?? '') !== '' ? $row['ghichunhanvien'] : ($meta['staff_note'] ?? ''));
 
             $normalizedPhone = preg_replace('/[^0-9]/', '', $customerPhone);
             $normalizedEmail = app_lower($customerEmail);
-            $metaUserId = (int) ($meta['user_id'] ?? 0);
+            $metaUserId = (int) (($row['nguoidung_id'] ?? 0) > 0 ? ($row['nguoidung_id'] ?? 0) : ($meta['user_id'] ?? 0));
 
             if ($userIdFilter > 0 && $metaUserId !== $userIdFilter) {
                 continue;
@@ -643,15 +804,17 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'sodienthoai' => $customerPhone,
                 'email' => $customerEmail,
                 'tendichvu' => $serviceName,
-                'giadichvu' => (string) (($meta['service_price'] ?? '') !== '' ? $meta['service_price'] : ((float) ($row['giadichvu'] ?? 0))),
-                'ten_thu_cung' => (string) ($meta['pet_name'] ?? ''),
-                'loai_thu_cung' => (string) ($meta['pet_type'] ?? ''),
-                'khunggio' => (string) ($meta['time_slot'] ?? ''),
-                'ghichu' => (string) ($meta['note'] ?? ''),
+                'giadichvu' => $servicePrice,
+                'ten_thu_cung' => $petName,
+                'loai_thu_cung' => $petType,
+                'khunggio' => $timeSlot,
+                'ghichu' => $bookingNote,
+                'ghichu_nhanvien' => $staffNote,
                 'thoigianhen' => (string) ($row['thoigianhen'] ?? ''),
                 'trangthai' => $status,
                 'trangthai_label' => $statusLabelMap[$status],
-                'created_at' => (string) ($meta['created_at'] ?? ''),
+                'created_at' => (string) (($row['ngaytao'] ?? '') !== '' ? $row['ngaytao'] : ($meta['created_at'] ?? '')),
+                'updated_at' => (string) (($row['ngaycapnhat'] ?? '') !== '' ? $row['ngaycapnhat'] : ($meta['updated_at'] ?? '')),
             ];
         }
 
@@ -739,6 +902,8 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             SET
                 trangthailichhen = ?,
                 nhanvien_id = CASE WHEN ? > 0 THEN ? ELSE nhanvien_id END,
+                ghichunhanvien = ?,
+                ngaycapnhat = NOW(),
                 ghichulichhen = ?
             WHERE id = ?
         ";
@@ -752,7 +917,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             ], 500);
         }
 
-        $updateStmt->bind_param('siisi', $status, $staffId, $staffId, $metaJson, $bookingId);
+        $updateStmt->bind_param('siissi', $status, $staffId, $staffId, $staffNote, $metaJson, $bookingId);
         $ok = $updateStmt->execute();
         $updateStmt->close();
 

@@ -1498,7 +1498,7 @@ function app_social_build_auth_url(string $provider, string $clientId, string $r
         'client_id' => $clientId,
         'redirect_uri' => $redirectUri,
         'response_type' => 'code',
-        'scope' => 'email,public_profile',
+        'scope' => 'public_profile',
         'state' => $state,
     ]);
 }
@@ -1703,7 +1703,7 @@ function app_social_render_bridge(?array $user, string $returnUrl, string $error
 
     header('Content-Type: text/html; charset=UTF-8');
     echo '<!doctype html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đang hoàn tất đăng nhập...</title></head><body>';
-    echo '<script>(function(){var user=' . $userJson . ';var returnUrl=' . $returnJson . ';var error=' . $errorJson . ';if(user&&user.id){var sessionPayload={id:Number(user.id||0),role:"user",fullName:user.tennguoidung||"Khach hang",email:user.emailnguoidung||"",identifier:user.emailnguoidung||user.tennguoidung||"",createdAt:new Date().toISOString()};try{sessionStorage.setItem("authUser",JSON.stringify(sessionPayload));}catch(e){};try{localStorage.setItem("userSession",JSON.stringify(sessionPayload));}catch(e){};try{localStorage.setItem("isLoggedIn","true");}catch(e){};}if(error){try{localStorage.setItem("pendingAuthPromptV2",JSON.stringify({error:error,createdAt:new Date().toISOString()}));}catch(e){}}window.location.replace(returnUrl);})();</script>';
+    echo '<script>(function(){var user=' . $userJson . ';var returnUrl=' . $returnJson . ';var error=' . $errorJson . ';if(user&&user.id){var sessionPayload={id:Number(user.id||0),role:"user",fullName:user.tennguoidung||"Khach hang",email:user.emailnguoidung||"",identifier:user.emailnguoidung||user.tennguoidung||"",createdAt:new Date().toISOString()};try{sessionStorage.setItem("authUser",JSON.stringify(sessionPayload));sessionStorage.setItem("customerPortalAuth","1");}catch(e){};try{localStorage.setItem("userSession",JSON.stringify(sessionPayload));localStorage.setItem("authUser",JSON.stringify(sessionPayload));localStorage.setItem("customerPortalAuth","1");}catch(e){};try{localStorage.setItem("isLoggedIn","true");}catch(e){};}if(error){try{localStorage.setItem("pendingAuthPromptV2",JSON.stringify({error:error,createdAt:new Date().toISOString()}));}catch(e){}}window.location.replace(returnUrl);})();</script>';
     echo '</body></html>';
     exit;
 }

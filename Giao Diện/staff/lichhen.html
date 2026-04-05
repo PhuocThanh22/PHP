@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="staff-style.css">
     <style>
         .booking-table td { vertical-align: top; }
+        .booking-row { cursor: pointer; }
+        .booking-row:hover { background: #f8fafc; }
         .status-chip {
             display: inline-block;
             padding: 4px 10px;
@@ -19,6 +21,127 @@
         .status-pending { background: #fff7ed; color: #c2410c; }
         .status-approved { background: #ecfdf5; color: #166534; }
         .status-rejected { background: #fef2f2; color: #b91c1c; }
+
+        .booking-detail-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 3000;
+        }
+
+        .booking-detail-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(92vw, 980px);
+            max-height: 88vh;
+            overflow: auto;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            padding: 16px;
+            z-index: 3001;
+            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.2);
+        }
+
+        .booking-detail-backdrop[hidden],
+        .booking-detail-modal[hidden] {
+            display: none !important;
+        }
+
+        .booking-detail-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .booking-detail-close {
+            border: 0;
+            background: transparent;
+            font-size: 28px;
+            line-height: 1;
+            color: #334155;
+            cursor: pointer;
+        }
+
+        .booking-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .booking-detail-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+
+        .booking-detail-card h6 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .booking-detail-meta {
+            margin: 0;
+            font-size: 14px;
+            color: #334155;
+            line-height: 1.7;
+        }
+
+        .booking-staff-note-wrap {
+            margin-top: 10px;
+        }
+
+        .booking-staff-note-wrap textarea {
+            width: 100%;
+            min-height: 70px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .booking-detail-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 12px;
+        }
+
+        .booking-detail-status-hint {
+            margin-top: 8px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .booking-detail-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+        .booking-detail-item .label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        .booking-detail-item .value {
+            font-size: 14px;
+            color: #0f172a;
+            word-break: break-word;
+        }
+        @media (max-width: 900px) {
+            .booking-detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -63,19 +186,80 @@
                         <th>Ngày hẹn</th>
                         <th>Trạng thái</th>
                         <th>Ghi chú</th>
-                        <th style="min-width: 190px;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody id="bookingTableBody">
-                    <tr><td colspan="7" class="text-muted">Đang tải dữ liệu...</td></tr>
+                    <tr><td colspan="6" class="text-muted">Đang tải dữ liệu...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
+<div id="bookingDetailBackdrop" class="booking-detail-backdrop" hidden></div>
+<div id="bookingDetailModal" class="booking-detail-modal" role="dialog" aria-modal="true" aria-labelledby="bookingDetailTitle" hidden>
+    <div class="booking-detail-head">
+        <h5 id="bookingDetailTitle" class="mb-0"><i class="bi bi-card-checklist me-2 text-success"></i>Chi tiết lịch hẹn</h5>
+        <button id="bookingDetailCloseBtn" type="button" class="booking-detail-close" aria-label="Đóng">&times;</button>
+    </div>
+
+    <div class="booking-detail-grid">
+        <div class="booking-detail-card">
+            <h6>Thông tin lịch hẹn</h6>
+            <p id="bookingDetailOrderMeta" class="booking-detail-meta"></p>
+        </div>
+        <div class="booking-detail-card">
+            <h6>Thông tin khách hàng</h6>
+            <p id="bookingDetailCustomerMeta" class="booking-detail-meta"></p>
+        </div>
+    </div>
+
+    <div class="booking-detail-card">
+        <h6>Thông tin thú cưng & ghi chú</h6>
+        <p id="bookingDetailPetMeta" class="booking-detail-meta"></p>
+
+        <div class="booking-staff-note-wrap">
+            <label for="bookingStaffNote" class="form-label mb-1">Ghi chú nhân viên</label>
+            <textarea id="bookingStaffNote" placeholder="Nhập ghi chú xử lý lịch hẹn..."></textarea>
+        </div>
+
+        <div id="bookingDetailStatusHint" class="booking-detail-status-hint"></div>
+
+        <div class="booking-detail-actions">
+            <button id="bookingDetailCloseFooterBtn" type="button" class="btn btn-outline-secondary">Đóng</button>
+            <button type="button" class="btn btn-success" id="bookingApproveBtn">Duyệt</button>
+            <button type="button" class="btn btn-danger" id="bookingRejectBtn">Từ chối</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
+    const detailBackdropEl = document.getElementById('bookingDetailBackdrop');
+    const detailModalEl = document.getElementById('bookingDetailModal');
+    const detailCloseBtn = document.getElementById('bookingDetailCloseBtn');
+    const detailCloseFooterBtn = document.getElementById('bookingDetailCloseFooterBtn');
+    const detailOrderMeta = document.getElementById('bookingDetailOrderMeta');
+    const detailCustomerMeta = document.getElementById('bookingDetailCustomerMeta');
+    const detailPetMeta = document.getElementById('bookingDetailPetMeta');
+    const detailStatusHint = document.getElementById('bookingDetailStatusHint');
+    const staffNoteInput = document.getElementById('bookingStaffNote');
+    const approveBtn = document.getElementById('bookingApproveBtn');
+    const rejectBtn = document.getElementById('bookingRejectBtn');
+
+    const showDetailModal = () => {
+        if (!detailModalEl || !detailBackdropEl) return;
+        detailBackdropEl.hidden = false;
+        detailModalEl.hidden = false;
+    };
+
+    const hideDetailModal = () => {
+        if (!detailModalEl || !detailBackdropEl) return;
+        detailBackdropEl.hidden = true;
+        detailModalEl.hidden = true;
+        selectedBooking = null;
+    };
+
     const bodyEl = document.getElementById('bookingTableBody');
     const keywordInput = document.getElementById('keywordInput');
     const statusInput = document.getElementById('statusInput');
@@ -83,6 +267,8 @@
     const filterBtn = document.getElementById('filterBtn');
     const BOOKING_SYNC_KEY = 'serviceBookingSyncSignal';
     const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+    let bookingRows = [];
+    let selectedBooking = null;
 
     const statusMeta = {
         choduyet: { label: 'Chờ duyệt', cls: 'status-pending' },
@@ -132,7 +318,7 @@
         return { ok: false, message: lastMessage };
     };
 
-    const updateStatus = async (id, status) => {
+    const updateStatus = async (id, status, staffNote = '') => {
         const authUser = (() => {
             try {
                 const raw = sessionStorage.getItem('authUser') || localStorage.getItem('authUser');
@@ -146,7 +332,7 @@
             id,
             status,
             staff_id: Number(authUser?.id || 0),
-            staff_note: ''
+            staff_note: String(staffNote || '').trim()
         };
 
         let lastMessage = 'Không thể cập nhật trạng thái.';
@@ -239,7 +425,7 @@
 
     const renderRows = (rows) => {
         if (!rows.length) {
-            bodyEl.innerHTML = '<tr><td colspan="7" class="text-muted">Không có lịch hẹn phù hợp.</td></tr>';
+            bodyEl.innerHTML = '<tr><td colspan="6" class="text-muted">Không có lịch hẹn phù hợp.</td></tr>';
             summaryText.textContent = '0 lịch hẹn';
             return;
         }
@@ -250,7 +436,7 @@
         bodyEl.innerHTML = rows.map((row) => {
             const meta = statusMeta[row.trangthai] || statusMeta.choduyet;
             return `
-                <tr>
+                <tr class="booking-row" data-booking-id="${row.id}" title="Bấm để xem chi tiết lịch hẹn">
                     <td><strong>${safeText(row.malichhen)}</strong></td>
                     <td>
                         <div><strong>${safeText(row.tenkhachhang)}</strong></div>
@@ -266,45 +452,96 @@
                     </td>
                     <td><span class="status-chip ${meta.cls}">${meta.label}</span></td>
                     <td>${safeText(row.ghichu || '-')}</td>
-                    <td>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button class="btn btn-sm btn-success" data-action="approve" data-id="${row.id}">Duyệt</button>
-                            <button class="btn btn-sm btn-outline-secondary" data-action="pending" data-id="${row.id}">Chờ duyệt</button>
-                            <button class="btn btn-sm btn-outline-danger" data-action="reject" data-id="${row.id}">Từ chối</button>
-                        </div>
-                    </td>
                 </tr>
             `;
         }).join('');
     };
 
+    const renderDetail = (row) => {
+        if (!row || !detailOrderMeta || !detailCustomerMeta || !detailPetMeta) return;
+
+        const meta = statusMeta[row.trangthai] || statusMeta.choduyet;
+
+        detailOrderMeta.innerHTML = [
+            `Mã lịch: <b>${safeText(row.malichhen || '')}</b>`,
+            `Trạng thái: <b>${safeText(meta.label)}</b>`,
+            `Ngày hẹn: ${safeText(toDisplayDate(row.thoigianhen))}`,
+            `Khung giờ: ${safeText(row.khunggio || '---')}`,
+            `Dịch vụ: ${safeText(row.tendichvu || '---')}`,
+            `Giá dịch vụ: ${safeText(row.giadichvu || '---')}`
+        ].join('<br>');
+
+        detailCustomerMeta.innerHTML = [
+            `Khách hàng: <b>${safeText(row.tenkhachhang || '')}</b>`,
+            `SĐT: ${safeText(row.sodienthoai || '---')}`,
+            `Email: ${safeText(row.email || '---')}`,
+            `Tạo lúc: ${safeText(row.created_at ? toDisplayDate(row.created_at) : '---')}`
+        ].join('<br>');
+
+        detailPetMeta.innerHTML = [
+            `Thú cưng: ${safeText(row.ten_thu_cung || '---')}`,
+            `Loài thú cưng: ${safeText(row.loai_thu_cung || '---')}`,
+            `Ghi chú khách: ${safeText(row.ghichu || '-')}`,
+            `Ghi chú nhân viên: ${safeText(row.ghichu_nhanvien || '-')}`
+        ].join('<br>');
+
+        staffNoteInput.value = String(row.ghichu_nhanvien || '');
+        const isApproved = String(row.trangthai || '').toLowerCase() === 'hoanthanh';
+        approveBtn.disabled = isApproved;
+        rejectBtn.disabled = isApproved;
+        staffNoteInput.disabled = isApproved;
+        detailStatusHint.textContent = isApproved
+            ? 'Lịch hẹn đã duyệt. Không thể thay đổi trạng thái nữa.'
+            : `Trạng thái hiện tại: ${meta.label}`;
+    };
+
+    const openBookingDetail = (bookingId) => {
+        const row = bookingRows.find((item) => Number(item.id) === Number(bookingId));
+        if (!row || !detailModalEl) return;
+        selectedBooking = row;
+        renderDetail(row);
+        showDetailModal();
+    };
+
     const loadData = async () => {
-        bodyEl.innerHTML = '<tr><td colspan="7" class="text-muted">Đang tải dữ liệu...</td></tr>';
+        bodyEl.innerHTML = '<tr><td colspan="6" class="text-muted">Đang tải dữ liệu...</td></tr>';
         const result = await fetchBookings();
         if (!result.ok) {
-            bodyEl.innerHTML = `<tr><td colspan="7" class="text-danger">${safeText(result.message || 'Không thể tải dữ liệu.')}</td></tr>`;
+            bodyEl.innerHTML = `<tr><td colspan="6" class="text-danger">${safeText(result.message || 'Không thể tải dữ liệu.')}</td></tr>`;
             summaryText.textContent = 'Lỗi tải dữ liệu';
             return;
         }
 
+        bookingRows = result.data;
         renderRows(result.data);
     };
 
-    bodyEl.addEventListener('click', async (event) => {
-        const trigger = event.target.closest('button[data-action][data-id]');
-        if (!trigger) return;
+    bodyEl.addEventListener('click', (event) => {
+        const row = event.target.closest('tr.booking-row[data-booking-id]');
+        if (!row) return;
+        const bookingId = Number(row.dataset.bookingId || 0);
+        if (bookingId > 0) {
+            openBookingDetail(bookingId);
+        }
+    });
 
-        const id = Number(trigger.getAttribute('data-id') || 0);
-        const action = String(trigger.getAttribute('data-action') || '');
+    const handleModalStatusUpdate = async (status) => {
+        if (!selectedBooking) return;
+        const id = Number(selectedBooking.id || 0);
         if (id <= 0) return;
 
-        let status = 'choduyet';
-        if (action === 'approve') status = 'hoanthanh';
-        if (action === 'reject') status = 'huy';
+        const locked = String(selectedBooking.trangthai || '').toLowerCase() === 'hoanthanh';
+        if (locked) {
+            return;
+        }
 
-        trigger.disabled = true;
-        const result = await updateStatus(id, status);
-        trigger.disabled = false;
+        approveBtn.disabled = true;
+        rejectBtn.disabled = true;
+
+        const result = await updateStatus(id, status, staffNoteInput.value || '');
+
+        approveBtn.disabled = false;
+        rejectBtn.disabled = false;
 
         if (!result.ok) {
             alert(result.message || 'Cập nhật thất bại.');
@@ -312,8 +549,16 @@
         }
 
         emitBookingSyncSignal({ id, status });
+        hideDetailModal();
         await loadData();
-    });
+    };
+
+    approveBtn?.addEventListener('click', () => handleModalStatusUpdate('hoanthanh'));
+    rejectBtn?.addEventListener('click', () => handleModalStatusUpdate('huy'));
+
+    detailBackdropEl?.addEventListener('click', hideDetailModal);
+    detailCloseBtn?.addEventListener('click', hideDetailModal);
+    detailCloseFooterBtn?.addEventListener('click', hideDetailModal);
 
     filterBtn.addEventListener('click', loadData);
     keywordInput.addEventListener('keydown', (event) => {

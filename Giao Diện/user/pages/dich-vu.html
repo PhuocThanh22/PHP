@@ -233,6 +233,16 @@
         if (!path) return '';
         if (/^(?:https?:)?\/\//i.test(path) || path.startsWith('data:')) return path;
 
+        let normalized = path;
+        const anhdataIndex = normalized.toLowerCase().indexOf('anhdata/');
+        if (anhdataIndex >= 0) {
+            normalized = normalized.slice(anhdataIndex);
+        }
+
+        normalized = normalized.replace(/^\/+/, '');
+        normalized = normalized.replace(/^phuocthanh\/phpchinh\//i, '');
+        normalized = normalized.replace(/^phpchinh\//i, '');
+
         if (path.startsWith('/')) {
             return path.replace(/ /g, '%20');
         }
@@ -242,7 +252,7 @@
         const markerIndex = pathname.indexOf(marker);
         const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
 
-        let normalized = path.replace(/^\.\//, '');
+        normalized = normalized.replace(/^\.\//, '');
         normalized = normalized.replace(/^Giao Diện\//i, '');
         normalized = normalized.replace(/^user\//i, '');
 

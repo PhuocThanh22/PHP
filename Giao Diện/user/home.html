@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Pet Shop - Cửa hàng thú cưng với mọi thứ bạn cần</title>
     
     <!-- Bootstrap CSS -->
@@ -21,6 +24,35 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="giao-dien-nguoi-dung.css">
+
+    <script>
+        (function () {
+            const BUILD_VERSION = '2026-04-05-auth-guard-v4';
+            const BUILD_KEY = 'userHomeBuildVersion';
+            const RELOAD_KEY = 'userHomeBuildReloading';
+
+            try {
+                const seenBuild = localStorage.getItem(BUILD_KEY);
+                const isReloading = sessionStorage.getItem(RELOAD_KEY) === '1';
+
+                if (seenBuild !== BUILD_VERSION && !isReloading) {
+                    localStorage.setItem(BUILD_KEY, BUILD_VERSION);
+                    sessionStorage.setItem(RELOAD_KEY, '1');
+
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('_build', BUILD_VERSION);
+                    window.location.replace(url.toString());
+                    return;
+                }
+
+                if (isReloading) {
+                    sessionStorage.removeItem(RELOAD_KEY);
+                }
+            } catch (e) {
+                // Ignore storage errors and continue rendering.
+            }
+        })();
+    </script>
 
     <!-- Override scroll-to-top color (work with cache/paths) -->
     <style>
@@ -120,6 +152,52 @@
             background: rgba(31, 143, 77, 0.12);
             box-shadow: inset 0 0 0 1px rgba(31, 143, 77, 0.28);
         }
+
+        #headerUserIcon.user-icon-wrap {
+            position: relative;
+        }
+
+        .user-auth-hover {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            width: 170px;
+            background: #ffffff;
+            border: 1px solid #dbe7df;
+            border-radius: 12px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+            padding: 10px;
+            z-index: 2500;
+        }
+
+        .user-auth-hover.show {
+            display: flex;
+        }
+
+        .user-auth-hover-btn {
+            border: 1px solid #cfe5d7;
+            border-radius: 10px;
+            height: 36px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            background: #edf7f0;
+            color: #14532d;
+            transition: background .16s ease, color .16s ease, border-color .16s ease, box-shadow .16s ease;
+        }
+
+        .user-auth-hover-btn:hover,
+        .user-auth-hover-btn:focus-visible,
+        .user-auth-hover-btn.active {
+            background: linear-gradient(135deg, #1f8f4d 0%, #36b86c 100%);
+            color: #fff;
+            border-color: #1f8f4d;
+            box-shadow: 0 8px 14px rgba(31, 143, 77, 0.24);
+            outline: none;
+        }
     </style>
 
 </head>
@@ -181,7 +259,7 @@
                             </div>
                         </div>
                         <div class="d-flex gap-4 header-icons">
-                            <div class="icon-button" id="headerUserIcon" style="cursor: pointer;">
+                            <div class="icon-button user-icon-wrap" id="headerUserIcon" style="cursor: pointer;">
                                 <i data-feather="user" class="icon-sm"></i>
                             </div>
                             <div class="position-relative icon-badge" id="headerFavoritesIcon" data-page="favorites" style="cursor: pointer;">
@@ -1865,6 +1943,13 @@
 
         // Add to Cart function
         const addToCart = (productName, productPrice, productImage) => {
+            if (typeof window.requireCustomerLogin === 'function') {
+                const allowAdd = window.requireCustomerLogin('Hãy đăng nhập trước khi mua hàng.');
+                if (!allowAdd) {
+                    return;
+                }
+            }
+
             const cart = JSON.parse(localStorage.getItem('cart')) || [];
             
             // Check if product already exists in cart
@@ -1887,6 +1972,16 @@
 
         // Add to Cart from Modal
         const addToCartFromModal = () => {
+            if (typeof window.requireCustomerLogin === 'function') {
+                const allowAdd = window.requireCustomerLogin(
+                    'Hãy đăng nhập trước khi mua hàng.',
+                    () => addToCartFromModal()
+                );
+                if (!allowAdd) {
+                    return;
+                }
+            }
+
             const productName = document.getElementById('modalProductName').textContent;
             const productPrice = document.getElementById('modalProductPrice').textContent;
             const productImage = document.getElementById('modalProductImage').src;
@@ -2799,6 +2894,16 @@
         };
 
         const openBookingModal = (serviceName, servicePrice) => {
+            if (typeof window.requireCustomerLogin === 'function') {
+                const allowBooking = window.requireCustomerLogin(
+                    'Hãy đăng nhập trước khi đặt lịch dịch vụ.',
+                    () => openBookingModal(serviceName, servicePrice)
+                );
+                if (!allowBooking) {
+                    return;
+                }
+            }
+
             ensureBookingModal();
             const modal = document.getElementById('bookingModal');
             const frame = document.getElementById('bookingPopupFrame');
@@ -2910,23 +3015,94 @@
     const AUTH_STORAGE_KEYS = {
       authUser: 'authUser',
       userSession: 'userSession',
+            customerPortalAuth: 'customerPortalAuth',
       isLoggedIn: 'isLoggedIn',
       pendingAuthPrompt: 'pendingAuthPromptV2'
     };
 
+        const GUEST_BOOT_KEY = 'customerGuestBootAppliedV1';
+
     const AUTH_MODAL_ID = 'userInlineAuthModal';
     const AUTH_STYLE_ID = 'userInlineAuthStyle';
 
+        const applyGuestDefaultOnFreshBoot = () => {
+            try {
+                const bootApplied = sessionStorage.getItem(GUEST_BOOT_KEY) === '1';
+                if (bootApplied) return;
+
+                sessionStorage.setItem(GUEST_BOOT_KEY, '1');
+
+                const keysToClear = [
+                    AUTH_STORAGE_KEYS.authUser,
+                    AUTH_STORAGE_KEYS.userSession,
+                    AUTH_STORAGE_KEYS.customerPortalAuth,
+                    AUTH_STORAGE_KEYS.pendingAuthPrompt,
+                    AUTH_STORAGE_KEYS.isLoggedIn
+                ];
+
+                keysToClear.forEach((key) => {
+                    try { sessionStorage.removeItem(key); } catch (e) {}
+                    try { localStorage.removeItem(key); } catch (e) {}
+                });
+
+                try {
+                    localStorage.setItem(AUTH_STORAGE_KEYS.isLoggedIn, 'false');
+                } catch (e) {}
+
+                try {
+                    localStorage.setItem('userProfile', JSON.stringify({
+                        name: 'Khach hang',
+                        email: '',
+                        phone: '',
+                        address: '',
+                        avatar: '',
+                        role: 'user'
+                    }));
+                } catch (e) {}
+            } catch (e) {}
+        };
+
+        applyGuestDefaultOnFreshBoot();
+
+        const parseStoredAuth = (rawValue) => {
+            if (!rawValue) return null;
+            try {
+                const parsed = JSON.parse(rawValue);
+                if (!parsed || typeof parsed !== 'object') return null;
+
+                const roleRaw = String(parsed.role || parsed.vaitronguoidung || 'user').trim().toLowerCase();
+                const isAdminLike = roleRaw.includes('admin') || roleRaw.includes('staff') || roleRaw.includes('nhanvien') || roleRaw.includes('nhân viên');
+                if (isAdminLike) return null;
+
+                const userId = Number(parsed.id || parsed.user_id || parsed.userId || 0);
+                if (!Number.isFinite(userId) || userId <= 0) return null;
+
+                return parsed;
+            } catch (e) {
+                return null;
+            }
+        };
+
     const hasCustomerSession = () => {
+            const localPortalAuth = String(localStorage.getItem(AUTH_STORAGE_KEYS.customerPortalAuth) || '').trim();
+            const sessionPortalAuth = String(sessionStorage.getItem(AUTH_STORAGE_KEYS.customerPortalAuth) || '').trim();
+            if (localPortalAuth !== '1' && sessionPortalAuth !== '1') {
+                return false;
+            }
+
       try {
-        if (sessionStorage.getItem(AUTH_STORAGE_KEYS.authUser)) return true;
+                const authUser = parseStoredAuth(sessionStorage.getItem(AUTH_STORAGE_KEYS.authUser));
+                if (authUser) return true;
       } catch (e) {}
 
       try {
-        if (localStorage.getItem(AUTH_STORAGE_KEYS.userSession)) return true;
+                const authUser =
+                    parseStoredAuth(localStorage.getItem(AUTH_STORAGE_KEYS.authUser)) ||
+                    parseStoredAuth(localStorage.getItem(AUTH_STORAGE_KEYS.userSession));
+                if (authUser) return true;
       } catch (e) {}
 
-      return localStorage.getItem(AUTH_STORAGE_KEYS.isLoggedIn) === 'true';
+            return false;
     };
 
     const saveCustomerSession = (payload) => {
@@ -2941,10 +3117,13 @@
 
       try {
         sessionStorage.setItem(AUTH_STORAGE_KEYS.authUser, JSON.stringify(basePayload));
+                sessionStorage.setItem(AUTH_STORAGE_KEYS.customerPortalAuth, '1');
       } catch (e) {}
 
       try {
         localStorage.setItem(AUTH_STORAGE_KEYS.userSession, JSON.stringify(basePayload));
+                localStorage.setItem(AUTH_STORAGE_KEYS.authUser, JSON.stringify(basePayload));
+                                localStorage.setItem(AUTH_STORAGE_KEYS.customerPortalAuth, '1');
       } catch (e) {}
 
             // Keep customer center profile in sync with latest authenticated user.
@@ -3273,19 +3452,89 @@
     };
 
     window.openAuthModal = openAuthModal;
+        window.hasCustomerSession = hasCustomerSession;
+        window.requireCustomerLogin = (reason = 'Vui lòng đăng nhập để tiếp tục.', postLoginAction = null) => {
+            if (hasCustomerSession()) {
+                return true;
+            }
 
-    const openInlineLogin = () => {
-      window.openAuthModal('login', {
-        reason: 'Vui lòng đăng nhập để truy cập trang khách hàng',
-        postLoginAction: () => {
-          if (typeof window.routeToPage === 'function') {
-            window.routeToPage('user');
-          } else if (typeof window.loadPage === 'function') {
-            window.loadPage('user');
-          }
-        }
-      });
-    };
+            openAuthModal('login', {
+                reason,
+                postLoginAction: typeof postLoginAction === 'function' ? postLoginAction : null
+            });
+
+            return false;
+        };
+
+        // Intercept buy/booking clicks at capture phase so forms cannot open before auth check.
+        document.addEventListener('click', (event) => {
+            const button = event.target?.closest('button, a, [role="button"]');
+            if (!button) {
+                return;
+            }
+
+            const dataAction = String(button.dataset?.action || '').trim().toLowerCase();
+            const text = String(button.textContent || '').trim().toLowerCase();
+            const isProtectedAction =
+                ['buy-now', 'add-cart', 'add-cart-detail'].includes(dataAction) ||
+                button.classList.contains('service-booking-btn') ||
+                text === 'mua' ||
+                text === 'đặt ngay' ||
+                text === 'thanh toán ngay' ||
+                text === 'đặt lịch';
+
+            if (!isProtectedAction) {
+                return;
+            }
+
+            if (hasCustomerSession()) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === 'function') {
+                event.stopImmediatePropagation();
+            }
+
+            openAuthModal('login', {
+                reason: 'Vui lòng đăng nhập trước khi mua hoặc đặt lịch.'
+            });
+        }, true);
+
+        const ensureGuestUserProfile = () => {
+            try {
+                const raw = localStorage.getItem('userProfile');
+                const parsed = raw ? JSON.parse(raw) : {};
+                const nextProfile = {
+                    ...(parsed && typeof parsed === 'object' ? parsed : {}),
+                    name: String(parsed?.name || 'Khach hang').trim() || 'Khach hang',
+                    role: 'user'
+                };
+                localStorage.setItem('userProfile', JSON.stringify(nextProfile));
+            } catch (e) {}
+        };
+
+        const openUserCenterPage = () => {
+            if (!hasCustomerSession()) {
+                ensureGuestUserProfile();
+            }
+
+            if (typeof window.routeToPage === 'function') {
+                window.routeToPage('user');
+            } else if (typeof window.loadPage === 'function') {
+                window.loadPage('user');
+            }
+        };
+
+        const openInlineLogin = (mode = 'login') => {
+            window.openAuthModal(mode === 'register' ? 'register' : 'login', {
+                reason: 'Vui lòng đăng nhập để truy cập trang khách hàng',
+                postLoginAction: () => {
+                    openUserCenterPage();
+                }
+            });
+        };
 
     const bindHeaderUserIcon = () => {
       const icon = document.getElementById('headerUserIcon');
@@ -3293,23 +3542,97 @@
         return;
       }
 
+            let hideMenuTimer = null;
+            let hoverMenu = icon.querySelector('.user-auth-hover');
+            if (!hoverMenu) {
+                hoverMenu = document.createElement('div');
+                hoverMenu.className = 'user-auth-hover';
+                hoverMenu.innerHTML =
+                    '<button type="button" class="user-auth-hover-btn login" data-auth-mode="login">Đăng nhập</button>' +
+                    '<button type="button" class="user-auth-hover-btn register" data-auth-mode="register">Đăng ký</button>';
+                icon.appendChild(hoverMenu);
+            }
+
+            const hideHoverMenu = () => {
+                hoverMenu.classList.remove('show');
+            };
+
+            const showHoverMenu = () => {
+                if (hasCustomerSession()) {
+                    hideHoverMenu();
+                    return;
+                }
+                hoverMenu.classList.add('show');
+            };
+
+            icon.addEventListener('mouseenter', () => {
+                if (hideMenuTimer) {
+                    clearTimeout(hideMenuTimer);
+                    hideMenuTimer = null;
+                }
+                showHoverMenu();
+            });
+
+            icon.addEventListener('mouseleave', () => {
+                hideMenuTimer = setTimeout(hideHoverMenu, 140);
+            });
+
+            hoverMenu.addEventListener('mouseenter', () => {
+                if (hideMenuTimer) {
+                    clearTimeout(hideMenuTimer);
+                    hideMenuTimer = null;
+                }
+            });
+
+            hoverMenu.addEventListener('mouseleave', () => {
+                hideMenuTimer = setTimeout(hideHoverMenu, 120);
+            });
+
+            hoverMenu.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-auth-mode]');
+                if (!button) return;
+                event.preventDefault();
+                event.stopPropagation();
+                hideHoverMenu();
+                openInlineLogin(button.dataset.authMode || 'login');
+            });
+
+            const authButtons = Array.from(hoverMenu.querySelectorAll('button[data-auth-mode]'));
+            const setActiveHoverButton = (activeButton = null) => {
+                authButtons.forEach((btn) => {
+                    btn.classList.toggle('active', !!activeButton && btn === activeButton);
+                });
+            };
+
+            authButtons.forEach((btn) => {
+                btn.addEventListener('mouseenter', () => {
+                    setActiveHoverButton(btn);
+                });
+                btn.addEventListener('mouseleave', () => {
+                    setActiveHoverButton(null);
+                });
+            });
+
       icon.dataset.inlineAuthBound = '1';
       icon.addEventListener('click', (event) => {
+                if (event.target && event.target.closest && event.target.closest('.user-auth-hover')) {
+                    return;
+                }
+
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
 
-        if (hasCustomerSession()) {
-          if (typeof window.routeToPage === 'function') {
-            window.routeToPage('user');
-          } else if (typeof window.loadPage === 'function') {
-            window.loadPage('user');
-          }
-          return;
-        }
-
-        openInlineLogin();
+                hideHoverMenu();
+                openUserCenterPage();
       }, true);
+
+            document.addEventListener('click', (event) => {
+                if (!icon.contains(event.target)) {
+                    hideHoverMenu();
+                    setActiveHoverButton(null);
+                }
+            });
     };
 
     if (document.readyState === 'loading') {

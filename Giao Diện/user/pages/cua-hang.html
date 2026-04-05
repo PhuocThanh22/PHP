@@ -2075,6 +2075,7 @@
 
     let currentQVProduct = null;
     let currentCheckoutQuickItem = null;
+    const DIRECT_CHECKOUT_KEY = 'checkoutDirectItems';
     const SHOP_CATEGORY_STORAGE_KEY = 'shopSelectedCategory';
     let currentDogBreedView = '';
     let currentCatBreedView = '';
@@ -2174,13 +2175,29 @@
         if (!path) return fallbackImage;
         if (/^(?:https?:)?\/\//i.test(path) || path.startsWith('data:')) return path;
 
+        let normalizedPath = path;
+
+        const anhdataIndex = normalizedPath.toLowerCase().indexOf('anhdata/');
+        if (anhdataIndex >= 0) {
+            normalizedPath = normalizedPath.slice(anhdataIndex);
+        }
+
+        normalizedPath = normalizedPath.replace(/^\/+/, '');
+
+        if (/^phuocthanh\/phpchinh\//i.test(normalizedPath)) {
+            normalizedPath = normalizedPath.replace(/^phuocthanh\/phpchinh\//i, '');
+        }
+        if (/^phpchinh\//i.test(normalizedPath)) {
+            normalizedPath = normalizedPath.replace(/^phpchinh\//i, '');
+        }
+
         const pathname = String(window.location.pathname || '');
         const markerIndexRaw = pathname.indexOf('/Giao Diện/');
         const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
         const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
         const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '';
 
-        let normalizedPath = path.replace(/^\.\//, '');
+        normalizedPath = normalizedPath.replace(/^\.\//, '');
         normalizedPath = normalizedPath.replace(/^Giao Diện\/user\//i, '');
         normalizedPath = normalizedPath.replace(/^Giao%20Diện\/user\//i, '');
         normalizedPath = normalizedPath.replace(/^Giao Diện\//i, '');
@@ -3572,7 +3589,15 @@
 
         if (!modal || !image || !name || !price || !qty) return;
 
-        image.src = item.image || '';
+        image.dataset.fallbackQueueBuilt = '';
+        image.dataset.fallbackQueue = '[]';
+        image.dataset.fallbackIndex = '0';
+        image.onerror = () => {
+            window.handleShopImageFallback(image);
+        };
+
+        const normalizedImage = resolveProductImageUrl(item.image || '');
+        image.src = normalizedImage;
         name.textContent = item.name || '';
         price.textContent = `${item.price || 'Liên hệ'}${String(item.price || '').includes('₫') || String(item.price || '').includes('đ') ? '' : '₫'}`;
         qty.value = '1';
@@ -3600,6 +3625,13 @@
     };
 
     const requireLoginBeforePurchase = (postLoginAction = null) => {
+        if (typeof window.requireCustomerLogin === 'function') {
+            return window.requireCustomerLogin(
+                'Hãy đăng nhập trước khi mua hàng.',
+                typeof postLoginAction === 'function' ? postLoginAction : null
+            );
+        }
+
         const authUser = getCurrentAuthUser();
         if (authUser && Number(authUser.id || 0) > 0) {
             return true;
@@ -3624,6 +3656,10 @@
 
     // Add to cart
     const addToCart = (name, price, image, quantity = 1) => {
+        if (!requireLoginBeforePurchase()) {
+            return;
+        }
+
         const cart = JSON.parse(localStorage.getItem('cart')) || [];
         const existing = cart.find(p => p.name === name);
         const safeQuantity = Math.max(1, parseInt(quantity, 10) || 1);
@@ -3801,10 +3837,20 @@
                 }
 
                 if (action === 'buy-now') {
+                    const cardImageEl = actionButton
+                        .closest('.product-card, .breed-card, .puppy-card, .breed-detail-card')
+                        ?.querySelector('img');
+
+                    const cardImage =
+                        cardImageEl?.currentSrc ||
+                        cardImageEl?.src ||
+                        cardImageEl?.getAttribute('src') ||
+                        '';
+
                     const item = {
                         name: actionButton.dataset.name || '',
                         price: actionButton.dataset.price || '',
-                        image: actionButton.dataset.image || ''
+                        image: cardImage || actionButton.dataset.image || ''
                     };
 
                     const allowOpen = requireLoginBeforePurchase(() => openCheckoutQuickModal(item));
@@ -3842,7 +3888,14 @@
 
                 const quantity = Math.max(1, parseInt(document.getElementById('checkoutQuickQty')?.value || '1', 10));
 
-                addToCart(currentCheckoutQuickItem.name, currentCheckoutQuickItem.price, currentCheckoutQuickItem.image, quantity);
+                const directCheckoutPayload = [{
+                    name: currentCheckoutQuickItem.name,
+                    price: currentCheckoutQuickItem.price,
+                    image: resolveProductImageUrl(currentCheckoutQuickItem.image || ''),
+                    quantity
+                }];
+
+                localStorage.setItem(DIRECT_CHECKOUT_KEY, JSON.stringify(directCheckoutPayload));
 
                 closeCheckoutQuickModal();
 
