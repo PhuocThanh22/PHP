@@ -17,8 +17,162 @@ if (!defined('APP_RUNNING_FROM_INDEX')) {
     exit;
 }
 
+function app_chat_upload_allowed_types(string $kind): array
+{
+    $safeKind = strtolower(trim($kind));
+    if ($safeKind === 'image') {
+        return ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    }
+    if ($safeKind === 'video') {
+        return ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+    }
+    if ($safeKind === 'audio') {
+        return ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/wav'];
+    }
+    return [];
+}
+
+function app_chat_upload_extension(string $mimeType, string $fallback = 'bin'): string
+{
+    $mime = strtolower(trim($mimeType));
+    if (strpos($mime, 'jpeg') !== false || strpos($mime, 'jpg') !== false) return 'jpg';
+    if (strpos($mime, 'png') !== false) return 'png';
+    if (strpos($mime, 'webp') !== false) return 'webp';
+    if (strpos($mime, 'gif') !== false) return 'gif';
+    if (strpos($mime, 'mp4') !== false) return 'mp4';
+    if (strpos($mime, 'webm') !== false) return 'webm';
+    if (strpos($mime, 'ogg') !== false) return 'ogg';
+    if (strpos($mime, 'mpeg') !== false || strpos($mime, 'mp3') !== false) return 'mp3';
+    if (strpos($mime, 'wav') !== false) return 'wav';
+    if (strpos($mime, 'quicktime') !== false) return 'mov';
+    return $fallback;
+}
+
+function app_chat_handle_upload(string $kind): void
+{
+    $allowedTypes = app_chat_upload_allowed_types($kind);
+    if (count($allowedTypes) === 0) {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Loai tep khong hop le',
+        ], 400);
+    }
+
+    if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Phuong thuc khong duoc ho tro',
+        ], 405);
+    }
+
+    if (!isset($_FILES['media']) || !is_array($_FILES['media'])) {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Khong tim thay tep media',
+        ], 400);
+    }
+
+    $file = $_FILES['media'];
+    $errorCode = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($errorCode !== UPLOAD_ERR_OK) {
+        $message = 'Tai tep that bai';
+        if ($errorCode === UPLOAD_ERR_INI_SIZE || $errorCode === UPLOAD_ERR_FORM_SIZE) {
+            $message = 'Tep vuot qua gioi han kich thuoc tren may chu';
+        } elseif ($errorCode === UPLOAD_ERR_NO_FILE) {
+            $message = 'Vui long chon tep de tai len';
+        }
+
+        app_json_response([
+            'ok' => false,
+            'message' => $message,
+            'upload_error' => $errorCode,
+        ], 400);
+    }
+
+    $tmpPath = (string) ($file['tmp_name'] ?? '');
+    if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Tep tam khong hop le',
+        ], 400);
+    }
+
+    $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0) {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Tep rong hoac khong hop le',
+        ], 400);
+    }
+
+    $maxBytes = 100 * 1024 * 1024;
+    if ($size > $maxBytes) {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Tep qua lon. Gioi han hien tai la 100MB',
+        ], 413);
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = $finfo ? (string) finfo_file($finfo, $tmpPath) : '';
+    if ($finfo) {
+        finfo_close($finfo);
+    }
+
+    if ($mimeType === '' || !in_array($mimeType, $allowedTypes, true)) {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Dinh dang tep khong duoc ho tro',
+            'mime' => $mimeType,
+        ], 415);
+    }
+
+    $monthSegment = date('Ym');
+    $relativeDir = 'anhdata/chat/' . $monthSegment;
+    $absoluteDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativeDir);
+
+    if (!is_dir($absoluteDir) && !mkdir($absoluteDir, 0775, true) && !is_dir($absoluteDir)) {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Khong the tao thu muc luu tep',
+        ], 500);
+    }
+
+    $kindPrefix = preg_replace('/[^a-z0-9_\-]/i', '', strtolower($kind)) ?: 'media';
+    $extension = app_chat_upload_extension($mimeType, 'bin');
+    $fileName = $kindPrefix . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(5)) . '.' . $extension;
+    $targetPath = $absoluteDir . DIRECTORY_SEPARATOR . $fileName;
+
+    if (!move_uploaded_file($tmpPath, $targetPath)) {
+        app_json_response([
+            'ok' => false,
+            'message' => 'Khong the luu tep tren may chu',
+        ], 500);
+    }
+
+    $basePath = app_base_path();
+    $publicUrl = ($basePath !== '' ? $basePath : '') . '/' . str_replace(' ', '%20', str_replace('\\', '/', $relativeDir . '/' . $fileName));
+
+    app_json_response([
+        'ok' => true,
+        'message' => 'Tai tep thanh cong',
+        'data' => [
+            'kind' => $kind,
+            'url' => $publicUrl,
+            'mime' => $mimeType,
+            'size' => $size,
+            'file_name' => $fileName,
+        ],
+    ]);
+}
+
 function app_handle_user_api(mysqli $conn, string $api): bool
 {
+    if ($api === 'upload_chat_media') {
+        $kind = trim((string) ($_POST['kind'] ?? $_GET['kind'] ?? ''));
+        app_chat_handle_upload($kind);
+    }
+
     if ($api === 'register_user') {
         if (!app_table_exists($conn, 'nguoidung')) {
             $conn->close();

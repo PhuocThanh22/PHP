@@ -728,6 +728,16 @@ function app_ensure_dichvu_image_column(mysqli $conn): bool
     return (bool) $conn->query($alterSql);
 }
 
+function app_ensure_dichvu_info_column(mysqli $conn): bool
+{
+    if (app_column_exists($conn, 'dichvu', 'thongtin')) {
+        return true;
+    }
+
+    $alterSql = "ALTER TABLE dichvu ADD COLUMN thongtin TEXT NULL AFTER hinhanhdichvu";
+    return (bool) $conn->query($alterSql);
+}
+
 function app_resolve_category_id(mysqli $conn, string $categoryName, int $fallback = 0): int
 {
     $name = trim($categoryName);

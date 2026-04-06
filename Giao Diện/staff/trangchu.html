@@ -107,6 +107,55 @@
                 </section>
             </aside>
         </div>
+
+    </div>
+
+    <div class="staff-chat-floating" id="staffChatFloating">
+        <div class="staff-chat-panel" id="staffChatPanel" aria-label="Chat khách hàng">
+            <div class="home-chat-head staff-chat-head">
+                <div>
+                    <h3>Chat Với Khách Hàng</h3>
+                </div>
+                <div class="staff-chat-head-actions">
+                    <span class="home-chat-status" id="staffChatStatus">Đang theo dõi</span>
+                    <button id="staffChatClose" type="button" class="staff-chat-close" aria-label="Đóng chat">×</button>
+                </div>
+            </div>
+
+            <div class="home-chat-body">
+                <aside class="home-chat-thread-pane">
+                    <div class="home-chat-thread-search-wrap">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input id="staffChatThreadSearch" type="text" placeholder="Tìm tài khoản khách hàng..." aria-label="Tìm hội thoại khách hàng">
+                    </div>
+                    <div class="home-chat-thread-list" id="staffChatThreadList"></div>
+                </aside>
+
+                <div class="home-chat-conversation">
+                    <div class="home-chat-messages" id="staffChatMessages"></div>
+                    <div class="home-chat-compose">
+                        <div class="home-chat-compose-tools">
+                            <button id="staffChatEmojiBtn" class="home-chat-tool-btn" type="button" title="Biểu tượng" aria-label="Mở biểu tượng">😊</button>
+                            <button id="staffChatImageBtn" class="home-chat-tool-btn" type="button" title="Gửi ảnh" aria-label="Gửi ảnh"><i class="bi bi-image"></i></button>
+                            <button id="staffChatVideoBtn" class="home-chat-tool-btn" type="button" title="Gửi video" aria-label="Gửi video"><i class="bi bi-camera-video"></i></button>
+                            <button id="staffChatRecordBtn" class="home-chat-tool-btn" type="button" title="Ghi âm" aria-label="Ghi âm"><i class="bi bi-mic"></i></button>
+                            <input id="staffChatImageInput" type="file" accept="image/*" hidden>
+                            <input id="staffChatVideoInput" type="file" accept="video/*" hidden>
+                        </div>
+                        <div id="staffChatEmojiPanel" class="home-chat-emoji-panel"></div>
+                        <div class="home-chat-compose-row">
+                            <input id="staffChatInput" type="text" placeholder="Nhập phản hồi cho khách hàng..." aria-label="Nội dung phản hồi">
+                            <button id="staffChatSend" type="button">Gửi</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="staffChatToggle" class="staff-chat-toggle" type="button" aria-label="Mở chat khách hàng">
+            <i class="bi bi-chat-dots-fill" aria-hidden="true"></i>
+            <span class="staff-chat-unread" id="staffChatUnreadBadge" aria-label="Tin nhắn chưa đọc">0</span>
+        </button>
     </div>
 
     <script>
@@ -396,6 +445,885 @@
         syncHomeRole();
 
         updateChart('invoices');
+    </script>
+    <script>
+        (function () {
+            const STORAGE_KEY = 'petshop_support_chat_threads_v3';
+            const LAST_SEEN_KEY = 'petshop_staff_chat_last_seen_at_v3';
+            const panel = document.getElementById('staffChatPanel');
+            const toggleBtn = document.getElementById('staffChatToggle');
+            const unreadBadgeEl = document.getElementById('staffChatUnreadBadge');
+            const closeBtn = document.getElementById('staffChatClose');
+            const staffChatStatus = document.getElementById('staffChatStatus');
+            const threadListEl = document.getElementById('staffChatThreadList');
+            const threadSearchEl = document.getElementById('staffChatThreadSearch');
+            const messagesEl = document.getElementById('staffChatMessages');
+            const inputEl = document.getElementById('staffChatInput');
+            const sendBtn = document.getElementById('staffChatSend');
+            const emojiBtn = document.getElementById('staffChatEmojiBtn');
+            const emojiPanel = document.getElementById('staffChatEmojiPanel');
+            const imageBtn = document.getElementById('staffChatImageBtn');
+            const videoBtn = document.getElementById('staffChatVideoBtn');
+            const imageInputEl = document.getElementById('staffChatImageInput');
+            const videoInputEl = document.getElementById('staffChatVideoInput');
+            const recordBtn = document.getElementById('staffChatRecordBtn');
+
+            if (!panel || !toggleBtn || !unreadBadgeEl || !threadListEl || !messagesEl || !inputEl || !sendBtn || !emojiBtn || !emojiPanel || !imageBtn || !videoBtn || !imageInputEl || !videoInputEl || !recordBtn) {
+                return;
+            }
+
+            const CHAT_EMOJIS = ['😊', '😍', '🥰', '👍', '❤️', '🙏', '😄', '😂', '😢', '😮', '👏', '🎉'];
+            const MAX_MEDIA_BYTES = {
+                image: 20 * 1024 * 1024,
+                video: 100 * 1024 * 1024,
+                audio: 25 * 1024 * 1024
+            };
+
+            let mediaRecorder = null;
+            let recordChunks = [];
+            let recordStream = null;
+
+            let activeThreadId = '';
+            let threadFilterKeyword = '';
+
+            const safeParse = (raw, fallback) => {
+                try {
+                    const parsed = JSON.parse(raw);
+                    return parsed ?? fallback;
+                } catch (e) {
+                    return fallback;
+                }
+            };
+
+            const readThreads = () => safeParse(localStorage.getItem(STORAGE_KEY), []);
+
+            const compactThreadsForStorage = (threads, maxMessagesPerThread = 1000) => {
+                const normalizedThreads = Array.isArray(threads) ? threads : [];
+                return normalizedThreads.map((thread) => {
+                    const messages = Array.isArray(thread?.messages) ? thread.messages : [];
+                    const keptMessages = messages.slice(-Math.max(50, Number(maxMessagesPerThread || 1000))).map((msg) => {
+                        const mediaUrl = String(msg?.mediaUrl || msg?.url || msg?.dataUrl || '');
+                        return {
+                            ...msg,
+                            text: String(msg?.text || '').slice(0, 3000),
+                            mediaUrl,
+                            dataUrl: mediaUrl
+                        };
+                    });
+
+                    return {
+                        ...thread,
+                        messages: keptMessages
+                    };
+                });
+            };
+
+            const writeThreads = (threads) => {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(threads));
+                    return true;
+                } catch (error) {
+                    try {
+                        const compact1000 = compactThreadsForStorage(threads, 1000);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(compact1000));
+                        return true;
+                    } catch (e1) {
+                        try {
+                            const compact300 = compactThreadsForStorage(threads, 300);
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(compact300));
+                            return true;
+                        } catch (e2) {
+                            alert('Bộ nhớ chat trên trình duyệt đã đầy. Hệ thống đã tự nén lịch sử nhưng vẫn chưa đủ. Vui lòng tải lại trang.');
+                            return false;
+                        }
+                    }
+                }
+            };
+
+            const getMessageUniqueKey = (msg) => {
+                const message = normalizeMessage(msg || {});
+                const textKey = message.type === 'text' ? message.text : `${message.fileName}|${message.mediaUrl.slice(0, 48)}`;
+                return `${message.id}|${message.time}|${message.sender}|${message.type}|${textKey}`;
+            };
+
+            const deriveAccountGroupKey = (thread) => {
+                const customerId = Number(thread?.customerId || 0);
+                if (Number.isFinite(customerId) && customerId > 0) {
+                    return `user-${customerId}`;
+                }
+
+                const identityKey = String(thread?.identityKey || thread?.id || '').trim().toLowerCase();
+                if (/^user-\d+$/.test(identityKey)) {
+                    return identityKey;
+                }
+
+                return '';
+            };
+
+            const normalizeThreadsForStaff = () => {
+                const sourceThreads = readThreads();
+                if (!Array.isArray(sourceThreads) || sourceThreads.length === 0) {
+                    return [];
+                }
+
+                const mergedMap = new Map();
+
+                sourceThreads.forEach((thread, index) => {
+                    if (!thread || typeof thread !== 'object') return;
+
+                    const accountGroupKey = deriveAccountGroupKey(thread);
+                    const fallbackId = String(thread.id || `thread-${index}-${Date.now().toString(36)}`);
+                    const mapKey = accountGroupKey || `thread:${fallbackId}`;
+
+                    const base = mergedMap.get(mapKey) || {
+                        id: accountGroupKey || fallbackId,
+                        identityKey: accountGroupKey || String(thread.identityKey || thread.id || ''),
+                        customerId: Number(thread.customerId || 0),
+                        customerName: String(thread.customerName || 'Khách hàng'),
+                        createdAt: String(thread.createdAt || new Date().toISOString()),
+                        lastUpdated: String(thread.lastUpdated || thread.createdAt || new Date().toISOString()),
+                        messages: []
+                    };
+
+                    if (!base.customerName && thread.customerName) {
+                        base.customerName = String(thread.customerName);
+                    }
+
+                    if (Number(base.customerId || 0) <= 0 && Number(thread.customerId || 0) > 0) {
+                        base.customerId = Number(thread.customerId || 0);
+                    }
+
+                    const baseCreatedAt = new Date(base.createdAt).getTime();
+                    const incomingCreatedAt = new Date(String(thread.createdAt || '')).getTime();
+                    if (Number.isFinite(incomingCreatedAt) && (!Number.isFinite(baseCreatedAt) || incomingCreatedAt < baseCreatedAt)) {
+                        base.createdAt = String(thread.createdAt);
+                    }
+
+                    const baseUpdatedAt = new Date(base.lastUpdated).getTime();
+                    const incomingUpdatedAt = new Date(String(thread.lastUpdated || thread.createdAt || '')).getTime();
+                    if (Number.isFinite(incomingUpdatedAt) && (!Number.isFinite(baseUpdatedAt) || incomingUpdatedAt > baseUpdatedAt)) {
+                        base.lastUpdated = String(thread.lastUpdated || thread.createdAt);
+                    }
+
+                    const incomingMessages = Array.isArray(thread.messages) ? thread.messages.map(normalizeMessage) : [];
+                    const existingSet = new Set((Array.isArray(base.messages) ? base.messages : []).map(getMessageUniqueKey));
+                    incomingMessages.forEach((message) => {
+                        const key = getMessageUniqueKey(message);
+                        if (existingSet.has(key)) return;
+                        existingSet.add(key);
+                        base.messages.push(message);
+                    });
+
+                    base.messages.sort((a, b) => {
+                        const ta = new Date(String(a.time || '')).getTime();
+                        const tb = new Date(String(b.time || '')).getTime();
+                        return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+                    });
+
+                    mergedMap.set(mapKey, base);
+                });
+
+                const mergedThreads = Array.from(mergedMap.values()).sort((a, b) => {
+                    const ta = new Date(String(a.lastUpdated || a.createdAt || '')).getTime();
+                    const tb = new Date(String(b.lastUpdated || b.createdAt || '')).getTime();
+                    return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+                });
+
+                try {
+                    if (JSON.stringify(sourceThreads) !== JSON.stringify(mergedThreads)) {
+                        writeThreads(mergedThreads);
+                    }
+                } catch (e) {
+                    // ignore stringify comparison issues
+                }
+
+                return mergedThreads;
+            };
+            const readLastSeen = () => String(localStorage.getItem(LAST_SEEN_KEY) || '').trim();
+            const writeLastSeen = (isoText) => localStorage.setItem(LAST_SEEN_KEY, String(isoText || new Date().toISOString()));
+            const escapeHtml = (value) => String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
+            const getChatUploadApiCandidates = () => [
+                'home_api.php?api=upload_chat_media',
+                '../../index.php?api=upload_chat_media',
+                '/phuocthanh/PHPCHINH/index.php?api=upload_chat_media',
+                '/PHPCHINH/index.php?api=upload_chat_media'
+            ];
+
+            const uploadChatMedia = async (kind, file) => {
+                let lastMessage = 'Không thể tải media lên máy chủ.';
+                for (const url of getChatUploadApiCandidates()) {
+                    try {
+                        const formData = new FormData();
+                        formData.append('kind', String(kind || '').trim());
+                        formData.append('media', file);
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            body: formData,
+                            cache: 'no-store'
+                        });
+
+                        const data = await response.json().catch(() => ({}));
+                        if (response.ok && data && data.ok && data.data && data.data.url) {
+                            return {
+                                ok: true,
+                                url: String(data.data.url || ''),
+                                mimeType: String(data.data.mimeType || data.data.mime || file.type || ''),
+                                fileName: String(data.data.fileName || data.data.file_name || file.name || ''),
+                                size: Number(data.data.size || file.size || 0)
+                            };
+                        }
+
+                        lastMessage = String(data?.message || 'Tải media thất bại.');
+                    } catch (e) {
+                        lastMessage = 'Không thể tải media lên máy chủ.';
+                    }
+                }
+
+                return {
+                    ok: false,
+                    message: lastMessage
+                };
+            };
+
+            const mimeToExt = (mimeType, fallback) => {
+                const mime = String(mimeType || '').toLowerCase();
+                if (mime.includes('png')) return 'png';
+                if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
+                if (mime.includes('webp')) return 'webp';
+                if (mime.includes('gif')) return 'gif';
+                if (mime.includes('mp4')) return 'mp4';
+                if (mime.includes('webm')) return 'webm';
+                if (mime.includes('ogg')) return 'ogg';
+                if (mime.includes('mpeg')) return 'mp3';
+                return fallback || 'bin';
+            };
+
+            const getActiveAppBasePath = () => {
+                const pathname = String(window.location.pathname || '').toLowerCase();
+                const knownBases = ['/phuocthanh/phpchinh', '/phpchinh'];
+                for (const base of knownBases) {
+                    if (pathname === base || pathname.startsWith(`${base}/`)) {
+                        return base;
+                    }
+                }
+                return '';
+            };
+
+            const buildChatMediaUrlCandidates = (rawUrl) => {
+                const text = String(rawUrl || '').trim();
+                if (!text) return [];
+
+                const normalized = text.replace(/\\/g, '/');
+                if (normalized.startsWith('blob:') || normalized.startsWith('data:')) {
+                    return [normalized];
+                }
+
+                let pathLike = normalized;
+                if (/^https?:\/\//i.test(normalized)) {
+                    try {
+                        const parsed = new URL(normalized);
+                        pathLike = `${parsed.pathname || ''}${parsed.search || ''}` || normalized;
+                    } catch (e) {
+                        pathLike = normalized;
+                    }
+                }
+
+                const pathVariants = [];
+                const pushPathVariant = (value) => {
+                    const next = String(value || '').trim();
+                    if (!next) return;
+                    if (!pathVariants.includes(next)) {
+                        pathVariants.push(next);
+                    }
+                };
+
+                pushPathVariant(pathLike);
+                try {
+                    pushPathVariant(decodeURIComponent(pathLike));
+                } catch (e) {
+                    // no-op
+                }
+                try {
+                    pushPathVariant(encodeURI(pathLike));
+                } catch (e) {
+                    // no-op
+                }
+
+                const activeBase = getActiveAppBasePath();
+                const baseCandidates = [activeBase, '/phuocthanh/PHPCHINH', '/PHPCHINH', ''];
+                const uniqueBaseCandidates = Array.from(new Set(baseCandidates.filter((item) => item !== null && item !== undefined)));
+
+                const candidates = [];
+                const push = (value) => {
+                    const next = String(value || '').trim();
+                    if (!next) return;
+                    if (!candidates.includes(next)) {
+                        candidates.push(next);
+                    }
+                };
+
+                pathVariants.forEach((variant) => {
+                    const lower = variant.toLowerCase();
+                    push(variant);
+
+                    if (lower.startsWith('/phuocthanh/phpchinh/')) {
+                        const tail = variant.slice('/phuocthanh/PHPCHINH'.length);
+                        uniqueBaseCandidates.forEach((base) => push(`${base}${tail}`));
+                    } else if (lower.startsWith('/phpchinh/')) {
+                        const tail = variant.slice('/PHPCHINH'.length);
+                        uniqueBaseCandidates.forEach((base) => push(`${base}${tail}`));
+                    } else if (lower.startsWith('/anhdata/')) {
+                        uniqueBaseCandidates.forEach((base) => push(`${base}${variant}`));
+                    } else if (lower.startsWith('anhdata/')) {
+                        push(`/${variant}`);
+                        uniqueBaseCandidates.forEach((base) => push(base ? `${base}/${variant}` : `/${variant}`));
+                    } else if (lower.startsWith('phuocthanh/phpchinh/')) {
+                        push(`/${variant}`);
+                    } else if (lower.startsWith('phpchinh/')) {
+                        push(`/${variant}`);
+                    }
+                });
+
+                return candidates;
+            };
+
+            const adaptChatMediaUrl = (rawUrl) => {
+                const candidates = buildChatMediaUrlCandidates(rawUrl);
+                return candidates.length > 0 ? candidates[0] : '';
+            };
+
+            const applyMediaFallbacks = (container) => {
+                if (!container) return;
+
+                const elements = container.querySelectorAll('[data-media-src]');
+                elements.forEach((element) => {
+                    if (element.dataset.mediaBound === '1') return;
+                    element.dataset.mediaBound = '1';
+
+                    const raw = String(element.getAttribute('data-media-src') || '').trim();
+                    const candidates = buildChatMediaUrlCandidates(raw);
+                    if (candidates.length === 0) return;
+
+                    let index = -1;
+                    const setMediaSrc = (next) => {
+                        const target = String(next || '').trim();
+                        if (!target) return;
+
+                        if (String(element.getAttribute('src') || '').trim() === target) return;
+                        element.setAttribute('src', target);
+
+                        if (element.tagName === 'VIDEO' || element.tagName === 'AUDIO') {
+                            try {
+                                element.load();
+                            } catch (e) {
+                                // no-op
+                            }
+                        }
+                    };
+
+                    const tryNextCandidate = () => {
+                        for (let i = index + 1; i < candidates.length; i += 1) {
+                            const next = candidates[i];
+                            if (!next) continue;
+                            index = i;
+                            setMediaSrc(next);
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    element.addEventListener('error', () => {
+                        tryNextCandidate();
+                    });
+
+                    tryNextCandidate();
+                });
+            };
+
+            const normalizeMessage = (msg) => {
+                const sender = msg.sender === 'staff' ? 'staff' : 'user';
+                const rawType = String(msg.type || 'text').toLowerCase();
+                const type = ['text', 'image', 'video', 'audio'].includes(rawType) ? rawType : 'text';
+                const mediaUrl = adaptChatMediaUrl(String(msg.mediaUrl || msg.url || msg.dataUrl || ''));
+                return {
+                    id: String(msg.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+                    sender,
+                    type,
+                    text: String(msg.text || ''),
+                    mediaUrl,
+                    dataUrl: mediaUrl,
+                    mimeType: String(msg.mimeType || ''),
+                    fileName: String(msg.fileName || ''),
+                    time: String(msg.time || new Date().toISOString())
+                };
+            };
+
+            const getUnreadCount = () => {
+                const threads = normalizeThreadsForStaff();
+                const lastSeenText = readLastSeen();
+                const lastSeen = lastSeenText ? new Date(lastSeenText).getTime() : 0;
+
+                return threads.reduce((total, thread) => {
+                    const messages = Array.isArray(thread.messages) ? thread.messages : [];
+                    const count = messages.filter((msg) => {
+                        if (msg.sender !== 'user') return false;
+                        if (msg.deleted) return false;
+                        const msgTime = new Date(String(msg.time || '')).getTime();
+                        return Number.isFinite(msgTime) && msgTime > lastSeen;
+                    }).length;
+                    return total + count;
+                }, 0);
+            };
+
+            const updateUnreadBadge = () => {
+                const unread = getUnreadCount();
+                if (unread > 0) {
+                    unreadBadgeEl.textContent = unread > 99 ? '99+' : String(unread);
+                    unreadBadgeEl.classList.add('show');
+                } else {
+                    unreadBadgeEl.textContent = '0';
+                    unreadBadgeEl.classList.remove('show');
+                }
+            };
+
+            const markAllUserMessagesSeen = () => {
+                writeLastSeen(new Date().toISOString());
+                updateUnreadBadge();
+            };
+
+            const formatTime = (isoText) => {
+                const value = new Date(String(isoText || ''));
+                if (Number.isNaN(value.getTime())) return '';
+                return value.toLocaleString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    day: '2-digit',
+                    month: '2-digit'
+                });
+            };
+
+            const renderThreads = () => {
+                const threads = normalizeThreadsForStaff();
+                const keyword = threadFilterKeyword;
+                const filteredThreads = keyword
+                    ? threads.filter((thread) => {
+                        const customerName = String(thread.customerName || '').toLowerCase();
+                        const messages = Array.isArray(thread.messages) ? thread.messages : [];
+                        const lastText = messages.length ? String(messages[messages.length - 1].text || '').toLowerCase() : '';
+                        return customerName.includes(keyword) || lastText.includes(keyword);
+                    })
+                    : threads;
+
+                if (!activeThreadId && threads.length > 0) {
+                    activeThreadId = String(threads[0].id || '');
+                }
+
+                if (activeThreadId && !threads.some((thread) => String(thread.id || '') === activeThreadId) && threads.length > 0) {
+                    activeThreadId = String(threads[0].id || '');
+                }
+
+                if (threads.length === 0) {
+                    threadListEl.innerHTML = '<div class="home-chat-empty">Chưa có khách hàng nào nhắn tin.</div>';
+                    messagesEl.innerHTML = '<div class="home-chat-empty">Tin nhắn sẽ xuất hiện tại đây khi khách gửi đến.</div>';
+                    staffChatStatus.textContent = 'Không có hội thoại';
+                    return threads;
+                }
+
+                staffChatStatus.textContent = `${threads.length} hội thoại`;
+
+                if (filteredThreads.length === 0) {
+                    threadListEl.innerHTML = '<div class="home-chat-empty">Không tìm thấy hội thoại phù hợp.</div>';
+                    return threads;
+                }
+
+                threadListEl.innerHTML = filteredThreads.map((thread) => {
+                    const threadId = String(thread.id || '');
+                    const activeClass = threadId === activeThreadId ? 'active' : '';
+                    const customerName = String(thread.customerName || 'Khách hàng').trim() || 'Khách hàng';
+                    const messages = Array.isArray(thread.messages) ? thread.messages : [];
+                    const latestMessage = messages.length > 0 ? normalizeMessage(messages[messages.length - 1]) : null;
+                    const latest = latestMessage
+                        ? (latestMessage.deleted
+                            ? '[Đã thu hồi]'
+                            : (latestMessage.type === 'image'
+                            ? '[Ảnh]'
+                            : (latestMessage.type === 'video'
+                                ? '[Video]'
+                                : (latestMessage.type === 'audio'
+                                    ? '[Ghi âm]'
+                                    : String(latestMessage.text || '')))))
+                        : 'Chưa có nội dung';
+                    const latestTime = messages.length > 0 ? formatTime(messages[messages.length - 1].time) : '';
+                    const preview = latest.length > 54 ? `${latest.slice(0, 51)}...` : latest;
+                    const initials = customerName
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((part) => part.charAt(0).toUpperCase())
+                        .join('') || 'KH';
+
+                    return `
+                        <button class="home-thread-item ${activeClass}" data-thread-id="${threadId}">
+                            <span class="home-thread-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
+                            <span class="home-thread-main">
+                                <span class="home-thread-top-row">
+                                    <strong>${escapeHtml(customerName)}</strong>
+                                    <small>${escapeHtml(latestTime)}</small>
+                                </span>
+                                <span class="home-thread-preview">${escapeHtml(preview)}</span>
+                            </span>
+                        </button>
+                    `;
+                }).join('');
+
+                return threads;
+            };
+
+            const renderMessages = () => {
+                const threads = normalizeThreadsForStaff();
+                const thread = threads.find((item) => String(item.id || '') === activeThreadId);
+                const messages = thread && Array.isArray(thread.messages) ? thread.messages : [];
+
+                if (!thread) {
+                    messagesEl.innerHTML = '<div class="home-chat-empty">Vui lòng chọn một hội thoại khách hàng.</div>';
+                    return;
+                }
+
+                if (messages.length === 0) {
+                    messagesEl.innerHTML = '<div class="home-chat-empty">Khách hàng chưa gửi nội dung trong hội thoại này.</div>';
+                    return;
+                }
+
+                messagesEl.innerHTML = messages.map((msg) => {
+                    const message = normalizeMessage(msg);
+                    const senderClass = message.sender === 'staff' ? 'staff' : 'user';
+                    const senderLabel = message.sender === 'staff' ? 'Staff' : 'Khách';
+                    const canRecall = message.sender === 'staff' && !message.deleted;
+                    const actionHtml = canRecall
+                        ? `<div class="home-chat-msg-actions"><button type="button" class="home-chat-recall-btn" data-msg-id="${escapeHtml(message.id)}" aria-label="Thu hồi tin nhắn">Thu hồi</button></div>`
+                        : '';
+
+                    if (message.deleted) {
+                        return `
+                            <div class="home-chat-msg ${senderClass} deleted">
+                                <div class="home-chat-msg-label">${senderLabel}</div>
+                                <div>Tin nhắn đã được thu hồi</div>
+                                <time>${formatTime(message.time)}</time>
+                            </div>
+                        `;
+                    }
+
+                    let bodyHtml = `<div>${escapeHtml(message.text)}</div>`;
+
+                    if (message.type === 'image' && message.mediaUrl) {
+                        bodyHtml = `
+                            <img data-media-src="${escapeHtml(message.mediaUrl)}" alt="Ảnh chat" class="home-chat-msg-media" loading="lazy">
+                        `;
+                    } else if (message.type === 'video' && message.mediaUrl) {
+                        bodyHtml = `
+                            <video class="home-chat-msg-media" controls preload="metadata" data-media-src="${escapeHtml(message.mediaUrl)}"></video>
+                        `;
+                    } else if (message.type === 'audio' && message.mediaUrl) {
+                        bodyHtml = `
+                            <div class="home-chat-audio-card">
+                                <div class="home-chat-audio-head"><span class="home-chat-audio-dot" aria-hidden="true"></span><span>Tin nhắn ghi âm</span></div>
+                                <audio class="home-chat-msg-audio" controls preload="metadata" data-media-src="${escapeHtml(message.mediaUrl)}"></audio>
+                            </div>
+                        `;
+                    }
+
+                    const mediaOnlyClass = (message.type === 'image' || message.type === 'video' || message.type === 'audio') ? ' media-only' : '';
+
+                    return `
+                        <div class="home-chat-msg ${senderClass}${mediaOnlyClass}">
+                            <div class="home-chat-msg-label">${senderLabel}</div>
+                            ${bodyHtml}
+                            ${actionHtml}
+                            <time>${formatTime(message.time)}</time>
+                        </div>
+                    `;
+                }).join('');
+
+                applyMediaFallbacks(messagesEl);
+
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            };
+
+            const refreshChat = () => {
+                renderThreads();
+                renderMessages();
+                updateUnreadBadge();
+            };
+
+            const pushStaffMessage = (text, options = {}) => {
+                const type = ['text', 'image', 'video', 'audio'].includes(String(options.type || 'text')) ? String(options.type || 'text') : 'text';
+                const content = String(text || '').trim();
+                if (!activeThreadId) return;
+                if (type === 'text' && !content) return;
+                if (type !== 'text' && !String(options.mediaUrl || options.dataUrl || '').trim()) return;
+
+                const threads = normalizeThreadsForStaff();
+                const thread = threads.find((item) => String(item.id || '') === activeThreadId);
+                if (!thread) return;
+
+                thread.messages = Array.isArray(thread.messages) ? thread.messages : [];
+                const mediaFallbackText = type === 'image'
+                    ? '[Ảnh]'
+                    : (type === 'video' ? '[Video]' : (type === 'audio' ? '[Ghi âm]' : ''));
+
+                thread.messages.push({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                    sender: 'staff',
+                    type,
+                    text: type === 'text' ? content : String(options.caption || mediaFallbackText),
+                    mediaUrl: String(options.mediaUrl || options.dataUrl || ''),
+                    dataUrl: String(options.mediaUrl || options.dataUrl || ''),
+                    mimeType: String(options.mimeType || ''),
+                    fileName: String(options.fileName || ''),
+                    time: new Date().toISOString()
+                });
+                thread.lastUpdated = new Date().toISOString();
+
+                if (!writeThreads(threads)) return;
+                refreshChat();
+            };
+
+            const sendStaffMessage = () => {
+                const text = String(inputEl.value || '').trim();
+                if (!text) return;
+                pushStaffMessage(text);
+                inputEl.value = '';
+                inputEl.focus();
+            };
+
+            const recallStaffMessage = (messageId) => {
+                const targetId = String(messageId || '').trim();
+                if (!targetId || !activeThreadId) return;
+
+                const threads = normalizeThreadsForStaff();
+                const thread = threads.find((item) => String(item.id || '') === activeThreadId);
+                if (!thread || !Array.isArray(thread.messages)) return;
+
+                const msg = thread.messages.find((item) => String(item.id || '') === targetId);
+                if (!msg || msg.sender !== 'staff' || msg.deleted) return;
+
+                msg.deleted = true;
+                msg.deletedAt = new Date().toISOString();
+                msg.deletedBy = 'staff';
+                msg.type = 'text';
+                msg.text = '[Đã thu hồi]';
+                msg.mediaUrl = '';
+                msg.dataUrl = '';
+                msg.mimeType = '';
+                msg.fileName = '';
+                thread.lastUpdated = new Date().toISOString();
+
+                if (!writeThreads(threads)) return;
+                refreshChat();
+            };
+
+            const sendFileMessage = async (kind, file) => {
+                if (!file || !activeThreadId) return;
+                const maxSize = MAX_MEDIA_BYTES[kind] || (900 * 1024);
+                if (file.size > maxSize) {
+                    const maxMb = (maxSize / (1024 * 1024)).toFixed(0);
+                    alert(`Tệp quá lớn. Giới hạn hiện tại: ${maxMb}MB.`);
+                    return;
+                }
+
+                try {
+                    const uploadResult = await uploadChatMedia(kind, file);
+                    if (!uploadResult.ok || !uploadResult.url) {
+                        alert(uploadResult.message || 'Không thể tải media lên máy chủ. Vui lòng thử lại.');
+                        return;
+                    }
+
+                    pushStaffMessage('', {
+                        type: kind,
+                        mediaUrl: uploadResult.url,
+                        mimeType: uploadResult.mimeType || file.type || '',
+                        fileName: uploadResult.fileName || file.name || `${kind}-${Date.now()}.${mimeToExt(file.type, kind === 'video' ? 'mp4' : (kind === 'audio' ? 'webm' : 'jpg'))}`
+                    });
+                } catch (error) {
+                    alert('Không thể gửi tệp. Vui lòng thử lại.');
+                }
+            };
+
+            const stopRecording = () => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            };
+
+            const startRecording = async () => {
+                if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+                    alert('Trình duyệt không hỗ trợ ghi âm.');
+                    return;
+                }
+
+                try {
+                    recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    recordChunks = [];
+                    mediaRecorder = new MediaRecorder(recordStream);
+                    mediaRecorder.addEventListener('dataavailable', (event) => {
+                        if (event.data && event.data.size > 0) recordChunks.push(event.data);
+                    });
+
+                    mediaRecorder.addEventListener('stop', async () => {
+                        try {
+                            const mimeType = mediaRecorder && mediaRecorder.mimeType ? mediaRecorder.mimeType : 'audio/webm';
+                            const blob = new Blob(recordChunks, { type: mimeType });
+                            if (blob.size > MAX_MEDIA_BYTES.audio) {
+                                const maxMb = (MAX_MEDIA_BYTES.audio / (1024 * 1024)).toFixed(0);
+                                alert(`File ghi âm quá lớn. Giới hạn hiện tại: ${maxMb}MB.`);
+                            } else if (blob.size > 0) {
+                                const file = new File([blob], `record-${Date.now()}.${mimeToExt(mimeType, 'webm')}`, { type: mimeType });
+                                await sendFileMessage('audio', file);
+                            }
+                        } finally {
+                            if (recordStream) {
+                                recordStream.getTracks().forEach((track) => track.stop());
+                                recordStream = null;
+                            }
+                            recordChunks = [];
+                            mediaRecorder = null;
+                            recordBtn.classList.remove('recording');
+                            recordBtn.title = 'Ghi âm';
+                            recordBtn.setAttribute('aria-label', 'Ghi âm');
+                        }
+                    });
+
+                    mediaRecorder.start();
+                    recordBtn.classList.add('recording');
+                    recordBtn.title = 'Dừng ghi âm';
+                    recordBtn.setAttribute('aria-label', 'Dừng ghi âm');
+                } catch (error) {
+                    alert('Không thể bắt đầu ghi âm. Vui lòng cho phép quyền microphone.');
+                }
+            };
+
+            const toggleRecording = () => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    stopRecording();
+                    return;
+                }
+                startRecording();
+            };
+
+            threadListEl.addEventListener('click', (event) => {
+                const button = event.target.closest('.home-thread-item[data-thread-id]');
+                if (!button) return;
+                activeThreadId = String(button.dataset.threadId || '');
+                refreshChat();
+            });
+
+            if (threadSearchEl) {
+                threadSearchEl.addEventListener('input', () => {
+                    threadFilterKeyword = String(threadSearchEl.value || '').trim().toLowerCase();
+                    renderThreads();
+                });
+            }
+
+            emojiPanel.innerHTML = CHAT_EMOJIS.map((emoji) => `<button type="button" class="home-chat-emoji" data-emoji="${emoji}" aria-label="${emoji}">${emoji}</button>`).join('');
+            emojiPanel.addEventListener('click', (event) => {
+                const button = event.target.closest('.home-chat-emoji[data-emoji]');
+                if (!button) return;
+                const emoji = String(button.dataset.emoji || '');
+                if (!emoji) return;
+                inputEl.value = `${inputEl.value || ''}${emoji}`;
+                inputEl.focus();
+            });
+
+            emojiBtn.addEventListener('click', () => {
+                emojiPanel.classList.toggle('show');
+            });
+
+            imageBtn.addEventListener('click', () => imageInputEl.click());
+            videoBtn.addEventListener('click', () => videoInputEl.click());
+            recordBtn.addEventListener('click', toggleRecording);
+
+            imageInputEl.addEventListener('change', async () => {
+                const file = imageInputEl.files && imageInputEl.files[0] ? imageInputEl.files[0] : null;
+                imageInputEl.value = '';
+                await sendFileMessage('image', file);
+            });
+
+            videoInputEl.addEventListener('change', async () => {
+                const file = videoInputEl.files && videoInputEl.files[0] ? videoInputEl.files[0] : null;
+                videoInputEl.value = '';
+                await sendFileMessage('video', file);
+            });
+
+            toggleBtn.addEventListener('click', () => {
+                panel.classList.toggle('show');
+                if (panel.classList.contains('show')) {
+                    refreshChat();
+                    markAllUserMessagesSeen();
+                    inputEl.focus();
+                    if (emojiPanel.classList.contains('show')) {
+                        emojiPanel.classList.remove('show');
+                    }
+                }
+            });
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    panel.classList.remove('show');
+                    markAllUserMessagesSeen();
+                });
+            }
+
+            sendBtn.addEventListener('click', sendStaffMessage);
+            messagesEl.addEventListener('click', (event) => {
+                const recallBtn = event.target.closest('.home-chat-recall-btn[data-msg-id]');
+                if (!recallBtn) return;
+                recallStaffMessage(recallBtn.dataset.msgId || '');
+            });
+            inputEl.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    sendStaffMessage();
+                }
+            });
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === STORAGE_KEY) {
+                    if (panel.classList.contains('show')) {
+                        refreshChat();
+                        markAllUserMessagesSeen();
+                    } else {
+                        updateUnreadBadge();
+                    }
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    panel.classList.remove('show');
+                }
+            });
+
+            window.addEventListener('beforeunload', () => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    try { mediaRecorder.stop(); } catch (e) {}
+                }
+                if (recordStream) {
+                    recordStream.getTracks().forEach((track) => track.stop());
+                    recordStream = null;
+                }
+            });
+
+            refreshChat();
+            updateUnreadBadge();
+            setInterval(refreshChat, 1500);
+        })();
     </script>
 </body>
 </html>

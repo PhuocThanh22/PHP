@@ -284,6 +284,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
 
         if ($entity === 'services') {
             app_ensure_dichvu_image_column($conn);
+            app_ensure_dichvu_info_column($conn);
 
             if ($action === 'create') {
                 $name = trim((string) ($input['tendichvu'] ?? ''));
@@ -291,19 +292,20 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $duration = (int) ($input['thoigiandichvu'] ?? 0);
                 $status = trim((string) ($input['trangthaidichvu'] ?? 'hoatdong'));
                 $image = trim((string) ($input['hinhanhdichvu'] ?? ''));
+                $info = trim((string) ($input['thongtin'] ?? ''));
 
                 if ($name === '' || $duration <= 0) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Du lieu dich vu khong hop le'], 400);
                 }
 
-                $stmt = $conn->prepare('INSERT INTO dichvu (tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu) VALUES (?, ?, ?, ?, ?)');
+                $stmt = $conn->prepare('INSERT INTO dichvu (tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, thongtin) VALUES (?, ?, ?, ?, ?, ?)');
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the them dich vu', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sdiss', $name, $price, $duration, $status, $image);
+                $stmt->bind_param('sdisss', $name, $price, $duration, $status, $image, $info);
                 $ok = $stmt->execute();
                 $newId = (int) $conn->insert_id;
                 $stmt->close();
@@ -313,7 +315,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Them dich vu that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, ngaytaodichvu FROM dichvu WHERE id = ' . $newId . ' LIMIT 1');
+                $rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, COALESCE(thongtin, "") AS thongtin, ngaytaodichvu FROM dichvu WHERE id = ' . $newId . ' LIMIT 1');
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
@@ -330,19 +332,20 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $duration = (int) ($input['thoigiandichvu'] ?? 0);
                 $status = trim((string) ($input['trangthaidichvu'] ?? 'hoatdong'));
                 $image = trim((string) ($input['hinhanhdichvu'] ?? ''));
+                $info = trim((string) ($input['thongtin'] ?? ''));
 
                 if ($id <= 0 || $name === '' || $duration <= 0) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Du lieu cap nhat dich vu khong hop le'], 400);
                 }
 
-                $stmt = $conn->prepare('UPDATE dichvu SET tendichvu = ?, giadichvu = ?, thoigiandichvu = ?, trangthaidichvu = ?, hinhanhdichvu = ? WHERE id = ?');
+                $stmt = $conn->prepare('UPDATE dichvu SET tendichvu = ?, giadichvu = ?, thoigiandichvu = ?, trangthaidichvu = ?, hinhanhdichvu = ?, thongtin = ? WHERE id = ?');
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the cap nhat dich vu', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sdissi', $name, $price, $duration, $status, $image, $id);
+                $stmt->bind_param('sdisssi', $name, $price, $duration, $status, $image, $info, $id);
                 $ok = $stmt->execute();
                 $stmt->close();
                 if (!$ok) {
@@ -350,7 +353,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Cap nhat dich vu that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, ngaytaodichvu FROM dichvu WHERE id = ' . $id . ' LIMIT 1');
+                $rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, COALESCE(thongtin, "") AS thongtin, ngaytaodichvu FROM dichvu WHERE id = ' . $id . ' LIMIT 1');
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();

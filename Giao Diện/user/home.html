@@ -18,6 +18,9 @@
 
     <!-- Font Awesome (Social Icons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
@@ -511,7 +514,7 @@
                 <h2 class="featured-showcase-title">Sản phẩm nổi bật cho thú cưng hạnh phúc</h2>
             </div>
 
-            <div class="featured-showcase-filters" role="tablist" aria-label="Lọc sản phẩm nổi bật">
+            <div class="featured-showcase-filters" id="featuredFilters" role="tablist" aria-label="Lọc sản phẩm nổi bật">
                 <button type="button" class="featured-filter-pill is-active">Tất cả</button>
                 <button type="button" class="featured-filter-pill">Dinh dưỡng</button>
                 <button type="button" class="featured-filter-pill">Da &amp; lông</button>
@@ -525,7 +528,7 @@
                     <i data-feather="chevron-left"></i>
                 </button>
 
-                <div class="featured-showcase-track" aria-label="Danh sách sản phẩm nổi bật">
+                <div class="featured-showcase-track" id="featuredShowcaseTrack" aria-label="Danh sách sản phẩm nổi bật">
                 <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Bánh thưởng vị gà cho chó', 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=680&h=460&fit=crop', '149.000₫', '4.8', '182', 'Bánh thưởng mềm, dễ tiêu hóa, phù hợp cho chó kén ăn hoặc cần bổ sung năng lượng nhanh.')">
                     <div class="featured-showcase-image-wrap">
                         <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=680&h=460&fit=crop" alt="Bánh thưởng vị gà cho chó" class="featured-showcase-image">
@@ -2438,31 +2441,14 @@
 
         const toggleCategoryNavButtons = () => {
             const buttons = document.querySelectorAll('.categories-section .btn-circle');
-            const pageCount = getCategoryPageCount();
-            const hasMultiplePages = pageCount > 1;
+            const hasMultipleRows = totalCategories > 1;
 
             buttons.forEach((button) => {
                 button.style.visibility = 'visible';
-                button.disabled = !hasMultiplePages;
-                button.style.opacity = hasMultiplePages ? '1' : '0.45';
-                button.style.pointerEvents = hasMultiplePages ? 'auto' : 'none';
+                button.disabled = !hasMultipleRows;
+                button.style.opacity = hasMultipleRows ? '1' : '0.45';
+                button.style.pointerEvents = hasMultipleRows ? 'auto' : 'none';
             });
-
-            if (buttons.length >= 2 && hasMultiplePages) {
-                const prevBtn = buttons[0];
-                const nextBtn = buttons[1];
-
-                const atStart = categoryCurrentPage <= 0;
-                const atEnd = categoryCurrentPage >= (pageCount - 1);
-
-                prevBtn.disabled = atStart;
-                prevBtn.style.opacity = atStart ? '0.45' : '1';
-                prevBtn.style.pointerEvents = atStart ? 'none' : 'auto';
-
-                nextBtn.disabled = atEnd;
-                nextBtn.style.opacity = atEnd ? '0.45' : '1';
-                nextBtn.style.pointerEvents = atEnd ? 'none' : 'auto';
-            }
         };
 
         const openShopByCategory = (categoryName) => {
@@ -2478,12 +2464,29 @@
         };
 
         let categoryRows = [];
-        let categoryCurrentPage = 0;
-        let categoryIsAnimating = false;
+        let categoryAutoTimer = null;
+        let categoryAutoDirection = 1;
 
-        const getCategoryPageCount = () => Math.max(1, Math.ceil(totalCategories / itemsPerView));
+        const getCategoryRail = () => {
+            const container = document.getElementById('categoriesContainer');
+            if (!container) return null;
+            const viewport = container.parentElement;
+            if (!viewport) return null;
+            return { container, viewport };
+        };
 
-        const renderCategoryPage = (pageIndex = 0) => {
+        const getCategoryStep = () => {
+            const rail = getCategoryRail();
+            if (!rail) return 320;
+            const firstCard = rail.container.querySelector('.category-item');
+            if (!firstCard) return 320;
+            const cardWidth = firstCard.getBoundingClientRect().width;
+            const computed = window.getComputedStyle(rail.container);
+            const gap = Number.parseFloat(computed.columnGap || computed.gap || '24') || 24;
+            return Math.max(220, Math.round(cardWidth + gap));
+        };
+
+        const renderCategoryPage = () => {
             const container = document.getElementById('categoriesContainer');
             if (!container) return;
 
@@ -2495,25 +2498,29 @@
                         </div>
                     </div>
                 `;
+                const viewport = container.parentElement;
+                if (viewport) {
+                    viewport.scrollLeft = 0;
+                }
                 toggleCategoryNavButtons();
                 return;
             }
 
-            const pageCount = getCategoryPageCount();
-            categoryCurrentPage = Math.max(0, Math.min(pageIndex, pageCount - 1));
+            const viewport = container.parentElement;
+            const gapPx = 24;
+            const viewportWidth = viewport ? viewport.clientWidth : 1200;
+            const cardWidth = Math.max(200, Math.floor((viewportWidth - (gapPx * (itemsPerView - 1))) / itemsPerView));
+            const displayRows = categoryRows.length > itemsPerView
+                ? categoryRows
+                : [...categoryRows, ...categoryRows, ...categoryRows].slice(0, Math.max(8, categoryRows.length * 3));
 
-            const start = categoryCurrentPage * itemsPerView;
-            const end = start + itemsPerView;
-            const pageRows = categoryRows.slice(start, end);
-
-            container.style.transform = 'translateX(0)';
-            container.innerHTML = pageRows.map((category, index) => {
+            container.innerHTML = displayRows.map((category, index) => {
                 const categoryName = String(category.tendanhmuc || 'Chưa phân loại').trim() || 'Chưa phân loại';
                 const productCount = Number(category.soluongsanpham || 0);
-                const image = normalizeCategoryImage(categoryName, category.hinhanh, start + index);
+                const image = normalizeCategoryImage(categoryName, category.hinhanh, index);
 
                 return `
-                    <div class="category-item" style="flex: 0 0 calc(25% - 12px); min-width: calc(25% - 12px);">
+                    <div class="category-item" style="flex: 0 0 ${cardWidth}px; min-width: ${cardWidth}px;">
                         <div class="category-card">
                             <div class="category-image">
                                 <img src="${categoryEscapeHtml(image)}" alt="${categoryEscapeHtml(categoryName)}" class="img-fluid">
@@ -2530,11 +2537,20 @@
                 `;
             }).join('');
 
+            container.style.display = 'inline-flex';
+            container.style.width = 'max-content';
+
             container.querySelectorAll('.category-view-btn').forEach((button) => {
                 button.addEventListener('click', () => {
                     openShopByCategory(button.dataset.categoryName || '');
                 });
             });
+
+            if (viewport) {
+                viewport.style.overflowX = 'hidden';
+                viewport.style.scrollBehavior = 'smooth';
+                viewport.scrollLeft = 0;
+            }
 
             toggleCategoryNavButtons();
         };
@@ -2543,52 +2559,15 @@
             if (!Array.isArray(categories) || categories.length === 0) {
                 categoryRows = [];
                 totalCategories = 0;
-                categoryCurrentPage = 0;
-                renderCategoryPage(0);
+                stopCategoryAutoScroll();
+                renderCategoryPage();
                 return;
             }
 
             categoryRows = categories;
             totalCategories = categoryRows.length;
-            categoryCurrentPage = 0;
-            renderCategoryPage(0);
-        };
-
-        const animateCategoryPageChange = (nextPage, direction) => {
-            const container = document.getElementById('categoriesContainer');
-            if (!container) {
-                renderCategoryPage(nextPage);
-                return;
-            }
-
-            const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            if (reducedMotion) {
-                renderCategoryPage(nextPage);
-                return;
-            }
-
-            categoryIsAnimating = true;
-
-            const outOffset = direction > 0 ? -18 : 18;
-
-            container.style.willChange = 'opacity, transform';
-            container.style.transition = 'opacity 180ms ease, transform 180ms ease';
-            container.style.opacity = '0';
-            container.style.transform = `translateX(${outOffset}px)`;
-
-            setTimeout(() => {
-                renderCategoryPage(nextPage);
-
-                requestAnimationFrame(() => {
-                    container.style.opacity = '1';
-                    container.style.transform = 'translateX(0)';
-
-                    setTimeout(() => {
-                        categoryIsAnimating = false;
-                        container.style.willChange = '';
-                    }, 190);
-                });
-            }, 170);
+            renderCategoryPage();
+            startCategoryAutoScroll();
         };
 
         const getHomeApiCandidates = (apiName) => {
@@ -2630,16 +2609,31 @@
             }
         };
 
-        let categoryAutoTimer = null;
         const startCategoryAutoScroll = () => {
             if (categoryAutoTimer) clearInterval(categoryAutoTimer);
+
+            const rail = getCategoryRail();
+            if (!rail) return;
+
             categoryAutoTimer = setInterval(() => {
-                if (totalCategories <= itemsPerView) return;
-                const pageCount = getCategoryPageCount();
-                if (pageCount <= 1) return;
-                const nextPage = (categoryCurrentPage - 1 + pageCount) % pageCount;
-                animateCategoryPageChange(nextPage, -1);
-            }, 3200);
+                const maxScroll = Math.max(0, rail.viewport.scrollWidth - rail.viewport.clientWidth);
+                if (maxScroll <= 0) return;
+
+                const nextLeft = rail.viewport.scrollLeft + (categoryAutoDirection * 2.2);
+                if (nextLeft >= maxScroll) {
+                    rail.viewport.scrollLeft = maxScroll;
+                    categoryAutoDirection = -1;
+                    return;
+                }
+
+                if (nextLeft <= 0) {
+                    rail.viewport.scrollLeft = 0;
+                    categoryAutoDirection = 1;
+                    return;
+                }
+
+                rail.viewport.scrollLeft = nextLeft;
+            }, 28);
         };
 
         const stopCategoryAutoScroll = () => {
@@ -2650,20 +2644,16 @@
         };
 
         const scrollCategories = (direction) => {
-            if (categoryIsAnimating) return;
             if (totalCategories <= itemsPerView) return;
-            const pageCount = getCategoryPageCount();
-            if (pageCount <= 1) return;
 
-            let nextPage = categoryCurrentPage + direction;
-            if (nextPage < 0) {
-                nextPage = pageCount - 1;
-            } else if (nextPage >= pageCount) {
-                nextPage = 0;
-            }
+            const rail = getCategoryRail();
+            if (!rail) return;
 
-            if (nextPage === categoryCurrentPage) return;
-            animateCategoryPageChange(nextPage, direction);
+            categoryAutoDirection = direction >= 0 ? 1 : -1;
+            const step = getCategoryStep();
+            const maxScroll = Math.max(0, rail.viewport.scrollWidth - rail.viewport.clientWidth);
+            const target = Math.max(0, Math.min(maxScroll, rail.viewport.scrollLeft + (step * categoryAutoDirection)));
+            rail.viewport.scrollTo({ left: target, behavior: 'smooth' });
         };
 
         const categorySection = document.querySelector('.categories-section');
@@ -2680,8 +2670,287 @@
             }
         });
 
+        let categoryResizeTimer = null;
+        window.addEventListener('resize', () => {
+            if (categoryResizeTimer) clearTimeout(categoryResizeTimer);
+            categoryResizeTimer = setTimeout(() => {
+                renderCategoryPage();
+                startCategoryAutoScroll();
+            }, 120);
+        });
+
         fetchHomeCategories();
         startCategoryAutoScroll();
+
+        let featuredProductsSource = [];
+        let featuredActiveCategory = 'all';
+
+        const featuredFiltersEl = document.getElementById('featuredFilters');
+        const featuredTrackEl = document.getElementById('featuredShowcaseTrack');
+        let featuredFocusRaf = null;
+
+        const updateFeaturedCenterFocus = () => {
+            if (!featuredTrackEl) return;
+
+            const cards = Array.from(featuredTrackEl.querySelectorAll('.featured-showcase-card'));
+            if (cards.length === 0) return;
+
+            const trackRect = featuredTrackEl.getBoundingClientRect();
+            const trackCenter = trackRect.left + (trackRect.width / 2);
+            const fadeDistance = Math.max(trackRect.width * 0.48, 1);
+
+            let focusCard = null;
+            let minDistance = Number.POSITIVE_INFINITY;
+
+            cards.forEach((card) => {
+                const rect = card.getBoundingClientRect();
+                const center = rect.left + (rect.width / 2);
+                const distance = Math.abs(center - trackCenter);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    focusCard = card;
+                }
+            });
+
+            cards.forEach((card) => {
+                const rect = card.getBoundingClientRect();
+                const center = rect.left + (rect.width / 2);
+                const distance = Math.abs(center - trackCenter);
+                const proximity = Math.max(0, 1 - (distance / fadeDistance));
+                const opacity = 0.35 + (proximity * 0.65);
+
+                card.style.setProperty('--featured-card-opacity', opacity.toFixed(3));
+                card.classList.toggle('is-center-focus', card === focusCard);
+                card.classList.toggle('is-side-dim', card !== focusCard);
+            });
+        };
+
+        const scheduleFeaturedCenterFocus = () => {
+            if (featuredFocusRaf) {
+                cancelAnimationFrame(featuredFocusRaf);
+            }
+
+            featuredFocusRaf = requestAnimationFrame(() => {
+                featuredFocusRaf = null;
+                updateFeaturedCenterFocus();
+            });
+        };
+
+        const formatFeaturedPrice = (value) => {
+            const amount = Number(value || 0);
+            if (!Number.isFinite(amount) || amount <= 0) {
+                return 'Liên hệ';
+            }
+            return `${new Intl.NumberFormat('vi-VN').format(Math.round(amount))}₫`;
+        };
+
+        const summarizeFeaturedInfo = (value) => {
+            const text = String(value || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+            if (!text) return 'Sản phẩm chất lượng cao dành cho thú cưng, phù hợp sử dụng hằng ngày.';
+
+            const firstLine = text
+                .replace(/^mô tả cơ bản\s*:\s*/i, '')
+                .replace(/^mo ta co ban\s*:\s*/i, '')
+                .split(/\n+/)[0]
+                .trim();
+
+            if (!firstLine) {
+                return 'Sản phẩm chất lượng cao dành cho thú cưng, phù hợp sử dụng hằng ngày.';
+            }
+
+            return firstLine.length > 120 ? `${firstLine.slice(0, 117)}...` : firstLine;
+        };
+
+        const featuredEscapeAttr = (value) => String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        const FEATURED_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=680&h=460&fit=crop';
+
+        const normalizeFeaturedImageUrl = (rawValue) => {
+            const raw = String(rawValue || '').trim().replace(/\\/g, '/');
+            if (!raw) return FEATURED_FALLBACK_IMAGE;
+
+            if (/^https?:\/\//i.test(raw)) {
+                return raw;
+            }
+
+            const appBaseUrl = new URL('../../', window.location.href).toString().replace(/\/+$/, '');
+            let normalized = raw;
+
+            const rawLower = normalized.toLowerCase();
+            const marker = '/anhdata/';
+            const markerPos = rawLower.indexOf(marker);
+            if (markerPos >= 0) {
+                normalized = `${appBaseUrl}${normalized.slice(markerPos)}`;
+            } else if (rawLower.startsWith('anhdata/')) {
+                normalized = `${appBaseUrl}/${normalized}`;
+            } else if (normalized.startsWith('/')) {
+                normalized = `${window.location.origin}${normalized}`;
+            } else {
+                normalized = `${appBaseUrl}/${normalized}`;
+            }
+
+            const encoded = normalized.split('/').map((segment, index) => {
+                if (index <= 2) return segment;
+                try {
+                    return encodeURIComponent(decodeURIComponent(segment));
+                } catch (error) {
+                    return encodeURIComponent(segment);
+                }
+            }).join('/');
+
+            return encoded;
+        };
+
+        const buildFeaturedCardHtml = (product) => {
+            const title = String(product.tensanpham || 'Sản phẩm thú cưng').trim() || 'Sản phẩm thú cưng';
+            const image = normalizeFeaturedImageUrl(product.hinhanhsanpham);
+            const priceNumber = Number(product.giasanpham || 0);
+            const priceText = formatFeaturedPrice(priceNumber);
+            const metaText = priceNumber > 0 ? `Giá từ ${priceText}` : priceText;
+            const summary = summarizeFeaturedInfo(product.thongtin);
+            const categoryName = String(product.tendanhmuc || 'Chưa phân loại').trim() || 'Chưa phân loại';
+
+            return `
+                <article class="featured-showcase-card" role="button" tabindex="0" data-product-name="${featuredEscapeAttr(title)}" data-product-image="${featuredEscapeAttr(image)}" data-product-price="${featuredEscapeAttr(priceText)}" data-product-desc="${featuredEscapeAttr(summary)}">
+                    <div class="featured-showcase-image-wrap">
+                        <img src="${featuredEscapeAttr(image)}" alt="${featuredEscapeAttr(title)}" class="featured-showcase-image" onerror="this.onerror=null;this.src='${featuredEscapeAttr(FEATURED_FALLBACK_IMAGE)}';">
+                    </div>
+                    <div class="featured-showcase-body">
+                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
+                        <h3 class="featured-showcase-name">${featuredEscapeAttr(title)}</h3>
+                        <p class="featured-showcase-copy">${featuredEscapeAttr(summary)}</p>
+                        <p class="featured-showcase-meta">${featuredEscapeAttr(metaText)} • ${featuredEscapeAttr(categoryName)}</p>
+                    </div>
+                </article>
+            `;
+        };
+
+        const getFeaturedCategories = (products) => {
+            const map = new Map();
+            products.forEach((product) => {
+                const category = String(product.tendanhmuc || '').trim();
+                if (!category) return;
+                if (!map.has(category)) {
+                    map.set(category, { key: category, label: category });
+                }
+            });
+
+            return [{ key: 'all', label: 'Tất cả' }, ...Array.from(map.values())];
+        };
+
+        const renderFeaturedFilters = (categories) => {
+            if (!featuredFiltersEl) return;
+
+            featuredFiltersEl.innerHTML = categories.map((category, index) => {
+                const activeClass = index === 0 ? ' is-active' : '';
+                return `<button type="button" class="featured-filter-pill${activeClass}" data-category="${featuredEscapeAttr(category.key)}">${featuredEscapeAttr(category.label)}</button>`;
+            }).join('');
+
+            featuredFiltersEl.querySelectorAll('.featured-filter-pill').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const nextCategory = String(button.dataset.category || 'all');
+                    featuredActiveCategory = nextCategory;
+
+                    featuredFiltersEl.querySelectorAll('.featured-filter-pill').forEach((pill) => {
+                        pill.classList.toggle('is-active', pill === button);
+                    });
+
+                    renderFeaturedProducts(nextCategory);
+                });
+            });
+        };
+
+        const bindFeaturedCardQuickView = () => {
+            if (!featuredTrackEl) return;
+
+            const openFromCard = (card) => {
+                const name = String(card?.dataset?.productName || '').trim();
+                const image = String(card?.dataset?.productImage || '').trim();
+                const price = String(card?.dataset?.productPrice || '').trim();
+                const desc = String(card?.dataset?.productDesc || '').trim();
+                if (typeof window.openQuickView === 'function') {
+                    window.openQuickView(name || 'Sản phẩm thú cưng', image || '', price || 'Liên hệ', '4.8', '120', desc || 'Sản phẩm nổi bật dành cho thú cưng.');
+                }
+            };
+
+            featuredTrackEl.querySelectorAll('.featured-showcase-card').forEach((card) => {
+                card.addEventListener('click', () => openFromCard(card));
+                card.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openFromCard(card);
+                    }
+                });
+            });
+        };
+
+        const renderFeaturedProducts = (categoryKey = 'all') => {
+            if (!featuredTrackEl) return;
+
+            const selected = String(categoryKey || 'all').trim();
+            const pool = selected === 'all'
+                ? featuredProductsSource
+                : featuredProductsSource.filter((product) => String(product.tendanhmuc || '').trim() === selected);
+
+            const firstTen = pool.slice(0, 10);
+            const displayRows = firstTen.length > 4
+                ? firstTen
+                : [...firstTen, ...firstTen, ...firstTen].slice(0, Math.max(8, firstTen.length * 3));
+
+            if (firstTen.length === 0) {
+                featuredTrackEl.innerHTML = `
+                    <article class="featured-showcase-card">
+                        <div class="featured-showcase-body">
+                            <h3 class="featured-showcase-name">Chưa có sản phẩm</h3>
+                            <p class="featured-showcase-copy">Danh mục này hiện chưa có dữ liệu sản phẩm.</p>
+                        </div>
+                    </article>
+                `;
+                return;
+            }
+
+            featuredTrackEl.innerHTML = displayRows.map(buildFeaturedCardHtml).join('');
+            featuredTrackEl.scrollTo({ left: 0, behavior: 'auto' });
+            bindFeaturedCardQuickView();
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+            scheduleFeaturedCenterFocus();
+        };
+
+        const fetchFeaturedProducts = async () => {
+            const candidates = getHomeApiCandidates('get_products');
+
+            for (const candidate of candidates) {
+                const separator = candidate.includes('?') ? '&' : '?';
+                const url = `${candidate}${separator}_t=${Date.now()}`;
+                try {
+                    const response = await fetch(url, { cache: 'no-store' });
+                    if (!response.ok) continue;
+
+                    const payload = await response.json();
+                    if (!payload || payload.ok !== true || !Array.isArray(payload.data)) continue;
+
+                    featuredProductsSource = payload.data
+                        .filter((item) => String(item?.trangthaisanpham || '').toLowerCase() !== 'ngunghoatdong');
+
+                    if (featuredProductsSource.length === 0) continue;
+
+                    const categories = getFeaturedCategories(featuredProductsSource);
+                    featuredActiveCategory = 'all';
+                    renderFeaturedFilters(categories);
+                    renderFeaturedProducts('all');
+                    return;
+                } catch (error) {
+                    // thử candidate tiếp theo
+                }
+            }
+        };
 
         const initFeaturedShowcaseCarousel = () => {
             const track = document.querySelector('.featured-showcase-track');
@@ -2718,14 +2987,20 @@
                 const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
                 if (maxScroll <= 0) return;
 
-                const current = track.scrollLeft;
-                if (current >= (maxScroll - 4)) {
+                const nextLeft = track.scrollLeft + (autoDirection * 2.2);
+                if (nextLeft >= maxScroll) {
+                    track.scrollLeft = maxScroll;
                     autoDirection = -1;
-                } else if (current <= 4) {
-                    autoDirection = 1;
+                    return;
                 }
 
-                slideBy(autoDirection);
+                if (nextLeft <= 0) {
+                    track.scrollLeft = 0;
+                    autoDirection = 1;
+                    return;
+                }
+
+                track.scrollLeft = nextLeft;
             };
 
             const stopAuto = () => {
@@ -2737,8 +3012,11 @@
 
             const startAuto = () => {
                 stopAuto();
-                autoTimer = setInterval(autoStep, 3200);
+                autoTimer = setInterval(autoStep, 28);
             };
+
+            const pauseAuto = () => stopAuto();
+            const resumeAuto = () => startAuto();
 
             prevBtn.addEventListener('click', () => {
                 autoDirection = -1;
@@ -2750,10 +3028,17 @@
                 slideBy(1);
             });
 
-            track.addEventListener('mouseenter', stopAuto);
-            track.addEventListener('mouseleave', startAuto);
-            track.addEventListener('focusin', stopAuto);
-            track.addEventListener('focusout', startAuto);
+            track.addEventListener('mouseenter', pauseAuto);
+            track.addEventListener('mouseleave', resumeAuto);
+            track.addEventListener('focusin', pauseAuto);
+            track.addEventListener('focusout', resumeAuto);
+            track.addEventListener('scroll', scheduleFeaturedCenterFocus, { passive: true });
+
+            const featuredSection = track.closest('.featured-section');
+            if (featuredSection) {
+                featuredSection.addEventListener('mouseenter', pauseAuto);
+                featuredSection.addEventListener('mouseleave', resumeAuto);
+            }
 
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
@@ -2768,13 +3053,16 @@
                 if (track.scrollLeft > maxScroll) {
                     track.scrollLeft = maxScroll;
                 }
+                scheduleFeaturedCenterFocus();
             });
 
             track.dataset.carouselReady = '1';
             startAuto();
+            scheduleFeaturedCenterFocus();
         };
 
         initFeaturedShowcaseCarousel();
+        fetchFeaturedProducts();
 
         const toggleScrollTopButton = () => {
             const scrollTopBtn = document.getElementById('scrollTopBtn');
@@ -2788,26 +3076,38 @@
             scrollTopBtn.classList.toggle('show', shouldShow);
         };
 
-        const scrollToTopSlowly = (duration = 1600) => {
-            const startY = window.scrollY || window.pageYOffset;
-            if (startY <= 0) return;
+        let scrollTopAnimationFrame = null;
+        const scrollToTopSlowly = (speedPxPerMs = 0.75) => {
+            const safeSpeed = Math.max(0.2, Number(speedPxPerMs) || 0.75);
+            if (scrollTopAnimationFrame) {
+                cancelAnimationFrame(scrollTopAnimationFrame);
+                scrollTopAnimationFrame = null;
+            }
 
-            const startTime = performance.now();
-            const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+            let lastTime = performance.now();
 
             const step = (currentTime) => {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const eased = easeOutCubic(progress);
+                const delta = Math.max(0, currentTime - lastTime);
+                lastTime = currentTime;
 
-                window.scrollTo(0, Math.round(startY * (1 - eased)));
+                const currentY = window.scrollY || window.pageYOffset || 0;
+                if (currentY <= 0) {
+                    scrollTopAnimationFrame = null;
+                    return;
+                }
 
-                if (progress < 1) {
-                    requestAnimationFrame(step);
+                const distance = safeSpeed * delta;
+                const nextY = Math.max(0, currentY - distance);
+                window.scrollTo(0, nextY);
+
+                if (nextY > 0) {
+                    scrollTopAnimationFrame = requestAnimationFrame(step);
+                } else {
+                    scrollTopAnimationFrame = null;
                 }
             };
 
-            requestAnimationFrame(step);
+            scrollTopAnimationFrame = requestAnimationFrame(step);
         };
 
         const initScrollTopButton = () => {
@@ -2819,7 +3119,7 @@
             scrollTopBtn.addEventListener('click', (event) => {
                 // Nếu sau này đổi sang <a href="#"> vẫn không bị nhảy trang
                 event.preventDefault();
-                scrollToTopSlowly(1600);
+                scrollToTopSlowly(0.75);
             });
         };
 
@@ -3667,6 +3967,1192 @@
         window.addEventListener('load', correctTopGap);
         window.addEventListener('resize', correctTopGap);
         window.addEventListener('pageshow', correctTopGap);
+    })();
+</script>
+<style>
+    .user-chat-floating {
+        position: fixed;
+        right: 22px;
+        bottom: 92px;
+        z-index: 12000;
+    }
+
+    .user-chat-toggle {
+        width: 58px;
+        height: 58px;
+        border: none;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #34b463 0%, #60d777 100%);
+        color: #fff;
+        box-shadow: 0 12px 24px rgba(31, 143, 77, 0.34);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .user-chat-toggle svg,
+    .user-chat-toggle i {
+        width: 24px;
+        height: 24px;
+        font-size: 23px;
+        line-height: 1;
+        vertical-align: middle;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        inset: 0;
+        margin: auto;
+    }
+
+    .user-chat-unread {
+        position: absolute;
+        right: -2px;
+        top: -3px;
+        min-width: 21px;
+        height: 21px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #ef4444;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 21px;
+        text-align: center;
+        border: 2px solid #fff;
+        display: none;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.34);
+    }
+
+    .user-chat-unread.show {
+        display: inline-block;
+    }
+
+    .user-chat-panel {
+        position: absolute;
+        right: 0;
+        bottom: 74px;
+        width: min(360px, calc(100vw - 26px));
+        background: #fff;
+        border: 1px solid #dbe9df;
+        border-radius: 16px;
+        box-shadow: 0 22px 44px rgba(15, 23, 42, 0.22);
+        display: none;
+        overflow: hidden;
+    }
+
+    .user-chat-panel.show {
+        display: block;
+    }
+
+    .user-chat-head {
+        padding: 12px 14px;
+        color: #fff;
+        background: linear-gradient(135deg, #166534 0%, #1F8F4D 100%);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .user-chat-head strong {
+        font-size: 14px;
+    }
+
+    .user-chat-head small {
+        display: block;
+        opacity: .92;
+        font-size: 12px;
+    }
+
+    .user-chat-close {
+        width: 30px;
+        height: 30px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .user-chat-messages {
+        max-height: 280px;
+        min-height: 220px;
+        padding: 12px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: #f7faf8;
+    }
+
+    .user-chat-msg {
+        width: fit-content;
+        max-width: 78%;
+        border-radius: 12px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    }
+
+    .user-chat-msg.deleted {
+        font-style: italic;
+        opacity: 0.78;
+        background: #f8fafc;
+        color: #6b7280;
+        border: 1px dashed #cbd5e1;
+        box-shadow: none;
+    }
+
+    .user-chat-msg.user {
+        align-self: flex-end;
+        background: #1F8F4D;
+        color: #fff;
+    }
+
+    .user-chat-msg.media-only {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    .user-chat-msg.staff {
+        align-self: flex-start;
+        background: #fff;
+        border: 1px solid #d7e2dc;
+        color: #1f2937;
+    }
+
+    .user-chat-empty {
+        padding: 10px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        color: #64748b;
+        font-size: 12px;
+        background: #fff;
+    }
+
+    .user-chat-compose {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border-top: 1px solid #e5ece7;
+        background: #fff;
+    }
+
+    .user-chat-tools {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .user-chat-tool-btn {
+        width: 32px;
+        height: 32px;
+        border: 1px solid #cfe2d6;
+        border-radius: 8px;
+        background: #f7fbf8;
+        color: #166534;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+    }
+
+    .user-chat-tool-btn:hover {
+        background: #ecfdf3;
+    }
+
+    .user-chat-tool-btn.recording {
+        background: #fee2e2;
+        border-color: #f87171;
+        color: #b91c1c;
+        box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.18);
+    }
+
+    .user-chat-emoji-panel {
+        display: none;
+        gap: 6px;
+        flex-wrap: wrap;
+        padding: 6px 8px;
+        border: 1px solid #dbe9df;
+        border-radius: 10px;
+        background: #f8fcfa;
+    }
+
+    .user-chat-emoji-panel.show {
+        display: flex;
+    }
+
+    .user-chat-emoji {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #d6e4dc;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 17px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .user-chat-emoji:hover {
+        transform: translateY(-1px);
+        border-color: #9fd7b3;
+    }
+
+    .user-chat-compose-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .user-chat-input {
+        flex: 1;
+        height: 38px;
+        border: 1px solid #cfe2d6;
+        border-radius: 10px;
+        padding: 0 11px;
+        font-size: 13px;
+        outline: none;
+    }
+
+    .user-chat-input:focus {
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
+    }
+
+    .user-chat-send {
+        border: none;
+        border-radius: 10px;
+        background: #1F8F4D;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 0 12px;
+        cursor: pointer;
+    }
+
+    .user-chat-msg-media {
+        display: block;
+        max-width: min(220px, 68vw);
+        border-radius: 10px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: #fff;
+    }
+
+    .user-chat-msg-audio {
+        width: min(220px, 68vw);
+        height: 34px;
+    }
+
+    .user-chat-audio-card {
+        border-radius: 10px;
+        border: 1px solid rgba(15, 23, 42, 0.14);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 248, 243, 0.96) 100%);
+        padding: 8px;
+    }
+
+    .user-chat-audio-head {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #155e3c;
+    }
+
+    .user-chat-audio-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+    }
+
+    .user-chat-msg-caption {
+        margin-top: 4px;
+        font-size: 11px;
+        opacity: 0.86;
+        display: none;
+    }
+
+    .user-chat-msg-actions {
+        margin-top: 4px;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .user-chat-recall-btn {
+        border: none;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.12);
+        color: inherit;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        padding: 4px 7px;
+        cursor: pointer;
+    }
+
+    .user-chat-msg.staff .user-chat-recall-btn {
+        background: rgba(15, 23, 42, 0.08);
+        color: #1f2937;
+    }
+
+    @media (max-width: 768px) {
+        .user-chat-floating {
+            right: 12px;
+            bottom: 84px;
+        }
+
+        .user-chat-toggle {
+            width: 54px;
+            height: 54px;
+        }
+    }
+</style>
+<div class="user-chat-floating" id="userChatFloating">
+    <div class="user-chat-panel" id="userChatPanel" aria-live="polite">
+        <div class="user-chat-head">
+            <div>
+                <strong>Chat Với Staff</strong>
+                <small>Phản hồi trong giờ làm việc</small>
+            </div>
+            <button type="button" class="user-chat-close" id="userChatClose" aria-label="Đóng">×</button>
+        </div>
+        <div class="user-chat-messages" id="userChatMessages"></div>
+        <div class="user-chat-compose">
+            <div class="user-chat-tools">
+                <button type="button" class="user-chat-tool-btn" id="userChatEmojiBtn" title="Biểu tượng cảm xúc" aria-label="Mở biểu tượng">😊</button>
+                <button type="button" class="user-chat-tool-btn" id="userChatImageBtn" title="Gửi ảnh" aria-label="Gửi ảnh"><i class="bi bi-image"></i></button>
+                <button type="button" class="user-chat-tool-btn" id="userChatVideoBtn" title="Gửi video" aria-label="Gửi video"><i class="bi bi-camera-video"></i></button>
+                <button type="button" class="user-chat-tool-btn" id="userChatRecordBtn" title="Ghi âm" aria-label="Ghi âm"><i class="bi bi-mic"></i></button>
+                <input type="file" id="userChatImageInput" accept="image/*" hidden>
+                <input type="file" id="userChatVideoInput" accept="video/*" hidden>
+            </div>
+            <div class="user-chat-emoji-panel" id="userChatEmojiPanel"></div>
+            <div class="user-chat-compose-row">
+                <input type="text" class="user-chat-input" id="userChatInput" placeholder="Nhập tin nhắn cho staff...">
+                <button type="button" class="user-chat-send" id="userChatSend">Gửi</button>
+            </div>
+        </div>
+    </div>
+    <button type="button" class="user-chat-toggle" id="userChatToggle" aria-label="Mở chat với staff">
+        <i class="bi bi-chat-dots-fill" aria-hidden="true"></i>
+        <span class="user-chat-unread" id="userChatUnreadBadge" aria-label="Tin nhắn chưa đọc">0</span>
+    </button>
+</div>
+<script>
+    (function () {
+        const STORAGE_KEY = 'petshop_support_chat_threads_v3';
+        const LAST_SEEN_KEY_PREFIX = 'petshop_user_chat_last_seen_at_v4';
+        const GUEST_SESSION_ID_KEY = 'petshop_support_chat_guest_session_id_v1';
+        const AUTH_STORAGE_KEYS = {
+            authUser: 'authUser',
+            userSession: 'userSession',
+            customerPortalAuth: 'customerPortalAuth'
+        };
+
+        const panel = document.getElementById('userChatPanel');
+        const toggleBtn = document.getElementById('userChatToggle');
+        const unreadBadgeEl = document.getElementById('userChatUnreadBadge');
+        const closeBtn = document.getElementById('userChatClose');
+        const messagesEl = document.getElementById('userChatMessages');
+        const inputEl = document.getElementById('userChatInput');
+        const sendBtn = document.getElementById('userChatSend');
+        const emojiBtn = document.getElementById('userChatEmojiBtn');
+        const emojiPanel = document.getElementById('userChatEmojiPanel');
+        const imageBtn = document.getElementById('userChatImageBtn');
+        const videoBtn = document.getElementById('userChatVideoBtn');
+        const imageInputEl = document.getElementById('userChatImageInput');
+        const videoInputEl = document.getElementById('userChatVideoInput');
+        const recordBtn = document.getElementById('userChatRecordBtn');
+
+        if (!panel || !toggleBtn || !unreadBadgeEl || !messagesEl || !inputEl || !sendBtn || !emojiBtn || !emojiPanel || !imageBtn || !videoBtn || !imageInputEl || !videoInputEl || !recordBtn) {
+            return;
+        }
+
+        const CHAT_EMOJIS = ['😊', '😍', '🥰', '👍', '❤️', '🙏', '😄', '😂', '😢', '😮', '👏', '🎉'];
+        const MAX_MEDIA_BYTES = {
+            image: 20 * 1024 * 1024,
+            video: 100 * 1024 * 1024,
+            audio: 25 * 1024 * 1024
+        };
+
+        let mediaRecorder = null;
+        let recordChunks = [];
+        let recordStream = null;
+
+        const nowIso = () => new Date().toISOString();
+
+        const safeParse = (raw, fallback) => {
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed ?? fallback;
+            } catch (e) {
+                return fallback;
+            }
+        };
+
+        const readThreads = () => safeParse(localStorage.getItem(STORAGE_KEY), []);
+
+        const compactThreadsForStorage = (threads, maxMessagesPerThread = 1000) => {
+            const normalizedThreads = Array.isArray(threads) ? threads : [];
+            return normalizedThreads.map((thread) => {
+                const messages = Array.isArray(thread?.messages) ? thread.messages : [];
+                const keptMessages = messages.slice(-Math.max(50, Number(maxMessagesPerThread || 1000))).map((msg) => {
+                    const mediaUrl = String(msg?.mediaUrl || msg?.url || msg?.dataUrl || '');
+                    return {
+                        ...msg,
+                        text: String(msg?.text || '').slice(0, 3000),
+                        mediaUrl,
+                        dataUrl: mediaUrl
+                    };
+                });
+
+                return {
+                    ...thread,
+                    messages: keptMessages
+                };
+            });
+        };
+
+        const writeThreads = (threads) => {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(threads));
+                return true;
+            } catch (error) {
+                try {
+                    const compact1000 = compactThreadsForStorage(threads, 1000);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(compact1000));
+                    return true;
+                } catch (e1) {
+                    try {
+                        const compact300 = compactThreadsForStorage(threads, 300);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(compact300));
+                        return true;
+                    } catch (e2) {
+                        alert('Bộ nhớ chat trên trình duyệt đã đầy. Hệ thống đã tự nén lịch sử nhưng vẫn chưa đủ. Vui lòng tải lại trang.');
+                        return false;
+                    }
+                }
+            }
+        };
+
+        const parseCustomerAuth = (rawValue) => {
+            const parsed = safeParse(rawValue, null);
+            if (!parsed || typeof parsed !== 'object') return null;
+
+            const roleRaw = String(parsed.role || parsed.vaitronguoidung || 'user').trim().toLowerCase();
+            const isAdminLike = roleRaw.includes('admin') || roleRaw.includes('staff') || roleRaw.includes('nhanvien') || roleRaw.includes('nhân viên');
+            if (isAdminLike) return null;
+
+            const id = Number(parsed.id || parsed.user_id || parsed.userId || 0);
+            if (!Number.isFinite(id) || id <= 0) return null;
+
+            return {
+                id,
+                name: String(parsed.tennguoidung || parsed.fullName || parsed.name || parsed.email || '').trim(),
+                email: String(parsed.email || parsed.emailnguoidung || '').trim()
+            };
+        };
+
+        const readCurrentCustomerAuth = () => {
+            const sessionPortalAuth = String(sessionStorage.getItem(AUTH_STORAGE_KEYS.customerPortalAuth) || '').trim();
+            const localPortalAuth = String(localStorage.getItem(AUTH_STORAGE_KEYS.customerPortalAuth) || '').trim();
+            const hasPortalAuth = sessionPortalAuth === '1' || localPortalAuth === '1';
+
+            if (!hasPortalAuth) return null;
+
+            return (
+                parseCustomerAuth(sessionStorage.getItem(AUTH_STORAGE_KEYS.authUser)) ||
+                parseCustomerAuth(localStorage.getItem(AUTH_STORAGE_KEYS.authUser)) ||
+                parseCustomerAuth(localStorage.getItem(AUTH_STORAGE_KEYS.userSession))
+            );
+        };
+
+        const ensureGuestSessionId = () => {
+            let guestId = String(sessionStorage.getItem(GUEST_SESSION_ID_KEY) || '').trim();
+            if (guestId) return guestId;
+
+            guestId = `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+            sessionStorage.setItem(GUEST_SESSION_ID_KEY, guestId);
+            return guestId;
+        };
+
+        const getChatIdentity = () => {
+            const auth = readCurrentCustomerAuth();
+            if (auth) {
+                return {
+                    key: `user-${auth.id}`,
+                    customerId: auth.id,
+                    customerName: auth.name || auth.email || `Khách hàng #${auth.id}`,
+                    isGuest: false
+                };
+            }
+
+            const guestSessionId = ensureGuestSessionId();
+            return {
+                key: guestSessionId,
+                customerId: 0,
+                customerName: 'Khách vãng lai',
+                isGuest: true
+            };
+        };
+
+        const getLastSeenKey = () => `${LAST_SEEN_KEY_PREFIX}:${getChatIdentity().key}`;
+        const readLastSeen = () => String(localStorage.getItem(getLastSeenKey()) || '').trim();
+        const writeLastSeen = (isoText) => localStorage.setItem(getLastSeenKey(), String(isoText || nowIso()));
+
+        const getUnreadCount = () => {
+            const thread = ensureCurrentThread();
+            const messages = Array.isArray(thread.messages) ? thread.messages : [];
+            const lastSeenText = readLastSeen();
+            const lastSeenTime = lastSeenText ? new Date(lastSeenText).getTime() : 0;
+
+            return messages.filter((msg) => {
+                if (msg.sender !== 'staff') return false;
+                if (msg.deleted) return false;
+                const msgTime = new Date(String(msg.time || '')).getTime();
+                return Number.isFinite(msgTime) && msgTime > lastSeenTime;
+            }).length;
+        };
+
+        const updateUnreadBadge = () => {
+            const unread = getUnreadCount();
+            if (unread > 0) {
+                unreadBadgeEl.textContent = unread > 99 ? '99+' : String(unread);
+                unreadBadgeEl.classList.add('show');
+            } else {
+                unreadBadgeEl.textContent = '0';
+                unreadBadgeEl.classList.remove('show');
+            }
+        };
+
+        const markStaffMessagesSeen = () => {
+            writeLastSeen(nowIso());
+            updateUnreadBadge();
+        };
+
+        const escapeHtml = (value) => String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const getChatUploadApiCandidates = () => [
+            'home_api.php?api=upload_chat_media',
+            '../../index.php?api=upload_chat_media',
+            '/phuocthanh/PHPCHINH/index.php?api=upload_chat_media',
+            '/PHPCHINH/index.php?api=upload_chat_media',
+            '/index.php?api=upload_chat_media'
+        ];
+
+        const uploadChatMedia = async (kind, file) => {
+            let lastMessage = 'Không thể tải media lên máy chủ.';
+            for (const url of getChatUploadApiCandidates()) {
+                try {
+                    const formData = new FormData();
+                    formData.append('kind', String(kind || '').trim());
+                    formData.append('media', file);
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        cache: 'no-store'
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (response.ok && data && data.ok && data.data && data.data.url) {
+                        return {
+                            ok: true,
+                            url: String(data.data.url || ''),
+                            mimeType: String(data.data.mimeType || data.data.mime || file.type || ''),
+                            fileName: String(data.data.fileName || data.data.file_name || file.name || ''),
+                            size: Number(data.data.size || file.size || 0)
+                        };
+                    }
+
+                    lastMessage = String(data?.message || 'Tải media thất bại.');
+                } catch (e) {
+                    lastMessage = 'Không thể tải media lên máy chủ.';
+                }
+            }
+
+            return {
+                ok: false,
+                message: lastMessage
+            };
+        };
+
+        const mimeToExt = (mimeType, fallback) => {
+            const mime = String(mimeType || '').toLowerCase();
+            if (mime.includes('png')) return 'png';
+            if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
+            if (mime.includes('webp')) return 'webp';
+            if (mime.includes('gif')) return 'gif';
+            if (mime.includes('mp4')) return 'mp4';
+            if (mime.includes('webm')) return 'webm';
+            if (mime.includes('ogg')) return 'ogg';
+            if (mime.includes('mpeg')) return 'mp3';
+            return fallback || 'bin';
+        };
+
+        const getActiveAppBasePath = () => {
+            const pathname = String(window.location.pathname || '').toLowerCase();
+            const knownBases = ['/phuocthanh/phpchinh', '/phpchinh'];
+            for (const base of knownBases) {
+                if (pathname === base || pathname.startsWith(`${base}/`)) {
+                    return base;
+                }
+            }
+            return '';
+        };
+
+        const buildChatMediaUrlCandidates = (rawUrl) => {
+            const text = String(rawUrl || '').trim();
+            if (!text) return [];
+
+            const normalized = text.replace(/\\/g, '/');
+            if (normalized.startsWith('blob:') || normalized.startsWith('data:')) {
+                return [normalized];
+            }
+
+            let pathLike = normalized;
+            if (/^https?:\/\//i.test(normalized)) {
+                try {
+                    const parsed = new URL(normalized);
+                    pathLike = `${parsed.pathname || ''}${parsed.search || ''}` || normalized;
+                } catch (e) {
+                    pathLike = normalized;
+                }
+            }
+
+            const pathVariants = [];
+            const pushPathVariant = (value) => {
+                const next = String(value || '').trim();
+                if (!next) return;
+                if (!pathVariants.includes(next)) {
+                    pathVariants.push(next);
+                }
+            };
+
+            pushPathVariant(pathLike);
+            try {
+                pushPathVariant(decodeURIComponent(pathLike));
+            } catch (e) {
+                // no-op
+            }
+            try {
+                pushPathVariant(encodeURI(pathLike));
+            } catch (e) {
+                // no-op
+            }
+
+            const activeBase = getActiveAppBasePath();
+            const baseCandidates = [activeBase, '/phuocthanh/PHPCHINH', '/PHPCHINH', ''];
+            const uniqueBaseCandidates = Array.from(new Set(baseCandidates.filter((item) => item !== null && item !== undefined)));
+
+            const candidates = [];
+            const push = (value) => {
+                const next = String(value || '').trim();
+                if (!next) return;
+                if (!candidates.includes(next)) {
+                    candidates.push(next);
+                }
+            };
+
+            pathVariants.forEach((variant) => {
+                const lower = variant.toLowerCase();
+                push(variant);
+
+                if (lower.startsWith('/phuocthanh/phpchinh/')) {
+                    const tail = variant.slice('/phuocthanh/PHPCHINH'.length);
+                    uniqueBaseCandidates.forEach((base) => push(`${base}${tail}`));
+                } else if (lower.startsWith('/phpchinh/')) {
+                    const tail = variant.slice('/PHPCHINH'.length);
+                    uniqueBaseCandidates.forEach((base) => push(`${base}${tail}`));
+                } else if (lower.startsWith('/anhdata/')) {
+                    uniqueBaseCandidates.forEach((base) => push(`${base}${variant}`));
+                } else if (lower.startsWith('anhdata/')) {
+                    push(`/${variant}`);
+                    uniqueBaseCandidates.forEach((base) => push(base ? `${base}/${variant}` : `/${variant}`));
+                } else if (lower.startsWith('phuocthanh/phpchinh/')) {
+                    push(`/${variant}`);
+                } else if (lower.startsWith('phpchinh/')) {
+                    push(`/${variant}`);
+                }
+            });
+
+            return candidates;
+        };
+
+        const adaptChatMediaUrl = (rawUrl) => {
+            const candidates = buildChatMediaUrlCandidates(rawUrl);
+            return candidates.length > 0 ? candidates[0] : '';
+        };
+
+        const applyMediaFallbacks = (container) => {
+            if (!container) return;
+
+            const elements = container.querySelectorAll('[data-media-src]');
+            elements.forEach((element) => {
+                if (element.dataset.mediaBound === '1') return;
+                element.dataset.mediaBound = '1';
+
+                const raw = String(element.getAttribute('data-media-src') || '').trim();
+                const candidates = buildChatMediaUrlCandidates(raw);
+                if (candidates.length === 0) return;
+
+                let index = -1;
+                const setMediaSrc = (next) => {
+                    const target = String(next || '').trim();
+                    if (!target) return;
+
+                    if (String(element.getAttribute('src') || '').trim() === target) return;
+                    element.setAttribute('src', target);
+
+                    if (element.tagName === 'VIDEO' || element.tagName === 'AUDIO') {
+                        try {
+                            element.load();
+                        } catch (e) {
+                            // no-op
+                        }
+                    }
+                };
+
+                const tryNextCandidate = () => {
+                    for (let i = index + 1; i < candidates.length; i += 1) {
+                        const next = candidates[i];
+                        if (!next) continue;
+                        index = i;
+                        setMediaSrc(next);
+                        return true;
+                    }
+                    return false;
+                };
+
+                element.addEventListener('error', () => {
+                    tryNextCandidate();
+                });
+
+                tryNextCandidate();
+            });
+        };
+
+        const normalizeMessage = (msg) => {
+            const sender = msg.sender === 'staff' ? 'staff' : 'user';
+            const rawType = String(msg.type || 'text').toLowerCase();
+            const type = ['text', 'image', 'video', 'audio'].includes(rawType) ? rawType : 'text';
+            const mediaUrl = adaptChatMediaUrl(String(msg.mediaUrl || msg.url || msg.dataUrl || ''));
+            return {
+                id: String(msg.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+                sender,
+                type,
+                text: String(msg.text || ''),
+                time: String(msg.time || nowIso()),
+                mediaUrl,
+                dataUrl: mediaUrl,
+                mimeType: String(msg.mimeType || ''),
+                fileName: String(msg.fileName || ''),
+                durationMs: Number(msg.durationMs || 0)
+            };
+        };
+
+        const renderMessageHtml = (msg) => {
+            const message = normalizeMessage(msg);
+            const senderClass = message.sender === 'staff' ? 'staff' : 'user';
+            const canRecall = message.sender === 'user' && !message.deleted;
+            const actionHtml = canRecall
+                ? `<div class="user-chat-msg-actions"><button type="button" class="user-chat-recall-btn" data-msg-id="${escapeHtml(message.id)}" aria-label="Thu hồi tin nhắn">Thu hồi</button></div>`
+                : '';
+
+            if (message.deleted) {
+                return `<div class="user-chat-msg ${senderClass} deleted">Tin nhắn đã được thu hồi</div>`;
+            }
+
+            if (message.type === 'image' && message.mediaUrl) {
+                return `
+                    <div class="user-chat-msg ${senderClass} media-only">
+                        <img data-media-src="${escapeHtml(message.mediaUrl)}" alt="Ảnh chat" class="user-chat-msg-media" loading="lazy">
+                        ${actionHtml}
+                    </div>
+                `;
+            }
+
+            if (message.type === 'video' && message.mediaUrl) {
+                return `
+                    <div class="user-chat-msg ${senderClass} media-only">
+                        <video class="user-chat-msg-media" controls preload="metadata" data-media-src="${escapeHtml(message.mediaUrl)}"></video>
+                        ${actionHtml}
+                    </div>
+                `;
+            }
+
+            if (message.type === 'audio' && message.mediaUrl) {
+                return `
+                    <div class="user-chat-msg ${senderClass} media-only">
+                        <div class="user-chat-audio-card">
+                            <div class="user-chat-audio-head"><span class="user-chat-audio-dot" aria-hidden="true"></span><span>Tin nhắn ghi âm</span></div>
+                            <audio class="user-chat-msg-audio" controls preload="metadata" data-media-src="${escapeHtml(message.mediaUrl)}"></audio>
+                        </div>
+                        ${actionHtml}
+                    </div>
+                `;
+            }
+
+            return `<div class="user-chat-msg ${senderClass}">${escapeHtml(message.text)}${actionHtml}</div>`;
+        };
+
+        const ensureThreadId = () => getChatIdentity().key;
+
+        const ensureCurrentThread = () => {
+            const identity = getChatIdentity();
+            const threadId = identity.key;
+            const threads = readThreads();
+            const existing = threads.find((item) => item.id === threadId);
+
+            if (existing) {
+                const nextName = identity.customerName;
+                if (!existing.customerName || existing.customerName !== nextName || Number(existing.customerId || 0) !== Number(identity.customerId || 0)) {
+                    existing.customerName = nextName;
+                    existing.customerId = Number(identity.customerId || 0);
+                    existing.identityKey = identity.key;
+                    existing.lastUpdated = nowIso();
+                    writeThreads(threads);
+                }
+                return existing;
+            }
+
+            const created = {
+                id: threadId,
+                customerId: Number(identity.customerId || 0),
+                identityKey: identity.key,
+                customerName: identity.customerName,
+                createdAt: nowIso(),
+                lastUpdated: nowIso(),
+                messages: []
+            };
+
+            threads.push(created);
+            writeThreads(threads);
+            return created;
+        };
+
+        const renderMessages = () => {
+            const thread = ensureCurrentThread();
+            const messages = Array.isArray(thread.messages) ? thread.messages : [];
+            const identity = getChatIdentity();
+
+            if (messages.length === 0) {
+                messagesEl.innerHTML = identity.isGuest
+                    ? '<div class="user-chat-empty">Bạn đang chat với tư cách khách. Hãy đăng nhập để lưu lịch sử theo tài khoản của bạn.</div>'
+                    : '<div class="user-chat-empty">Xin chào! Bạn có thể nhắn tin trực tiếp cho staff tại đây.</div>';
+                return;
+            }
+
+            messagesEl.innerHTML = messages.map(renderMessageHtml).join('');
+            applyMediaFallbacks(messagesEl);
+
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        };
+
+        const pushMessage = (sender, text, options = {}) => {
+            const normalizedSender = sender === 'staff' ? 'staff' : 'user';
+            const type = ['text', 'image', 'video', 'audio'].includes(String(options.type || 'text')) ? String(options.type || 'text') : 'text';
+            const content = String(text || '').trim();
+            if (type === 'text' && !content) return;
+            if (type !== 'text' && !String(options.mediaUrl || options.dataUrl || '').trim()) return;
+
+            const identity = getChatIdentity();
+            const threadId = identity.key;
+            const threads = readThreads();
+            let thread = threads.find((item) => item.id === threadId);
+
+            if (!thread) {
+                thread = {
+                    id: threadId,
+                    customerId: Number(identity.customerId || 0),
+                    identityKey: identity.key,
+                    customerName: identity.customerName,
+                    createdAt: nowIso(),
+                    lastUpdated: nowIso(),
+                    messages: []
+                };
+                threads.push(thread);
+            }
+
+            thread.customerId = Number(identity.customerId || 0);
+            thread.identityKey = identity.key;
+            thread.customerName = identity.customerName;
+            thread.messages = Array.isArray(thread.messages) ? thread.messages : [];
+            const mediaFallbackText = type === 'image'
+                ? '[Ảnh]'
+                : (type === 'video' ? '[Video]' : (type === 'audio' ? '[Ghi âm]' : ''));
+
+            thread.messages.push({
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                sender: normalizedSender,
+                type,
+                text: type === 'text' ? content : String(options.caption || mediaFallbackText),
+                mediaUrl: String(options.mediaUrl || options.dataUrl || ''),
+                dataUrl: String(options.mediaUrl || options.dataUrl || ''),
+                mimeType: String(options.mimeType || ''),
+                fileName: String(options.fileName || ''),
+                durationMs: Number(options.durationMs || 0),
+                time: nowIso()
+            });
+            thread.lastUpdated = nowIso();
+
+            if (!writeThreads(threads)) return;
+            renderMessages();
+            updateUnreadBadge();
+        };
+
+        const sendCurrentMessage = () => {
+            const text = inputEl.value;
+            if (!String(text || '').trim()) return;
+            pushMessage('user', text);
+            inputEl.value = '';
+            inputEl.focus();
+        };
+
+        const recallCurrentMessage = (messageId) => {
+            const targetId = String(messageId || '').trim();
+            if (!targetId) return;
+
+            const threadId = ensureThreadId();
+            const threads = readThreads();
+            const thread = threads.find((item) => String(item.id || '') === threadId);
+            if (!thread || !Array.isArray(thread.messages)) return;
+
+            const msg = thread.messages.find((item) => String(item.id || '') === targetId);
+            if (!msg || msg.sender !== 'user' || msg.deleted) return;
+
+            msg.deleted = true;
+            msg.deletedAt = nowIso();
+            msg.deletedBy = 'user';
+            msg.type = 'text';
+            msg.text = '[Đã thu hồi]';
+            msg.mediaUrl = '';
+            msg.dataUrl = '';
+            msg.mimeType = '';
+            msg.fileName = '';
+            msg.durationMs = 0;
+            thread.lastUpdated = nowIso();
+
+            if (!writeThreads(threads)) return;
+            renderMessages();
+            updateUnreadBadge();
+        };
+
+        const sendFileMessage = async (kind, file) => {
+            if (!file) return;
+            const maxSize = MAX_MEDIA_BYTES[kind] || (900 * 1024);
+            if (file.size > maxSize) {
+                const maxMb = (maxSize / (1024 * 1024)).toFixed(0);
+                alert(`Tệp quá lớn. Giới hạn hiện tại: ${maxMb}MB.`);
+                return;
+            }
+
+            try {
+                const uploadResult = await uploadChatMedia(kind, file);
+                if (!uploadResult.ok || !uploadResult.url) {
+                    alert(uploadResult.message || 'Không thể tải media lên máy chủ. Vui lòng thử lại.');
+                    return;
+                }
+
+                pushMessage('user', '', {
+                    type: kind,
+                    mediaUrl: uploadResult.url,
+                    mimeType: uploadResult.mimeType || file.type || '',
+                    fileName: uploadResult.fileName || file.name || `${kind}-${Date.now()}.${mimeToExt(file.type, kind === 'video' ? 'mp4' : (kind === 'audio' ? 'webm' : 'jpg'))}`
+                });
+            } catch (error) {
+                alert('Không thể gửi tệp. Vui lòng thử lại.');
+            }
+        };
+
+        const stopRecording = () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        };
+
+        const startRecording = async () => {
+            if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+                alert('Trình duyệt không hỗ trợ ghi âm.');
+                return;
+            }
+
+            try {
+                recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                recordChunks = [];
+                mediaRecorder = new MediaRecorder(recordStream);
+                mediaRecorder.addEventListener('dataavailable', (event) => {
+                    if (event.data && event.data.size > 0) {
+                        recordChunks.push(event.data);
+                    }
+                });
+
+                mediaRecorder.addEventListener('stop', async () => {
+                    try {
+                        const mimeType = mediaRecorder && mediaRecorder.mimeType ? mediaRecorder.mimeType : 'audio/webm';
+                        const blob = new Blob(recordChunks, { type: mimeType });
+                        if (blob.size > MAX_MEDIA_BYTES.audio) {
+                            const maxMb = (MAX_MEDIA_BYTES.audio / (1024 * 1024)).toFixed(0);
+                            alert(`File ghi âm quá lớn. Giới hạn hiện tại: ${maxMb}MB.`);
+                        } else if (blob.size > 0) {
+                            const file = new File([blob], `record-${Date.now()}.${mimeToExt(mimeType, 'webm')}`, { type: mimeType });
+                            await sendFileMessage('audio', file);
+                        }
+                    } finally {
+                        if (recordStream) {
+                            recordStream.getTracks().forEach((track) => track.stop());
+                            recordStream = null;
+                        }
+                        recordChunks = [];
+                        mediaRecorder = null;
+                        recordBtn.classList.remove('recording');
+                        recordBtn.title = 'Ghi âm';
+                        recordBtn.setAttribute('aria-label', 'Ghi âm');
+                    }
+                });
+
+                mediaRecorder.start();
+                recordBtn.classList.add('recording');
+                recordBtn.title = 'Dừng ghi âm';
+                recordBtn.setAttribute('aria-label', 'Dừng ghi âm');
+            } catch (error) {
+                alert('Không thể bắt đầu ghi âm. Vui lòng cho phép quyền microphone.');
+            }
+        };
+
+        const toggleRecording = () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+                return;
+            }
+            startRecording();
+        };
+
+        const isAuthStorageKey = (key) => (
+            key === AUTH_STORAGE_KEYS.authUser ||
+            key === AUTH_STORAGE_KEYS.userSession ||
+            key === AUTH_STORAGE_KEYS.customerPortalAuth
+        );
+
+        toggleBtn.addEventListener('click', () => {
+            panel.classList.toggle('show');
+            if (panel.classList.contains('show')) {
+                renderMessages();
+                markStaffMessagesSeen();
+                inputEl.focus();
+                if (emojiPanel.classList.contains('show')) {
+                    emojiPanel.classList.remove('show');
+                }
+            }
+        });
+
+        closeBtn.addEventListener('click', () => {
+            panel.classList.remove('show');
+            markStaffMessagesSeen();
+        });
+
+        sendBtn.addEventListener('click', sendCurrentMessage);
+        messagesEl.addEventListener('click', (event) => {
+            const recallBtn = event.target.closest('.user-chat-recall-btn[data-msg-id]');
+            if (!recallBtn) return;
+            recallCurrentMessage(recallBtn.dataset.msgId || '');
+        });
+        emojiBtn.addEventListener('click', () => {
+            emojiPanel.classList.toggle('show');
+        });
+        imageBtn.addEventListener('click', () => imageInputEl.click());
+        videoBtn.addEventListener('click', () => videoInputEl.click());
+        recordBtn.addEventListener('click', toggleRecording);
+
+        imageInputEl.addEventListener('change', async () => {
+            const file = imageInputEl.files && imageInputEl.files[0] ? imageInputEl.files[0] : null;
+            imageInputEl.value = '';
+            await sendFileMessage('image', file);
+        });
+
+        videoInputEl.addEventListener('change', async () => {
+            const file = videoInputEl.files && videoInputEl.files[0] ? videoInputEl.files[0] : null;
+            videoInputEl.value = '';
+            await sendFileMessage('video', file);
+        });
+
+        emojiPanel.innerHTML = CHAT_EMOJIS.map((emoji) => `<button type="button" class="user-chat-emoji" data-emoji="${emoji}" aria-label="${emoji}">${emoji}</button>`).join('');
+        emojiPanel.addEventListener('click', (event) => {
+            const button = event.target.closest('.user-chat-emoji[data-emoji]');
+            if (!button) return;
+            const emoji = String(button.dataset.emoji || '');
+            if (!emoji) return;
+            inputEl.value = `${inputEl.value || ''}${emoji}`;
+            inputEl.focus();
+        });
+
+        inputEl.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendCurrentMessage();
+            }
+        });
+
+        window.addEventListener('storage', (event) => {
+            if (event.key === STORAGE_KEY) {
+                if (panel.classList.contains('show')) {
+                    renderMessages();
+                    markStaffMessagesSeen();
+                } else {
+                    updateUnreadBadge();
+                }
+                return;
+            }
+
+            if (isAuthStorageKey(event.key)) {
+                ensureCurrentThread();
+                renderMessages();
+                updateUnreadBadge();
+            }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                try { mediaRecorder.stop(); } catch (e) {}
+            }
+            if (recordStream) {
+                recordStream.getTracks().forEach((track) => track.stop());
+                recordStream = null;
+            }
+        });
+
+        ensureCurrentThread();
+        renderMessages();
+        updateUnreadBadge();
+
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
     })();
 </script>
 </body>

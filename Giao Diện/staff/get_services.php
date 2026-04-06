@@ -943,6 +943,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
 
     if ($api === 'get_services') {
         app_seed_dichvu_image_column($conn);
+        app_ensure_dichvu_info_column($conn);
 
         $sql = "
             SELECT
@@ -952,6 +953,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 d.thoigiandichvu,
                 d.trangthaidichvu,
                 d.ngaytaodichvu,
+                COALESCE(d.thongtin, '') AS thongtin,
                 COALESCE(NULLIF(TRIM(d.hinhanhdichvu), ''), '') AS hinhanh
             FROM dichvu d
             ORDER BY d.id ASC
@@ -977,6 +979,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'thoigiandichvu' => (int) $row['thoigiandichvu'],
                 'trangthaidichvu' => (string) $row['trangthaidichvu'],
                 'ngaytaodichvu' => (string) $row['ngaytaodichvu'],
+                'thongtin' => (string) ($row['thongtin'] ?? ''),
                 'hinhanh' => app_to_public_image_url((string) ($row['hinhanh'] ?? '')),
             ];
         }

@@ -1,6 +1,7 @@
 ﻿﻿<script>
 (function () {
     const styles = [
+        { key: "fonts.googleapis.com/css2?family=Be+Vietnam+Pro", href: "https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" },
         { key: "bootstrap.min.css", href: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" },
         { key: "giao-dien-nguoi-dung.css", href: "../giao-dien-nguoi-dung.css" }
     ];
@@ -41,12 +42,11 @@
     </div>
 
     <div class="service-filter-wrap mb-5">
+        <button type="button" class="service-filter-btn" data-category="all">Tất cả dịch vụ</button>
         <button type="button" class="service-filter-btn" data-category="spa">Spa - Cắt tạo kiểu</button>
-        <button type="button" class="service-filter-btn" data-category="hotel">Khách sạn - Lưu trú</button>
         <button type="button" class="service-filter-btn" data-category="bath-dry">Tắm &amp; Sấy</button>
         <button type="button" class="service-filter-btn" data-category="ear-cleaning">Vệ sinh tai</button>
         <button type="button" class="service-filter-btn" data-category="nail-trimming">Cắt móng</button>
-        <button type="button" class="service-filter-btn" data-category="pickup-return">Đón trả tận nơi</button>
         <button type="button" class="service-filter-btn" data-category="health-check">Khám sức khỏe định kỳ</button>
         <button type="button" class="service-filter-btn" data-category="training">Huấn luyện cơ bản</button>
     </div>
@@ -57,15 +57,6 @@
             <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="sun"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói Tắm Rửa Cơ Bản</h5><p class="text-muted mb-3">Tắm rửa, sấy khô, cắt móng và vệ sinh tai với sản phẩm an toàn.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">250.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
             <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="scissors"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói Cắt Tạo Kiểu</h5><p class="text-muted mb-3">Cắt tạo kiểu theo yêu cầu, chải lông và làm đẹp chuyên sâu.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">350.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
             <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="star"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói Spa Cao Cấp</h5><p class="text-muted mb-3">Kết hợp spa và massage thư giãn, dưỡng da và chăm sóc kỹ lưỡng.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">500.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-        </div>
-    </section>
-
-    <section class="service-category-block" data-category="hotel">
-        <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Khách sạn - Lưu trú</h2><p class="text-muted mb-0">Không gian an toàn, sạch sẽ, có đội ngũ chăm sóc xuyên suốt.</p></div></div>
-        <div class="row g-4 mb-4">
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="home"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Phòng Tiêu Chuẩn</h5><p class="text-muted mb-3">Phòng riêng thoáng mát, dọn vệ sinh mỗi ngày, theo dõi định kỳ.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">150.000/ngày</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="clock"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Phòng VIP</h5><p class="text-muted mb-3">Không gian rộng, đệm êm, đồ chơi và chăm sóc kỹ hơn hằng ngày.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">250.000/ngày</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="award"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Phòng Deluxe</h5><p class="text-muted mb-3">Chăm sóc 24/7, khu vui chơi riêng và dịch vụ thú y khi cần thiết.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">400.000/ngày</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
         </div>
     </section>
 
@@ -94,14 +85,6 @@
         </div>
     </section>
 
-    <section class="service-category-block" data-category="pickup-return">
-        <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Đón trả tận nơi</h2><p class="text-muted mb-0">Hỗ trợ đưa đón thú cưng an toàn, tiết kiệm thời gian cho chủ nuôi.</p></div></div>
-        <div class="row g-4 mb-4">
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="truck"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Đón trả nội thành</h5><p class="text-muted mb-3">Nhân viên đón và trả bé theo khung giờ linh hoạt trong nội thành.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">79.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="map-pin"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Đón trả mở rộng</h5><p class="text-muted mb-3">Phục vụ khu vực xa hơn theo lịch hẹn trước và lộ trình tối ưu.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">129.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-        </div>
-    </section>
-
     <section class="service-category-block" data-category="health-check">
         <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Khám sức khỏe định kỳ</h2><p class="text-muted mb-0">Theo dõi sức khỏe tổng quát định kỳ để phát hiện sớm các vấn đề thường gặp.</p></div></div>
         <div class="row g-4 mb-4">
@@ -119,12 +102,41 @@
     </section>
 </div>
 
+<div class="service-detail-modal" id="serviceDetailModal" aria-hidden="true">
+    <div class="service-detail-backdrop" data-modal-close="true"></div>
+    <div class="service-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="serviceDetailTitle">
+        <button type="button" class="service-detail-close" data-modal-close="true" aria-label="Đóng">&times;</button>
+        <div class="service-detail-image" id="serviceDetailImage"></div>
+        <div class="service-detail-content">
+            <h3 id="serviceDetailTitle" class="service-detail-title">Chi tiết dịch vụ</h3>
+            <div class="service-detail-meta">
+                <span id="serviceDetailPrice">Liên hệ</span>
+                <span id="serviceDetailDuration">-- phút</span>
+            </div>
+            <p id="serviceDetailInfo" class="service-detail-info mb-0">Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.</p>
+        </div>
+    </div>
+</div>
+
 <style>
 .unified-services-page {
     max-width: 1280px;
     margin: 0 auto;
     padding-left: 24px;
     padding-right: 24px;
+    font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.unified-services-page h1.display-5 {
+    font-family: 'Playfair Display', 'Times New Roman', serif;
+    letter-spacing: 0.2px;
+    margin-bottom: 12px !important;
+}
+
+.unified-services-page h2.fw-bold {
+    font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+    font-weight: 800 !important;
+    letter-spacing: 0.1px;
 }
 
 .unified-services-page .service-filter-wrap { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -152,8 +164,40 @@
     flex-shrink: 0;
     box-shadow: 0 2px 8px rgba(17, 24, 39, 0.18);
 }
+.unified-services-page .service-category-block .row.g-4.mb-4 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+.unified-services-page .service-category-block .row.g-4.mb-4 > [class*="col-"] {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
 .unified-services-page .service-card { border: none; border-radius: 12px; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; }
 .unified-services-page .service-card:hover { transform: translateY(-8px); box-shadow: 0 8px 24px rgba(31, 143, 77, 0.15) !important; }
+.unified-services-page .service-card { cursor: pointer; }
+.unified-services-page .service-card .card-body {
+    display: flex;
+    flex-direction: column;
+}
+.unified-services-page .service-card .card-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 56px;
+}
+.unified-services-page .service-card .card-body .text-muted {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 106px;
+}
+.unified-services-page .service-card .card-body .d-flex {
+    margin-top: auto;
+}
 .unified-services-page .service-icon-bg { background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); height: 180px; display: flex; align-items: center; justify-content: center; color: #fff; }
 .unified-services-page .service-icon-bg.has-photo {
     background-size: cover;
@@ -180,25 +224,120 @@
 }
 .unified-services-page .service-price { color: #111827; font-size: 20px; font-weight: 700; }
 .unified-services-page .service-booking-btn { background-color: #1F8F4D; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; }
+
+.service-detail-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: none;
+}
+.service-detail-modal.open {
+    display: block;
+}
+.service-detail-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.55);
+}
+.service-detail-dialog {
+    position: relative;
+    width: min(720px, calc(100% - 28px));
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+.service-detail-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 999px;
+    font-size: 26px;
+    line-height: 1;
+    color: #fff;
+    background: rgba(17, 24, 39, 0.45);
+    z-index: 2;
+}
+.service-detail-image {
+    height: 280px;
+    background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
+    background-size: cover;
+    background-position: center;
+}
+.service-detail-content {
+    padding: 22px;
+}
+.service-detail-title {
+    margin: 0 0 10px;
+    font-size: 30px;
+    font-weight: 800;
+    color: #111827;
+}
+.service-detail-meta {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.service-detail-meta span {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 7px 12px;
+    background: #e8f7ee;
+    color: #1F8F4D;
+    font-weight: 700;
+}
+.service-detail-info {
+    color: #374151;
+    line-height: 1.65;
+    white-space: pre-line;
+}
+
+@media (max-width: 768px) {
+    .unified-services-page .service-category-block .row.g-4.mb-4 {
+        grid-template-columns: 1fr;
+    }
+    .service-detail-dialog {
+        margin: 16px auto;
+        width: calc(100% - 16px);
+    }
+    .service-detail-image {
+        height: 220px;
+    }
+    .service-detail-title {
+        font-size: 24px;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1199px) {
+    .unified-services-page .service-category-block .row.g-4.mb-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
 </style>
 
 <script>
 (function () {
-    const validCategories = ["spa", "hotel", "bath-dry", "ear-cleaning", "nail-trimming", "pickup-return", "health-check", "training"];
+    const validCategories = ["spa", "bath-dry", "ear-cleaning", "nail-trimming", "health-check", "training"];
     const categoryLabelMap = {
+        all: 'Tất cả dịch vụ',
         spa: 'Spa - Cắt tạo kiểu',
-        hotel: 'Khách sạn - Lưu trú',
         'bath-dry': 'Tắm & Sấy',
         'ear-cleaning': 'Vệ sinh tai',
         'nail-trimming': 'Cắt móng',
-        'pickup-return': 'Đón trả tận nơi',
         'health-check': 'Khám sức khỏe định kỳ',
         training: 'Huấn luyện cơ bản'
     };
 
     const normalizeCategory = (category) => {
-        if (!category || typeof category !== "string") return "spa";
-        return validCategories.includes(category) ? category : "spa";
+        if (!category || typeof category !== "string") return "all";
+        if (category === 'all') return 'all';
+        return validCategories.includes(category) ? category : "all";
     };
 
     const normalizeServiceName = (name) => {
@@ -208,14 +347,58 @@
     const resolveCategoryFromServiceName = (serviceName) => {
         const lower = String(serviceName || '').toLowerCase();
 
-        if (lower.includes('spa') || lower.includes('tạo kiểu')) return 'spa';
-        if (lower.includes('khách sạn') || lower.includes('lưu trú')) return 'hotel';
-        if (lower.includes('tắm') || lower.includes('sấy')) return 'bath-dry';
+        if (lower.includes('vệ sinh tai') || lower.includes('ve sinh tai')) return 'ear-cleaning';
+        if (lower.includes('cắt móng') || lower.includes('cat mong')) return 'nail-trimming';
+        if (lower.includes('tắm') || lower.includes('tam') || lower.includes('sấy') || lower.includes('say')) return 'bath-dry';
+        if (lower.includes('huấn luyện') || lower.includes('huan luyen') || lower.includes('đào tạo') || lower.includes('dao tao')) return 'training';
+        if (
+            lower.includes('khám')
+            || lower.includes('kham')
+            || lower.includes('vaccine')
+            || lower.includes('tiêm')
+            || lower.includes('tiem')
+            || lower.includes('tẩy giun')
+            || lower.includes('tay giun')
+            || lower.includes('xét nghiệm')
+            || lower.includes('xet nghiem')
+            || lower.includes('siêu âm')
+            || lower.includes('sieu am')
+            || lower.includes('cấp cứu')
+            || lower.includes('cap cuu')
+            || lower.includes('da liễu')
+            || lower.includes('da lieu')
+            || lower.includes('thú y')
+            || lower.includes('thu y')
+        ) return 'health-check';
+
+        if (
+            lower.includes('spa')
+            || lower.includes('tạo kiểu')
+            || lower.includes('tao kieu')
+            || lower.includes('cắt tỉa')
+            || lower.includes('cat tia')
+            || lower.includes('dưỡng lông')
+            || lower.includes('duong long')
+            || lower.includes('gỡ rối')
+            || lower.includes('go roi')
+            || lower.includes('khử mùi')
+            || lower.includes('khu mui')
+            || lower.includes('răng miệng')
+            || lower.includes('rang mieng')
+            || lower.includes('nhuộm lông')
+            || lower.includes('nhuom long')
+            || lower.includes('lưu chuồng')
+            || lower.includes('luu chuong')
+            || lower.includes('trông giữ')
+            || lower.includes('trong giu')
+            || lower.includes('vận chuyển')
+            || lower.includes('van chuyen')
+            || lower.includes('hộ chiếu')
+            || lower.includes('ho chieu')
+        ) return 'spa';
+
         if (lower.includes('vệ sinh tai') || lower.includes('tai')) return 'ear-cleaning';
         if (lower.includes('cắt móng') || lower.includes('móng')) return 'nail-trimming';
-        if (lower.includes('đón trả') || lower.includes('don tra') || lower.includes('đưa đón') || lower.includes('dua don')) return 'pickup-return';
-        if (lower.includes('khám sức khỏe') || lower.includes('kham suc khoe') || lower.includes('thú y') || lower.includes('thu y')) return 'health-check';
-        if (lower.includes('huấn luyện') || lower.includes('huan luyen') || lower.includes('đào tạo') || lower.includes('dao tao')) return 'training';
 
         return 'spa';
     };
@@ -264,11 +447,32 @@
     };
 
     const toSafeCssUrl = (value) => String(value || '').replace(/'/g, "\\'");
+    const toSafeText = (value) => String(value || '').trim();
+
+    const extractSummaryFromInfo = (info, fallbackText) => {
+        const fallback = toSafeText(fallbackText) || 'Dịch vụ chăm sóc thú cưng với quy trình an toàn và chuyên nghiệp.';
+        const raw = toSafeText(info);
+        if (!raw) return fallback;
+
+        const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const beforeProcess = normalized.split(/\n\s*\n\s*quy trình chi tiết\s*:/i)[0] || normalized;
+        const withoutPrefix = beforeProcess
+            .replace(/^mô tả cơ bản\s*:\s*/i, '')
+            .replace(/^mo ta co ban\s*:\s*/i, '')
+            .trim();
+
+        const compact = withoutPrefix.replace(/\s+/g, ' ').trim();
+        if (!compact) return fallback;
+
+        return compact.length > 160 ? `${compact.slice(0, 157)}...` : compact;
+    };
 
     const setServiceFilterButtonThumbs = (servicesByCategory) => {
         document.querySelectorAll('.service-filter-btn').forEach((button) => {
             const category = button.getAttribute('data-category') || '';
-            const bucket = servicesByCategory[category] || [];
+            const bucket = category === 'all'
+                ? validCategories.flatMap((key) => servicesByCategory[key] || [])
+                : (servicesByCategory[category] || []);
             const firstImage = resolveMediaUrl(String(bucket[0]?.hinhanh || '').trim()) || fallbackServiceImage;
 
             const label = categoryLabelMap[category] || button.textContent.trim();
@@ -327,12 +531,26 @@
                     bookingBtn.dataset.servicePrice = formatCurrencyVND(service.giadichvu);
                 }
 
+                const descEl = card.querySelector('.card-body .text-muted');
+                const dbInfo = toSafeText(service.thongtin);
+                if (descEl) {
+                    descEl.textContent = extractSummaryFromInfo(dbInfo, descEl.textContent);
+                }
+
+                card.dataset.serviceName = normalizeServiceName(service.tendichvu);
+                card.dataset.servicePrice = formatCurrencyVND(service.giadichvu);
+                card.dataset.serviceDuration = Number(service.thoigiandichvu || 0) > 0
+                    ? `${Math.round(Number(service.thoigiandichvu || 0))} phút`
+                    : 'Chưa cập nhật thời lượng';
+                card.dataset.serviceInfo = dbInfo || toSafeText(descEl?.textContent || 'Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.');
+
                 const imageBox = card.querySelector('.service-icon-bg');
                 const imageUrl = resolveMediaUrl(service.hinhanh) || fallbackServiceImage;
                 if (imageBox && imageUrl) {
                     imageBox.classList.add('has-photo');
                     imageBox.style.backgroundImage = `url('${toSafeCssUrl(imageUrl)}')`;
                 }
+                card.dataset.serviceImage = imageUrl;
             });
         });
 
@@ -389,7 +607,11 @@
         const current = normalizeCategory(category);
 
         document.querySelectorAll(".service-category-block").forEach((section) => {
-            section.style.display = section.getAttribute("data-category") === current ? "block" : "none";
+            if (current === 'all') {
+                section.style.display = "block";
+            } else {
+                section.style.display = section.getAttribute("data-category") === current ? "block" : "none";
+            }
         });
 
         document.querySelectorAll(".service-filter-btn").forEach((button) => {
@@ -401,6 +623,56 @@
 
     document.querySelectorAll(".service-filter-btn").forEach((button) => {
         button.addEventListener("click", () => applyCategory(button.getAttribute("data-category")));
+    });
+
+    const serviceDetailModal = document.getElementById('serviceDetailModal');
+    const serviceDetailTitle = document.getElementById('serviceDetailTitle');
+    const serviceDetailPrice = document.getElementById('serviceDetailPrice');
+    const serviceDetailDuration = document.getElementById('serviceDetailDuration');
+    const serviceDetailInfo = document.getElementById('serviceDetailInfo');
+    const serviceDetailImage = document.getElementById('serviceDetailImage');
+
+    const closeServiceDetailModal = () => {
+        if (!serviceDetailModal) return;
+        serviceDetailModal.classList.remove('open');
+        serviceDetailModal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    };
+
+    const openServiceDetailModal = (serviceCard) => {
+        if (!serviceDetailModal || !serviceCard) return;
+
+        serviceDetailTitle.textContent = toSafeText(serviceCard.dataset.serviceName) || 'Chi tiết dịch vụ';
+        serviceDetailPrice.textContent = toSafeText(serviceCard.dataset.servicePrice) || 'Liên hệ';
+        serviceDetailDuration.textContent = toSafeText(serviceCard.dataset.serviceDuration) || 'Chưa cập nhật thời lượng';
+        serviceDetailInfo.textContent = toSafeText(serviceCard.dataset.serviceInfo) || 'Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.';
+
+        const imageUrl = toSafeText(serviceCard.dataset.serviceImage) || fallbackServiceImage;
+        serviceDetailImage.style.backgroundImage = `url('${toSafeCssUrl(imageUrl)}')`;
+
+        serviceDetailModal.classList.add('open');
+        serviceDetailModal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    };
+
+    document.addEventListener('click', (event) => {
+        const closeTarget = event.target.closest('[data-modal-close="true"]');
+        if (closeTarget) {
+            closeServiceDetailModal();
+            return;
+        }
+
+        const serviceCard = event.target.closest('.service-card');
+        if (!serviceCard) return;
+        if (event.target.closest('.service-booking-btn')) return;
+
+        openServiceDetailModal(serviceCard);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && serviceDetailModal?.classList.contains('open')) {
+            closeServiceDetailModal();
+        }
     });
 
     document.addEventListener('click', (event) => {
@@ -456,19 +728,25 @@
     fetchServiceData().then((rows) => {
         if (!Array.isArray(rows) || rows.length === 0) return;
 
+        const activeRows = rows.filter((row) => {
+            const status = String(row?.trangthaidichvu || '').trim().toLowerCase();
+            return status === '' || status === 'hoatdong';
+        });
+
+        if (activeRows.length === 0) return;
+
         const servicesByCategory = {
             spa: [],
-            hotel: [],
             'bath-dry': [],
             'ear-cleaning': [],
             'nail-trimming': [],
-            'pickup-return': [],
             'health-check': [],
             training: []
         };
 
-        rows.forEach((row) => {
+        activeRows.forEach((row) => {
             const key = resolveCategoryFromServiceName(row?.tendichvu || '');
+            if (!key || !servicesByCategory[key]) return;
             const normalized = {
                 ...row,
                 tendichvu: normalizeServiceName(row?.tendichvu || ''),
@@ -479,6 +757,11 @@
 
         setServiceFilterButtonThumbs(servicesByCategory);
         bindServicesToCards(servicesByCategory);
+
+        const selectedCategory = normalizeCategory(window.currentServiceCategory);
+        if (selectedCategory !== 'all' && (servicesByCategory[selectedCategory] || []).length === 0) {
+            applyCategory('all');
+        }
     });
 })();
 </script>

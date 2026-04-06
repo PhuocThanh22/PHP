@@ -1183,6 +1183,8 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 }
 
 #categoriesContainer {
+    display: inline-flex !important;
+    width: max-content !important;
     gap: 24px !important;
     overflow-x: hidden;
     scroll-behavior: smooth;
@@ -1197,8 +1199,8 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 
 #categoriesContainer .category-item {
     position: relative;
-    flex: 0 0 calc((100% - 72px) / 4) !important;
-    min-width: calc((100% - 72px) / 4) !important;
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
 }
 
 .category-card {
@@ -1374,8 +1376,9 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     grid-auto-columns: minmax(320px, 360px);
     gap: 12px;
     overflow-x: auto;
+    padding-top: 14px;
     padding-bottom: 8px;
-    scroll-snap-type: x mandatory;
+    scroll-snap-type: none;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -1385,17 +1388,55 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 }
 
 .featured-showcase-card {
+    --featured-card-opacity: 1;
     background: #f4f4f4;
     border-radius: 18px;
     overflow: hidden;
     box-shadow: 0 10px 20px rgba(15, 23, 42, 0.1);
-    scroll-snap-align: start;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    opacity: var(--featured-card-opacity);
+    filter: saturate(0.8) brightness(0.9);
+    transform: translateY(0) scale(0.92);
+    transition: transform 0.28s ease, box-shadow 0.28s ease, opacity 0.28s ease, filter 0.28s ease;
+    position: relative;
 }
 
 .featured-showcase-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-5px) scale(0.94);
     box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+}
+
+.featured-showcase-card.is-center-focus {
+    opacity: 1;
+    filter: saturate(1) brightness(1);
+    transform: translateY(-10px) scale(1.04);
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.22);
+    z-index: 4;
+}
+
+.featured-showcase-card.is-center-focus:hover {
+    transform: translateY(-12px) scale(1.05);
+}
+
+.featured-showcase-card.is-side-dim {
+    z-index: 1;
+}
+
+.featured-showcase-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+}
+
+.featured-showcase-card.is-side-dim::after {
+    opacity: 1;
+}
+
+.featured-showcase-card.is-center-focus::after {
+    opacity: 0;
 }
 
 .featured-showcase-image-wrap {
@@ -5531,7 +5572,8 @@ html {
 
         .scroll-top-btn {
             position: fixed;
-            right: 24px;
+            left: 24px;
+            right: auto;
             bottom: 24px;
             width: 62px;
             height: 62px;
@@ -5636,7 +5678,7 @@ html {
             border-radius: 50%;
             right: -58px;
             bottom: -82px;
-            background: #f57f2a;
+            background: #1F8F4D;
             pointer-events: none;
         }
 
@@ -5870,7 +5912,8 @@ html {
             .scroll-top-btn {
                 width: 54px;
                 height: 54px;
-                right: 16px;
+                left: 16px;
+                right: auto;
                 bottom: 16px;
             }
         }

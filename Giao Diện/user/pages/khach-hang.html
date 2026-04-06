@@ -68,6 +68,33 @@
       border-bottom: 1px dashed #dbe3ee;
     }
 
+    .customer-tier-badge {
+      margin-top: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      line-height: 1;
+      color: #14532d;
+      background: #edf9f0;
+      border: 1px solid #cdebd5;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 700;
+    }
+
+    .customer-tier-badge svg {
+      width: 13px;
+      height: 13px;
+      stroke-width: 2.4;
+    }
+
+    .customer-tier-badge.is-vip {
+      color: #7a5200;
+      background: #fff6d6;
+      border-color: #ffe49a;
+    }
+
     .customer-avatar-wrap {
       position: relative;
       flex-shrink: 0;
@@ -697,7 +724,10 @@
         </div>
         <div>
           <div id="sidebarProfileName" style="font-size: 15px; font-weight: 700; color: #0f172a;">Khach hang</div>
-          <div class="muted" id="sidebarProfileEmail">Chua dang nhap</div>
+          <div class="customer-tier-badge" id="sidebarProfileTierBadge">
+            <i data-feather="award"></i>
+            <span id="sidebarProfileTierText">Khách hàng thường</span>
+          </div>
         </div>
       </div>
 
@@ -1626,7 +1656,27 @@
       const renderSidebarProfile = () => {
         const profile = store.get(KEYS.profile, {});
         document.getElementById('sidebarProfileName').textContent = profile.name || 'Khach hang';
-        document.getElementById('sidebarProfileEmail').textContent = profile.email || 'Chua dang nhap';
+        const tierBadge = document.getElementById('sidebarProfileTierBadge');
+        const tierText = document.getElementById('sidebarProfileTierText');
+
+        const profileTierRaw = String(profile.loaikhachhang || profile.customerType || profile.tier || '').trim().toLowerCase();
+        let resolvedTier = profileTierRaw === 'vip' || profileTierRaw === 'thuong' ? profileTierRaw : '';
+
+        if (resolvedTier === '') {
+          const completedSpend = getCurrentUserOrders()
+            .filter((order) => order.status === 'completed')
+            .reduce((sum, order) => sum + Number(order.total || orderTotal(order) || 0), 0);
+          resolvedTier = completedSpend >= 5000000 ? 'vip' : 'thuong';
+        }
+
+        if (tierText) {
+          tierText.textContent = resolvedTier === 'vip' ? 'Khách hàng VIP' : 'Khách hàng thường';
+        }
+
+        if (tierBadge) {
+          tierBadge.classList.toggle('is-vip', resolvedTier === 'vip');
+        }
+
         const initials = (profile.name || 'KH').split(' ').filter(Boolean).slice(-2).map((p) => p[0]).join('').toUpperCase();
         const avatarButton = document.getElementById('customerAvatar');
         const avatarText = document.getElementById('customerAvatarText');
