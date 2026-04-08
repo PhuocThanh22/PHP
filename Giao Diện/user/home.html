@@ -4034,7 +4034,7 @@
         position: absolute;
         right: 0;
         bottom: 74px;
-        width: min(360px, calc(100vw - 26px));
+        width: min(520px, calc(100vw - 12px));
         background: #fff;
         border: 1px solid #dbe9df;
         border-radius: 16px;
@@ -4080,14 +4080,56 @@
     }
 
     .user-chat-messages {
-        max-height: 280px;
-        min-height: 220px;
+        max-height: 360px;
+        min-height: 280px;
         padding: 12px;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 0;
         background: #f7faf8;
+    }
+
+    .user-chat-msg-row {
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: 6px;
+        max-width: 100%;
+        margin-top: 1px;
+    }
+
+    .user-chat-msg-row.incoming .user-chat-msg {
+        align-self: auto;
+    }
+
+    .user-chat-msg-row.incoming.media-incoming {
+        position: relative;
+        display: block;
+        padding-left: 32px;
+        margin-top: 1px;
+    }
+
+    .user-chat-msg-row.incoming.media-incoming .user-chat-msg-avatar {
+        position: absolute;
+        left: 0;
+        bottom: 8px;
+        margin: 0;
+    }
+
+    .user-chat-msg-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        border: 1px solid #b9dfc7;
+        background: linear-gradient(135deg, #e8f9ef 0%, #c9f0d8 100%);
+        color: #166534;
+        font-size: 10px;
+        font-weight: 800;
+        line-height: 24px;
+        text-align: center;
+        flex-shrink: 0;
+        user-select: none;
     }
 
     .user-chat-msg {
@@ -4095,6 +4137,8 @@
         max-width: 78%;
         border-radius: 12px;
         padding: 8px 10px;
+        position: relative;
+        margin: 0;
         font-size: 12px;
         line-height: 1.4;
         white-space: pre-wrap;
@@ -4250,6 +4294,7 @@
     .user-chat-msg-media {
         display: block;
         max-width: min(220px, 68vw);
+        margin: 0;
         border-radius: 10px;
         border: 1px solid rgba(15, 23, 42, 0.12);
         background: #fff;
@@ -4292,17 +4337,51 @@
         display: none;
     }
 
+    .user-chat-media-error-note {
+        margin-top: 6px;
+        font-size: 11px;
+        line-height: 1.35;
+        color: #4b5563;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 8px;
+        padding: 6px 8px;
+        max-width: min(220px, 68vw);
+    }
+
+    .user-chat-media-error-note a {
+        color: #166534;
+        font-weight: 700;
+        text-decoration: underline;
+    }
+
     .user-chat-msg-actions {
-        margin-top: 4px;
+        margin-top: 0;
         display: flex;
-        justify-content: flex-end;
+        justify-content: flex-start;
+        position: absolute;
+        left: -56px;
+        top: 50%;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-50%);
+        transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+    }
+
+    .user-chat-msg.user:hover .user-chat-msg-actions,
+    .user-chat-msg.user:focus-within .user-chat-msg-actions {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(-50%);
     }
 
     .user-chat-recall-btn {
-        border: none;
+        border: 1px solid #f59e0b;
         border-radius: 8px;
-        background: rgba(15, 23, 42, 0.12);
-        color: inherit;
+        background: #fef3c7;
+        color: #92400e;
         font-size: 10px;
         font-weight: 700;
         line-height: 1;
@@ -4311,8 +4390,20 @@
     }
 
     .user-chat-msg.staff .user-chat-recall-btn {
-        background: rgba(15, 23, 42, 0.08);
-        color: #1f2937;
+        border-color: #f59e0b;
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    @media (hover: none) {
+        .user-chat-msg.user .user-chat-msg-actions {
+            position: static;
+            margin-top: 4px;
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
     }
 
     @media (max-width: 768px) {
@@ -4361,8 +4452,8 @@
 <script>
     (function () {
         const STORAGE_KEY = 'petshop_support_chat_threads_v3';
+        const CHAT_PURGE_FLAG_KEY = 'petshop_support_chat_purged_v1';
         const LAST_SEEN_KEY_PREFIX = 'petshop_user_chat_last_seen_at_v4';
-        const GUEST_SESSION_ID_KEY = 'petshop_support_chat_guest_session_id_v1';
         const AUTH_STORAGE_KEYS = {
             authUser: 'authUser',
             userSession: 'userSession',
@@ -4389,6 +4480,7 @@
         }
 
         const CHAT_EMOJIS = ['😊', '😍', '🥰', '👍', '❤️', '🙏', '😄', '😂', '😢', '😮', '👏', '🎉'];
+        const CHAT_MEDIA_RESOLUTION_CACHE_KEY = 'petshop_chat_media_resolution_cache_v1';
         const MAX_MEDIA_BYTES = {
             image: 20 * 1024 * 1024,
             video: 100 * 1024 * 1024,
@@ -4411,6 +4503,12 @@
         };
 
         const readThreads = () => safeParse(localStorage.getItem(STORAGE_KEY), []);
+
+        const purgeAllThreadsOnce = () => {
+            if (String(localStorage.getItem(CHAT_PURGE_FLAG_KEY) || '').trim()) return;
+            localStorage.setItem(STORAGE_KEY, '[]');
+            localStorage.setItem(CHAT_PURGE_FLAG_KEY, nowIso());
+        };
 
         const compactThreadsForStorage = (threads, maxMessagesPerThread = 1000) => {
             const normalizedThreads = Array.isArray(threads) ? threads : [];
@@ -4487,41 +4585,63 @@
             );
         };
 
-        const ensureGuestSessionId = () => {
-            let guestId = String(sessionStorage.getItem(GUEST_SESSION_ID_KEY) || '').trim();
-            if (guestId) return guestId;
-
-            guestId = `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-            sessionStorage.setItem(GUEST_SESSION_ID_KEY, guestId);
-            return guestId;
-        };
-
         const getChatIdentity = () => {
             const auth = readCurrentCustomerAuth();
-            if (auth) {
-                return {
-                    key: `user-${auth.id}`,
-                    customerId: auth.id,
-                    customerName: auth.name || auth.email || `Khách hàng #${auth.id}`,
-                    isGuest: false
-                };
+            if (!auth) {
+                return null;
             }
 
-            const guestSessionId = ensureGuestSessionId();
             return {
-                key: guestSessionId,
-                customerId: 0,
-                customerName: 'Khách vãng lai',
-                isGuest: true
+                key: `user-${auth.id}`,
+                customerId: auth.id,
+                customerName: auth.name || auth.email || `Khách hàng #${auth.id}`,
+                isGuest: false
             };
         };
 
-        const getLastSeenKey = () => `${LAST_SEEN_KEY_PREFIX}:${getChatIdentity().key}`;
+        const getLastSeenKey = () => {
+            const identity = getChatIdentity();
+            return `${LAST_SEEN_KEY_PREFIX}:${identity ? identity.key : 'anonymous'}`;
+        };
         const readLastSeen = () => String(localStorage.getItem(getLastSeenKey()) || '').trim();
         const writeLastSeen = (isoText) => localStorage.setItem(getLastSeenKey(), String(isoText || nowIso()));
 
+        const ensureChatLogin = (message) => {
+            const auth = readCurrentCustomerAuth();
+            if (auth) return true;
+
+            const promptText = String(message || 'Vui lòng đăng nhập để nhắn tin với staff.');
+            if (typeof window.requireCustomerLogin === 'function') {
+                window.requireCustomerLogin(promptText, () => {
+                    renderMessages();
+                    updateUnreadBadge();
+                    if (panel.classList.contains('show')) {
+                        inputEl.focus();
+                    }
+                });
+            } else {
+                alert(promptText);
+            }
+
+            return false;
+        };
+
+        const syncComposeAuthUi = () => {
+            const isLoggedIn = Boolean(readCurrentCustomerAuth());
+            inputEl.disabled = !isLoggedIn;
+            sendBtn.disabled = !isLoggedIn;
+            emojiBtn.disabled = !isLoggedIn;
+            imageBtn.disabled = !isLoggedIn;
+            videoBtn.disabled = !isLoggedIn;
+            recordBtn.disabled = !isLoggedIn;
+            inputEl.placeholder = isLoggedIn
+                ? 'Nhập tin nhắn cho staff...'
+                : 'Đăng nhập để nhắn tin với staff';
+        };
+
         const getUnreadCount = () => {
             const thread = ensureCurrentThread();
+            if (!thread || !Array.isArray(thread.messages)) return 0;
             const messages = Array.isArray(thread.messages) ? thread.messages : [];
             const lastSeenText = readLastSeen();
             const lastSeenTime = lastSeenText ? new Date(lastSeenText).getTime() : 0;
@@ -4615,6 +4735,23 @@
             return fallback || 'bin';
         };
 
+        const CHAT_MEDIA_FALLBACK_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#eef2f7"/><stop offset="100%" stop-color="#dbe7f3"/></linearGradient></defs><rect fill="url(#g)" width="640" height="400"/><g fill="none" stroke="#94a3b8" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"><rect x="140" y="95" width="360" height="210" rx="18"/><path d="M180 258l84-84 62 62 54-54 80 80"/></g><circle cx="250" cy="165" r="23" fill="#94a3b8"/><text x="320" y="338" text-anchor="middle" fill="#475569" font-size="28" font-family="Arial, sans-serif">Khong tai duoc anh</text></svg>')}`;
+
+        const readMediaResolutionCache = () => {
+            const parsed = safeParse(sessionStorage.getItem(CHAT_MEDIA_RESOLUTION_CACHE_KEY), {});
+            if (!parsed || typeof parsed !== 'object') return {};
+            return parsed;
+        };
+
+        const mediaResolutionCache = readMediaResolutionCache();
+        const persistMediaResolutionCache = () => {
+            try {
+                sessionStorage.setItem(CHAT_MEDIA_RESOLUTION_CACHE_KEY, JSON.stringify(mediaResolutionCache));
+            } catch (e) {
+                // ignore session storage full errors
+            }
+        };
+
         const getActiveAppBasePath = () => {
             const pathname = String(window.location.pathname || '').toLowerCase();
             const knownBases = ['/phuocthanh/phpchinh', '/phpchinh'];
@@ -4630,10 +4767,31 @@
             const text = String(rawUrl || '').trim();
             if (!text) return [];
 
+            const cachedResolved = String(mediaResolutionCache[text] || '').trim();
+            if (cachedResolved) {
+                return [cachedResolved, text];
+            }
+
             const normalized = text.replace(/\\/g, '/');
             if (normalized.startsWith('blob:') || normalized.startsWith('data:')) {
                 return [normalized];
             }
+
+            const stripRelativePrefix = (value) => String(value || '').replace(/^(\.\/)+/, '').replace(/^(\.\.\/)+/, '');
+            const extractFromAnhData = (value) => {
+                const next = String(value || '').trim();
+                if (!next) return '';
+                const lower = next.toLowerCase();
+                const markerIndex = lower.indexOf('/anhdata/');
+                if (markerIndex >= 0) {
+                    return next.slice(markerIndex);
+                }
+                const markerNoSlashIndex = lower.indexOf('anhdata/');
+                if (markerNoSlashIndex >= 0) {
+                    return `/${next.slice(markerNoSlashIndex)}`;
+                }
+                return '';
+            };
 
             let pathLike = normalized;
             if (/^https?:\/\//i.test(normalized)) {
@@ -4655,8 +4813,12 @@
             };
 
             pushPathVariant(pathLike);
+            pushPathVariant(stripRelativePrefix(pathLike));
+            pushPathVariant(extractFromAnhData(pathLike));
             try {
                 pushPathVariant(decodeURIComponent(pathLike));
+                pushPathVariant(stripRelativePrefix(decodeURIComponent(pathLike)));
+                pushPathVariant(extractFromAnhData(decodeURIComponent(pathLike)));
             } catch (e) {
                 // no-op
             }
@@ -4682,6 +4844,9 @@
             pathVariants.forEach((variant) => {
                 const lower = variant.toLowerCase();
                 push(variant);
+                if (variant.startsWith('/')) {
+                    push(`${window.location.origin}${variant}`);
+                }
 
                 if (lower.startsWith('/phuocthanh/phpchinh/')) {
                     const tail = variant.slice('/phuocthanh/PHPCHINH'.length);
@@ -4698,6 +4863,12 @@
                     push(`/${variant}`);
                 } else if (lower.startsWith('phpchinh/')) {
                     push(`/${variant}`);
+                }
+
+                const fromAnhData = extractFromAnhData(variant);
+                if (fromAnhData) {
+                    push(fromAnhData);
+                    uniqueBaseCandidates.forEach((base) => push(`${base}${fromAnhData}`));
                 }
             });
 
@@ -4722,6 +4893,25 @@
                 if (candidates.length === 0) return;
 
                 let index = -1;
+                const kind = String(element.tagName || '').toUpperCase();
+                const rawMediaUrl = raw;
+                const appendMediaErrorNote = () => {
+                    if (!element.parentElement) return;
+                    if (element.parentElement.querySelector('.user-chat-media-error-note')) return;
+
+                    const note = document.createElement('div');
+                    note.className = 'user-chat-media-error-note';
+
+                    if (kind === 'VIDEO') {
+                        const safeUrl = escapeHtml(rawMediaUrl);
+                        note.innerHTML = `Khong phat duoc video. <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Mo hoac tai video</a>`;
+                    } else {
+                        note.textContent = 'Khong tai duoc media. Vui long thu lai sau.';
+                    }
+
+                    element.parentElement.appendChild(note);
+                };
+
                 const setMediaSrc = (next) => {
                     const target = String(next || '').trim();
                     if (!target) return;
@@ -4749,11 +4939,45 @@
                     return false;
                 };
 
+                const handleLoaded = () => {
+                    const loadedSrc = String(element.currentSrc || element.getAttribute('src') || '').trim();
+                    if (!loadedSrc || !raw) return;
+                    if (mediaResolutionCache[raw] === loadedSrc) return;
+                    mediaResolutionCache[raw] = loadedSrc;
+                    persistMediaResolutionCache();
+                };
+
+                element.addEventListener('load', handleLoaded);
+                element.addEventListener('loadeddata', handleLoaded);
+
                 element.addEventListener('error', () => {
-                    tryNextCandidate();
+                    const hasMore = tryNextCandidate();
+                    if (hasMore) return;
+
+                    if (kind === 'IMG') {
+                        element.setAttribute('src', CHAT_MEDIA_FALLBACK_IMAGE);
+                    }
+                    appendMediaErrorNote();
                 });
 
                 tryNextCandidate();
+            });
+        };
+
+        const primeVisibleChatMedia = (container) => {
+            if (!container) return;
+            const mediaElements = container.querySelectorAll('img[data-media-src], video[data-media-src]');
+            mediaElements.forEach((element) => {
+                const tag = String(element.tagName || '').toUpperCase();
+                if (tag === 'IMG') {
+                    element.setAttribute('loading', 'eager');
+                    element.setAttribute('decoding', 'async');
+                    element.setAttribute('fetchpriority', 'high');
+                    return;
+                }
+                if (tag === 'VIDEO') {
+                    element.setAttribute('preload', 'auto');
+                }
             });
         };
 
@@ -4779,35 +5003,43 @@
         const renderMessageHtml = (msg) => {
             const message = normalizeMessage(msg);
             const senderClass = message.sender === 'staff' ? 'staff' : 'user';
+            const isIncomingFromStaff = message.sender === 'staff';
+            const isMediaMessage = message.type === 'image' || message.type === 'video' || message.type === 'audio';
             const canRecall = message.sender === 'user' && !message.deleted;
             const actionHtml = canRecall
                 ? `<div class="user-chat-msg-actions"><button type="button" class="user-chat-recall-btn" data-msg-id="${escapeHtml(message.id)}" aria-label="Thu hồi tin nhắn">Thu hồi</button></div>`
                 : '';
 
+            const wrapIncomingStaffBubble = (bubbleHtml) => {
+                if (!isIncomingFromStaff) return bubbleHtml;
+                const rowClass = isMediaMessage ? 'user-chat-msg-row incoming media-incoming' : 'user-chat-msg-row incoming';
+                return `<div class="${rowClass}"><span class="user-chat-msg-avatar" aria-label="Staff">ST</span>${bubbleHtml}</div>`;
+            };
+
             if (message.deleted) {
-                return `<div class="user-chat-msg ${senderClass} deleted">Tin nhắn đã được thu hồi</div>`;
+                return wrapIncomingStaffBubble(`<div class="user-chat-msg ${senderClass} deleted">Tin nhắn đã được thu hồi</div>`);
             }
 
             if (message.type === 'image' && message.mediaUrl) {
-                return `
+                return wrapIncomingStaffBubble(`
                     <div class="user-chat-msg ${senderClass} media-only">
                         <img data-media-src="${escapeHtml(message.mediaUrl)}" alt="Ảnh chat" class="user-chat-msg-media" loading="lazy">
                         ${actionHtml}
                     </div>
-                `;
+                `);
             }
 
             if (message.type === 'video' && message.mediaUrl) {
-                return `
+                return wrapIncomingStaffBubble(`
                     <div class="user-chat-msg ${senderClass} media-only">
                         <video class="user-chat-msg-media" controls preload="metadata" data-media-src="${escapeHtml(message.mediaUrl)}"></video>
                         ${actionHtml}
                     </div>
-                `;
+                `);
             }
 
             if (message.type === 'audio' && message.mediaUrl) {
-                return `
+                return wrapIncomingStaffBubble(`
                     <div class="user-chat-msg ${senderClass} media-only">
                         <div class="user-chat-audio-card">
                             <div class="user-chat-audio-head"><span class="user-chat-audio-dot" aria-hidden="true"></span><span>Tin nhắn ghi âm</span></div>
@@ -4815,16 +5047,20 @@
                         </div>
                         ${actionHtml}
                     </div>
-                `;
+                `);
             }
 
-            return `<div class="user-chat-msg ${senderClass}">${escapeHtml(message.text)}${actionHtml}</div>`;
+            return wrapIncomingStaffBubble(`<div class="user-chat-msg ${senderClass}">${escapeHtml(message.text)}${actionHtml}</div>`);
         };
 
-        const ensureThreadId = () => getChatIdentity().key;
+        const ensureThreadId = () => {
+            const identity = getChatIdentity();
+            return identity ? identity.key : '';
+        };
 
         const ensureCurrentThread = () => {
             const identity = getChatIdentity();
+            if (!identity) return null;
             const threadId = identity.key;
             const threads = readThreads();
             const existing = threads.find((item) => item.id === threadId);
@@ -4857,7 +5093,19 @@
         };
 
         const renderMessages = () => {
+            syncComposeAuthUi();
+
+            if (!readCurrentCustomerAuth()) {
+                messagesEl.innerHTML = '<div class="user-chat-empty">Vui lòng đăng nhập để bắt đầu chat với staff.</div>';
+                return;
+            }
+
             const thread = ensureCurrentThread();
+            if (!thread) {
+                messagesEl.innerHTML = '<div class="user-chat-empty">Vui lòng đăng nhập để bắt đầu chat với staff.</div>';
+                return;
+            }
+
             const messages = Array.isArray(thread.messages) ? thread.messages : [];
             const identity = getChatIdentity();
 
@@ -4870,11 +5118,14 @@
 
             messagesEl.innerHTML = messages.map(renderMessageHtml).join('');
             applyMediaFallbacks(messagesEl);
+            primeVisibleChatMedia(messagesEl);
 
             messagesEl.scrollTop = messagesEl.scrollHeight;
         };
 
         const pushMessage = (sender, text, options = {}) => {
+            if (!ensureChatLogin('Vui lòng đăng nhập để nhắn tin với staff.')) return;
+
             const normalizedSender = sender === 'staff' ? 'staff' : 'user';
             const type = ['text', 'image', 'video', 'audio'].includes(String(options.type || 'text')) ? String(options.type || 'text') : 'text';
             const content = String(text || '').trim();
@@ -4927,6 +5178,7 @@
         };
 
         const sendCurrentMessage = () => {
+            if (!ensureChatLogin('Vui lòng đăng nhập để nhắn tin với staff.')) return;
             const text = inputEl.value;
             if (!String(text || '').trim()) return;
             pushMessage('user', text);
@@ -4935,6 +5187,7 @@
         };
 
         const recallCurrentMessage = (messageId) => {
+            if (!ensureChatLogin('Vui lòng đăng nhập để quản lý tin nhắn.')) return;
             const targetId = String(messageId || '').trim();
             if (!targetId) return;
 
@@ -4964,6 +5217,7 @@
         };
 
         const sendFileMessage = async (kind, file) => {
+            if (!ensureChatLogin('Vui lòng đăng nhập để gửi media.')) return;
             if (!file) return;
             const maxSize = MAX_MEDIA_BYTES[kind] || (900 * 1024);
             if (file.size > maxSize) {
@@ -4997,6 +5251,7 @@
         };
 
         const startRecording = async () => {
+            if (!ensureChatLogin('Vui lòng đăng nhập để gửi ghi âm.')) return;
             if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
                 alert('Trình duyệt không hỗ trợ ghi âm.');
                 return;
@@ -5060,6 +5315,10 @@
         );
 
         toggleBtn.addEventListener('click', () => {
+            if (!panel.classList.contains('show') && !ensureChatLogin('Vui lòng đăng nhập để chat với staff.')) {
+                return;
+            }
+
             panel.classList.toggle('show');
             if (panel.classList.contains('show')) {
                 renderMessages();
@@ -5146,6 +5405,7 @@
             }
         });
 
+        purgeAllThreadsOnce();
         ensureCurrentThread();
         renderMessages();
         updateUnreadBadge();

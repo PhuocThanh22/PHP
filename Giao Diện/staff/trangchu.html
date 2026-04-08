@@ -449,6 +449,7 @@
     <script>
         (function () {
             const STORAGE_KEY = 'petshop_support_chat_threads_v3';
+            const CHAT_PURGE_FLAG_KEY = 'petshop_support_chat_purged_v1';
             const LAST_SEEN_KEY = 'petshop_staff_chat_last_seen_at_v3';
             const panel = document.getElementById('staffChatPanel');
             const toggleBtn = document.getElementById('staffChatToggle');
@@ -473,6 +474,7 @@
             }
 
             const CHAT_EMOJIS = ['😊', '😍', '🥰', '👍', '❤️', '🙏', '😄', '😂', '😢', '😮', '👏', '🎉'];
+            const CHAT_MEDIA_RESOLUTION_CACHE_KEY = 'petshop_chat_media_resolution_cache_v1';
             const MAX_MEDIA_BYTES = {
                 image: 20 * 1024 * 1024,
                 video: 100 * 1024 * 1024,
@@ -485,6 +487,8 @@
 
             let activeThreadId = '';
             let threadFilterKeyword = '';
+            let lastRenderedThreadId = '';
+            let lastRenderedMessagesSignature = '';
 
             const safeParse = (raw, fallback) => {
                 try {
@@ -496,6 +500,12 @@
             };
 
             const readThreads = () => safeParse(localStorage.getItem(STORAGE_KEY), []);
+
+            const purgeAllThreadsOnce = () => {
+                if (String(localStorage.getItem(CHAT_PURGE_FLAG_KEY) || '').trim()) return;
+                localStorage.setItem(STORAGE_KEY, '[]');
+                localStorage.setItem(CHAT_PURGE_FLAG_KEY, new Date().toISOString());
+            };
 
             const compactThreadsForStorage = (threads, maxMessagesPerThread = 1000) => {
                 const normalizedThreads = Array.isArray(threads) ? threads : [];
@@ -629,15 +639,34 @@
                     return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
                 });
 
+                // Staff chỉ hiển thị hội thoại của tài khoản đăng nhập thực (không hiển thị khách vãng lai)
+                // và chỉ hiện khi user đã gửi ít nhất một tin nhắn.
+                const visibleThreads = mergedThreads.filter((thread) => {
+                    const customerId = Number(thread?.customerId || 0);
+                    const identityKey = String(thread?.identityKey || thread?.id || '').trim().toLowerCase();
+                    const hasRealAccount = (Number.isFinite(customerId) && customerId > 0) || /^user-\d+$/.test(identityKey);
+                    if (!hasRealAccount) {
+                        return false;
+                    }
+
+                    const messages = Array.isArray(thread?.messages) ? thread.messages : [];
+                    const hasUserMessage = messages.some((msg) => {
+                        const message = normalizeMessage(msg || {});
+                        return message.sender === 'user' && !msg?.deleted;
+                    });
+
+                    return hasUserMessage;
+                });
+
                 try {
-                    if (JSON.stringify(sourceThreads) !== JSON.stringify(mergedThreads)) {
-                        writeThreads(mergedThreads);
+                    if (JSON.stringify(sourceThreads) !== JSON.stringify(visibleThreads)) {
+                        writeThreads(visibleThreads);
                     }
                 } catch (e) {
                     // ignore stringify comparison issues
                 }
 
-                return mergedThreads;
+                return visibleThreads;
             };
             const readLastSeen = () => String(localStorage.getItem(LAST_SEEN_KEY) || '').trim();
             const writeLastSeen = (isoText) => localStorage.setItem(LAST_SEEN_KEY, String(isoText || new Date().toISOString()));
@@ -652,7 +681,8 @@
                 'home_api.php?api=upload_chat_media',
                 '../../index.php?api=upload_chat_media',
                 '/phuocthanh/PHPCHINH/index.php?api=upload_chat_media',
-                '/PHPCHINH/index.php?api=upload_chat_media'
+                '/PHPCHINH/index.php?api=upload_chat_media',
+                '/index.php?api=upload_chat_media'
             ];
 
             const uploadChatMedia = async (kind, file) => {
@@ -705,6 +735,23 @@
                 return fallback || 'bin';
             };
 
+            const CHAT_MEDIA_FALLBACK_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#eef2f7"/><stop offset="100%" stop-color="#dbe7f3"/></linearGradient></defs><rect fill="url(#g)" width="640" height="400"/><g fill="none" stroke="#94a3b8" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"><rect x="140" y="95" width="360" height="210" rx="18"/><path d="M180 258l84-84 62 62 54-54 80 80"/></g><circle cx="250" cy="165" r="23" fill="#94a3b8"/><text x="320" y="338" text-anchor="middle" fill="#475569" font-size="28" font-family="Arial, sans-serif">Khong tai duoc anh</text></svg>')}`;
+
+            const readMediaResolutionCache = () => {
+                const parsed = safeParse(sessionStorage.getItem(CHAT_MEDIA_RESOLUTION_CACHE_KEY), {});
+                if (!parsed || typeof parsed !== 'object') return {};
+                return parsed;
+            };
+
+            const mediaResolutionCache = readMediaResolutionCache();
+            const persistMediaResolutionCache = () => {
+                try {
+                    sessionStorage.setItem(CHAT_MEDIA_RESOLUTION_CACHE_KEY, JSON.stringify(mediaResolutionCache));
+                } catch (e) {
+                    // ignore session storage full errors
+                }
+            };
+
             const getActiveAppBasePath = () => {
                 const pathname = String(window.location.pathname || '').toLowerCase();
                 const knownBases = ['/phuocthanh/phpchinh', '/phpchinh'];
@@ -720,10 +767,31 @@
                 const text = String(rawUrl || '').trim();
                 if (!text) return [];
 
+                const cachedResolved = String(mediaResolutionCache[text] || '').trim();
+                if (cachedResolved) {
+                    return [cachedResolved, text];
+                }
+
                 const normalized = text.replace(/\\/g, '/');
                 if (normalized.startsWith('blob:') || normalized.startsWith('data:')) {
                     return [normalized];
                 }
+
+                const stripRelativePrefix = (value) => String(value || '').replace(/^(\.\/)+/, '').replace(/^(\.\.\/)+/, '');
+                const extractFromAnhData = (value) => {
+                    const next = String(value || '').trim();
+                    if (!next) return '';
+                    const lower = next.toLowerCase();
+                    const markerIndex = lower.indexOf('/anhdata/');
+                    if (markerIndex >= 0) {
+                        return next.slice(markerIndex);
+                    }
+                    const markerNoSlashIndex = lower.indexOf('anhdata/');
+                    if (markerNoSlashIndex >= 0) {
+                        return `/${next.slice(markerNoSlashIndex)}`;
+                    }
+                    return '';
+                };
 
                 let pathLike = normalized;
                 if (/^https?:\/\//i.test(normalized)) {
@@ -745,8 +813,12 @@
                 };
 
                 pushPathVariant(pathLike);
+                pushPathVariant(stripRelativePrefix(pathLike));
+                pushPathVariant(extractFromAnhData(pathLike));
                 try {
                     pushPathVariant(decodeURIComponent(pathLike));
+                    pushPathVariant(stripRelativePrefix(decodeURIComponent(pathLike)));
+                    pushPathVariant(extractFromAnhData(decodeURIComponent(pathLike)));
                 } catch (e) {
                     // no-op
                 }
@@ -772,6 +844,9 @@
                 pathVariants.forEach((variant) => {
                     const lower = variant.toLowerCase();
                     push(variant);
+                    if (variant.startsWith('/')) {
+                        push(`${window.location.origin}${variant}`);
+                    }
 
                     if (lower.startsWith('/phuocthanh/phpchinh/')) {
                         const tail = variant.slice('/phuocthanh/PHPCHINH'.length);
@@ -788,6 +863,12 @@
                         push(`/${variant}`);
                     } else if (lower.startsWith('phpchinh/')) {
                         push(`/${variant}`);
+                    }
+
+                    const fromAnhData = extractFromAnhData(variant);
+                    if (fromAnhData) {
+                        push(fromAnhData);
+                        uniqueBaseCandidates.forEach((base) => push(`${base}${fromAnhData}`));
                     }
                 });
 
@@ -812,6 +893,24 @@
                     if (candidates.length === 0) return;
 
                     let index = -1;
+                    const kind = String(element.tagName || '').toUpperCase();
+                    const rawMediaUrl = raw;
+                    const appendMediaErrorNote = () => {
+                        if (!element.parentElement) return;
+                        if (element.parentElement.querySelector('.home-chat-media-error-note')) return;
+
+                        const note = document.createElement('div');
+                        note.className = 'home-chat-media-error-note';
+
+                        if (kind === 'VIDEO') {
+                            const safeUrl = escapeHtml(rawMediaUrl);
+                            note.innerHTML = `Khong phat duoc video. <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Mo hoac tai video</a>`;
+                        } else {
+                            note.textContent = 'Khong tai duoc media. Vui long thu lai sau.';
+                        }
+
+                        element.parentElement.appendChild(note);
+                    };
                     const setMediaSrc = (next) => {
                         const target = String(next || '').trim();
                         if (!target) return;
@@ -839,11 +938,45 @@
                         return false;
                     };
 
+                    const handleLoaded = () => {
+                        const loadedSrc = String(element.currentSrc || element.getAttribute('src') || '').trim();
+                        if (!loadedSrc || !raw) return;
+                        if (mediaResolutionCache[raw] === loadedSrc) return;
+                        mediaResolutionCache[raw] = loadedSrc;
+                        persistMediaResolutionCache();
+                    };
+
+                    element.addEventListener('load', handleLoaded);
+                    element.addEventListener('loadeddata', handleLoaded);
+
                     element.addEventListener('error', () => {
-                        tryNextCandidate();
+                        const hasMore = tryNextCandidate();
+                        if (hasMore) return;
+
+                        if (kind === 'IMG') {
+                            element.setAttribute('src', CHAT_MEDIA_FALLBACK_IMAGE);
+                        }
+                        appendMediaErrorNote();
                     });
 
                     tryNextCandidate();
+                });
+            };
+
+            const primeVisibleChatMedia = (container) => {
+                if (!container) return;
+                const mediaElements = container.querySelectorAll('img[data-media-src], video[data-media-src]');
+                mediaElements.forEach((element) => {
+                    const tag = String(element.tagName || '').toUpperCase();
+                    if (tag === 'IMG') {
+                        element.setAttribute('loading', 'eager');
+                        element.setAttribute('decoding', 'async');
+                        element.setAttribute('fetchpriority', 'high');
+                        return;
+                    }
+                    if (tag === 'VIDEO') {
+                        element.setAttribute('preload', 'auto');
+                    }
                 });
             };
 
@@ -986,7 +1119,9 @@
                 return threads;
             };
 
-            const renderMessages = () => {
+            const renderMessages = (options = {}) => {
+                const preserveScroll = options.preserveScroll !== false;
+                const forceScrollBottom = options.forceScrollBottom === true;
                 const threads = normalizeThreadsForStaff();
                 const thread = threads.find((item) => String(item.id || '') === activeThreadId);
                 const messages = thread && Array.isArray(thread.messages) ? thread.messages : [];
@@ -1001,23 +1136,63 @@
                     return;
                 }
 
+                const currentThreadId = String(thread.id || '');
+                const signature = messages.map((msg) => {
+                    const m = normalizeMessage(msg);
+                    return [
+                        m.id,
+                        m.sender,
+                        m.type,
+                        m.text,
+                        m.mediaUrl,
+                        String(msg?.deleted ? 1 : 0),
+                        m.time
+                    ].join('|');
+                }).join('||');
+
+                if (
+                    !forceScrollBottom &&
+                    lastRenderedThreadId === currentThreadId &&
+                    lastRenderedMessagesSignature === signature
+                ) {
+                    return;
+                }
+
+                const previousScrollTop = messagesEl.scrollTop;
+                const previousScrollHeight = messagesEl.scrollHeight;
+                const previousClientHeight = messagesEl.clientHeight;
+                const wasNearBottom = (previousScrollHeight - (previousScrollTop + previousClientHeight)) <= 36;
+
                 messagesEl.innerHTML = messages.map((msg) => {
                     const message = normalizeMessage(msg);
                     const senderClass = message.sender === 'staff' ? 'staff' : 'user';
+                    const isIncomingFromUser = message.sender === 'user';
                     const senderLabel = message.sender === 'staff' ? 'Staff' : 'Khách';
                     const canRecall = message.sender === 'staff' && !message.deleted;
                     const actionHtml = canRecall
                         ? `<div class="home-chat-msg-actions"><button type="button" class="home-chat-recall-btn" data-msg-id="${escapeHtml(message.id)}" aria-label="Thu hồi tin nhắn">Thu hồi</button></div>`
                         : '';
+                    const customerName = String(thread.customerName || 'Khách hàng').trim() || 'Khách hàng';
+                    const customerInitials = customerName
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((part) => part.charAt(0).toUpperCase())
+                        .join('') || 'KH';
+
+                    const wrapIncomingUserBubble = (bubbleHtml) => {
+                        if (!isIncomingFromUser) return bubbleHtml;
+                        return `<div class="home-chat-msg-row incoming"><span class="home-chat-msg-avatar" aria-label="${escapeHtml(customerName)}">${escapeHtml(customerInitials)}</span>${bubbleHtml}</div>`;
+                    };
 
                     if (message.deleted) {
-                        return `
+                        return wrapIncomingUserBubble(`
                             <div class="home-chat-msg ${senderClass} deleted">
                                 <div class="home-chat-msg-label">${senderLabel}</div>
                                 <div>Tin nhắn đã được thu hồi</div>
                                 <time>${formatTime(message.time)}</time>
                             </div>
-                        `;
+                        `);
                     }
 
                     let bodyHtml = `<div>${escapeHtml(message.text)}</div>`;
@@ -1041,24 +1216,36 @@
 
                     const mediaOnlyClass = (message.type === 'image' || message.type === 'video' || message.type === 'audio') ? ' media-only' : '';
 
-                    return `
+                    return wrapIncomingUserBubble(`
                         <div class="home-chat-msg ${senderClass}${mediaOnlyClass}">
                             <div class="home-chat-msg-label">${senderLabel}</div>
                             ${bodyHtml}
                             ${actionHtml}
                             <time>${formatTime(message.time)}</time>
                         </div>
-                    `;
+                    `);
                 }).join('');
 
                 applyMediaFallbacks(messagesEl);
+                primeVisibleChatMedia(messagesEl);
 
-                messagesEl.scrollTop = messagesEl.scrollHeight;
+                const switchedThread = lastRenderedThreadId !== currentThreadId;
+                const shouldScrollBottom = forceScrollBottom || switchedThread || !preserveScroll || wasNearBottom;
+                if (shouldScrollBottom) {
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                } else {
+                    const nextScrollHeight = messagesEl.scrollHeight;
+                    const delta = nextScrollHeight - previousScrollHeight;
+                    messagesEl.scrollTop = Math.max(0, previousScrollTop + (delta > 0 ? delta : 0));
+                }
+
+                lastRenderedThreadId = currentThreadId;
+                lastRenderedMessagesSignature = signature;
             };
 
-            const refreshChat = () => {
+            const refreshChat = (options = {}) => {
                 renderThreads();
-                renderMessages();
+                renderMessages(options);
                 updateUnreadBadge();
             };
 
@@ -1092,7 +1279,7 @@
                 thread.lastUpdated = new Date().toISOString();
 
                 if (!writeThreads(threads)) return;
-                refreshChat();
+                refreshChat({ forceScrollBottom: true, preserveScroll: false });
             };
 
             const sendStaffMessage = () => {
@@ -1126,7 +1313,7 @@
                 thread.lastUpdated = new Date().toISOString();
 
                 if (!writeThreads(threads)) return;
-                refreshChat();
+                refreshChat({ forceScrollBottom: true, preserveScroll: false });
             };
 
             const sendFileMessage = async (kind, file) => {
@@ -1221,7 +1408,7 @@
                 const button = event.target.closest('.home-thread-item[data-thread-id]');
                 if (!button) return;
                 activeThreadId = String(button.dataset.threadId || '');
-                refreshChat();
+                refreshChat({ forceScrollBottom: true, preserveScroll: false });
             });
 
             if (threadSearchEl) {
@@ -1264,7 +1451,7 @@
             toggleBtn.addEventListener('click', () => {
                 panel.classList.toggle('show');
                 if (panel.classList.contains('show')) {
-                    refreshChat();
+                    refreshChat({ forceScrollBottom: true, preserveScroll: false });
                     markAllUserMessagesSeen();
                     inputEl.focus();
                     if (emojiPanel.classList.contains('show')) {
@@ -1296,7 +1483,7 @@
             window.addEventListener('storage', (event) => {
                 if (event.key === STORAGE_KEY) {
                     if (panel.classList.contains('show')) {
-                        refreshChat();
+                        refreshChat({ preserveScroll: true });
                         markAllUserMessagesSeen();
                     } else {
                         updateUnreadBadge();
@@ -1320,9 +1507,9 @@
                 }
             });
 
-            refreshChat();
+            purgeAllThreadsOnce();
+            refreshChat({ forceScrollBottom: true, preserveScroll: false });
             updateUnreadBadge();
-            setInterval(refreshChat, 1500);
         })();
     </script>
 </body>

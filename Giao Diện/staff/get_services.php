@@ -243,8 +243,427 @@ function app_booking_find_service_id(mysqli $conn, string $serviceName): int
     return 0;
 }
 
+function app_ensure_revenue_table(mysqli $conn): bool
+{
+    $sql = "
+        CREATE TABLE IF NOT EXISTS doanhthu (
+            id INT NOT NULL AUTO_INCREMENT,
+            nguondoanhthu ENUM('dichvu','sanpham') DEFAULT 'sanpham',
+            nguon_id INT NULL,
+            tennguon VARCHAR(190) NULL,
+            soluongdoanhthu INT NOT NULL DEFAULT 1,
+            sotiendoanhthu DECIMAL(14,2) NOT NULL DEFAULT 0,
+            thamchieu VARCHAR(80) NULL,
+            ngaytaodoanhthu DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_doanhthu_date (ngaytaodoanhthu),
+            KEY idx_doanhthu_source (nguondoanhthu),
+            KEY idx_doanhthu_ref (thamchieu)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ";
+
+    if (!(bool) $conn->query($sql)) {
+        return false;
+    }
+
+    $columnMigrations = [
+        'nguon_id' => "ALTER TABLE doanhthu ADD COLUMN nguon_id INT NULL AFTER nguondoanhthu",
+        'tennguon' => "ALTER TABLE doanhthu ADD COLUMN tennguon VARCHAR(190) NULL AFTER nguon_id",
+        'soluongdoanhthu' => "ALTER TABLE doanhthu ADD COLUMN soluongdoanhthu INT NOT NULL DEFAULT 1 AFTER tennguon",
+        'thamchieu' => "ALTER TABLE doanhthu ADD COLUMN thamchieu VARCHAR(80) NULL AFTER sotiendoanhthu",
+    ];
+
+    foreach ($columnMigrations as $column => $migrationSql) {
+        if (!app_column_exists($conn, 'doanhthu', $column)) {
+            $conn->query($migrationSql);
+        }
+    }
+
+    return true;
+}
+
+function app_ensure_favorites_extended(mysqli $conn): void
+{
+    if (!app_table_exists($conn, 'yeuthich')) {
+        return;
+    }
+
+    if (!app_column_exists($conn, 'yeuthich', 'dichvu_id')) {
+        $conn->query('ALTER TABLE yeuthich ADD COLUMN dichvu_id INT NULL AFTER sanpham_id');
+    }
+
+    if (!app_column_exists($conn, 'yeuthich', 'thucung_id')) {
+        $conn->query('ALTER TABLE yeuthich ADD COLUMN thucung_id INT NULL AFTER dichvu_id');
+    }
+}
+
+function app_sync_revenue_table(mysqli $conn): bool
+{
+    if (!app_ensure_revenue_table($conn)) {
+        return false;
+    }
+
+    if (!(bool) $conn->query('DELETE FROM doanhthu')) {
+        return false;
+    }
+
+    if (app_table_exists($conn, 'donhang') && app_table_exists($conn, 'donhang_chitiet')) {
+        $detailResult = $conn->query('SELECT COUNT(*) AS total FROM donhang_chitiet');
+        $detailCount = 0;
+        if ($detailResult) {
+            $detailRow = $detailResult->fetch_assoc();
+            $detailCount = (int) ($detailRow['total'] ?? 0);
+            $detailResult->free();
+        }
+
+        if ($detailCount > 0) {
+            $conn->query(
+                "
+                INSERT INTO doanhthu (nguondoanhthu, nguon_id, tennguon, soluongdoanhthu, sotiendoanhthu, thamchieu, ngaytaodoanhthu)
+                SELECT
+                    'sanpham' AS nguondoanhthu,
+                    ct.sanpham_id AS nguon_id,
+                    COALESCE(NULLIF(TRIM(ct.tensanpham), ''), NULLIF(TRIM(sp.tensanpham), ''), 'San pham') AS tennguon,
+                    COALESCE(ct.soluong, 1) AS soluongdoanhthu,
+                    COALESCE(ct.thanhtien, COALESCE(ct.soluong, 1) * COALESCE(ct.dongia, 0)) AS sotiendoanhthu,
+                    COALESCE(NULLIF(TRIM(dh.madonhang), ''), CONCAT('DH-', dh.id)) AS thamchieu,
+                    COALESCE(dh.ngaydatdonhang, NOW()) AS ngaytaodoanhthu
+                FROM donhang_chitiet ct
+                INNER JOIN donhang dh ON dh.id = ct.donhang_id
+                LEFT JOIN sanpham sp ON sp.id = ct.sanpham_id
+                WHERE COALESCE(dh.trangthaidonhang, '') <> 'huy'
+                "
+            );
+        }
+    }
+
+    if (
+        app_table_exists($conn, 'donhang') &&
+        app_table_exists($conn, 'chitietdonhang') &&
+        app_table_exists($conn, 'doanhthu')
+    ) {
+        $hasAnyRevenue = $conn->query('SELECT COUNT(*) AS total FROM doanhthu');
+        $revenueCount = 0;
+        if ($hasAnyRevenue) {
+            $row = $hasAnyRevenue->fetch_assoc();
+            $revenueCount = (int) ($row['total'] ?? 0);
+            $hasAnyRevenue->free();
+        }
+
+        if ($revenueCount === 0) {
+            $conn->query(
+                "
+                INSERT INTO doanhthu (nguondoanhthu, nguon_id, tennguon, soluongdoanhthu, sotiendoanhthu, thamchieu, ngaytaodoanhthu)
+                SELECT
+                    'sanpham' AS nguondoanhthu,
+                    ct.sanpham_id AS nguon_id,
+                    COALESCE(NULLIF(TRIM(sp.tensanpham), ''), 'San pham') AS tennguon,
+                    COALESCE(ct.soluongchitiet, 1) AS soluongdoanhthu,
+                    COALESCE(ct.soluongchitiet, 1) * COALESCE(ct.giachitiet, 0) AS sotiendoanhthu,
+                    COALESCE(NULLIF(TRIM(dh.madonhang), ''), CONCAT('DH-', dh.id)) AS thamchieu,
+                    COALESCE(dh.ngaydatdonhang, NOW()) AS ngaytaodoanhthu
+                FROM chitietdonhang ct
+                INNER JOIN donhang dh ON dh.id = ct.donhang_id
+                LEFT JOIN sanpham sp ON sp.id = ct.sanpham_id
+                WHERE COALESCE(dh.trangthaidonhang, '') <> 'huy'
+                "
+            );
+        }
+    }
+
+    if (app_table_exists($conn, 'lichhen')) {
+        $conn->query(
+            "
+            INSERT INTO doanhthu (nguondoanhthu, nguon_id, tennguon, soluongdoanhthu, sotiendoanhthu, thamchieu, ngaytaodoanhthu)
+            SELECT
+                'dichvu' AS nguondoanhthu,
+                l.dichvu_id AS nguon_id,
+                COALESCE(NULLIF(TRIM(l.tendichvu), ''), NULLIF(TRIM(d.tendichvu), ''), 'Dich vu') AS tennguon,
+                1 AS soluongdoanhthu,
+                COALESCE(
+                    NULLIF(d.giadichvu, 0),
+                    CAST(REPLACE(REPLACE(REPLACE(COALESCE(l.giadichvu, '0'), 'đ', ''), 'VND', ''), ',', '') AS DECIMAL(14,2)),
+                    0
+                ) AS sotiendoanhthu,
+                CONCAT('LH-', l.id) AS thamchieu,
+                COALESCE(l.thoigianhen, l.ngaytao, NOW()) AS ngaytaodoanhthu
+            FROM lichhen l
+            LEFT JOIN dichvu d ON d.id = l.dichvu_id
+            WHERE COALESCE(l.trangthailichhen, '') = 'hoanthanh'
+            "
+        );
+    }
+
+    return true;
+}
+
 function app_handle_staff_api(mysqli $conn, string $api): bool
 {
+    if ($api === 'get_revenue_dashboard') {
+        if (!app_sync_revenue_table($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the dong bo du lieu doanhthu',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        app_ensure_favorites_extended($conn);
+
+        $months = [];
+        $monthMap = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $ts = strtotime('-' . $i . ' month');
+            $ym = date('Y-m', $ts);
+            $months[] = [
+                'key' => $ym,
+                'label' => 'T' . date('n', $ts),
+            ];
+            $monthMap[$ym] = [
+                'product' => 0.0,
+                'service' => 0.0,
+            ];
+        }
+
+        $fromDate = date('Y-m-01', strtotime('-5 month'));
+        $thisMonthKey = date('Y-m');
+        $prevMonthKey = date('Y-m', strtotime('-1 month'));
+
+        $monthlyRevenueSql = "
+            SELECT
+                DATE_FORMAT(ngaytaodoanhthu, '%Y-%m') AS ym,
+                COALESCE(nguondoanhthu, 'sanpham') AS source,
+                SUM(COALESCE(sotiendoanhthu, 0)) AS revenue
+            FROM doanhthu
+            WHERE DATE(ngaytaodoanhthu) >= ?
+            GROUP BY DATE_FORMAT(ngaytaodoanhthu, '%Y-%m'), COALESCE(nguondoanhthu, 'sanpham')
+        ";
+
+        $monthlyStmt = $conn->prepare($monthlyRevenueSql);
+        if ($monthlyStmt) {
+            $monthlyStmt->bind_param('s', $fromDate);
+            $monthlyStmt->execute();
+            $result = $monthlyStmt->get_result();
+            while ($result && ($row = $result->fetch_assoc())) {
+                $ym = (string) ($row['ym'] ?? '');
+                $source = (string) ($row['source'] ?? 'sanpham');
+                if (!isset($monthMap[$ym])) {
+                    continue;
+                }
+
+                if ($source === 'dichvu') {
+                    $monthMap[$ym]['service'] += (float) ($row['revenue'] ?? 0);
+                } else {
+                    $monthMap[$ym]['product'] += (float) ($row['revenue'] ?? 0);
+                }
+            }
+            if ($result) {
+                $result->free();
+            }
+            $monthlyStmt->close();
+        }
+
+        $labels = [];
+        $productRevenue = [];
+        $serviceRevenue = [];
+        foreach ($months as $month) {
+            $key = (string) ($month['key'] ?? '');
+            $labels[] = (string) ($month['label'] ?? '');
+            $productRevenue[] = round((float) ($monthMap[$key]['product'] ?? 0), 2);
+            $serviceRevenue[] = round((float) ($monthMap[$key]['service'] ?? 0), 2);
+        }
+
+        $thisMonthProduct = (float) ($monthMap[$thisMonthKey]['product'] ?? 0);
+        $thisMonthService = (float) ($monthMap[$thisMonthKey]['service'] ?? 0);
+        $thisMonthTotal = $thisMonthProduct + $thisMonthService;
+        $prevMonthTotal = (float) (($monthMap[$prevMonthKey]['product'] ?? 0) + ($monthMap[$prevMonthKey]['service'] ?? 0));
+        $growthPercent = $prevMonthTotal > 0 ? round((($thisMonthTotal - $prevMonthTotal) / $prevMonthTotal) * 100, 2) : 0;
+
+        $completedOrdersThisMonth = 0;
+        $ordersSql = "
+            SELECT COUNT(DISTINCT thamchieu) AS total
+            FROM doanhthu
+            WHERE nguondoanhthu = 'sanpham'
+              AND DATE_FORMAT(ngaytaodoanhthu, '%Y-%m') = ?
+        ";
+        $ordersStmt = $conn->prepare($ordersSql);
+        if ($ordersStmt) {
+            $ordersStmt->bind_param('s', $thisMonthKey);
+            $ordersStmt->execute();
+            $ordersResult = $ordersStmt->get_result();
+            $ordersRow = $ordersResult ? $ordersResult->fetch_assoc() : null;
+            if ($ordersResult) {
+                $ordersResult->free();
+            }
+            $ordersStmt->close();
+            $completedOrdersThisMonth = (int) ($ordersRow['total'] ?? 0);
+        }
+
+        $bestProduct = [
+            'name' => 'Chua co du lieu',
+            'quantity' => 0,
+            'revenue' => 0,
+        ];
+        $bestProductSql = "
+            SELECT
+                COALESCE(NULLIF(TRIM(tennguon), ''), 'San pham') AS item_name,
+                SUM(COALESCE(soluongdoanhthu, 1)) AS sold_qty,
+                SUM(COALESCE(sotiendoanhthu, 0)) AS sold_revenue
+            FROM doanhthu
+            WHERE nguondoanhthu = 'sanpham'
+            GROUP BY item_name
+            ORDER BY sold_qty DESC, sold_revenue DESC
+            LIMIT 1
+        ";
+        $bestProductResult = $conn->query($bestProductSql);
+        if ($bestProductResult && ($row = $bestProductResult->fetch_assoc())) {
+            $bestProduct = [
+                'name' => (string) ($row['item_name'] ?? 'San pham'),
+                'quantity' => (int) ($row['sold_qty'] ?? 0),
+                'revenue' => (float) ($row['sold_revenue'] ?? 0),
+            ];
+            $bestProductResult->free();
+        } elseif ($bestProductResult) {
+            $bestProductResult->free();
+        }
+
+        $bestService = [
+            'name' => 'Chua co du lieu',
+            'count' => 0,
+            'revenue' => 0,
+        ];
+        $bestServiceSql = "
+            SELECT
+                COALESCE(NULLIF(TRIM(tennguon), ''), 'Dich vu') AS item_name,
+                SUM(COALESCE(soluongdoanhthu, 1)) AS sold_count,
+                SUM(COALESCE(sotiendoanhthu, 0)) AS sold_revenue
+            FROM doanhthu
+            WHERE nguondoanhthu = 'dichvu'
+            GROUP BY item_name
+            ORDER BY sold_count DESC, sold_revenue DESC
+            LIMIT 1
+        ";
+        $bestServiceResult = $conn->query($bestServiceSql);
+        if ($bestServiceResult && ($row = $bestServiceResult->fetch_assoc())) {
+            $bestService = [
+                'name' => (string) ($row['item_name'] ?? 'Dich vu'),
+                'count' => (int) ($row['sold_count'] ?? 0),
+                'revenue' => (float) ($row['sold_revenue'] ?? 0),
+            ];
+            $bestServiceResult->free();
+        } elseif ($bestServiceResult) {
+            $bestServiceResult->free();
+        }
+
+        $favoriteProduct = [
+            'name' => 'Chua co du lieu',
+            'count' => 0,
+        ];
+        if (app_table_exists($conn, 'yeuthich')) {
+            $favoriteProductSql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(s.tensanpham), ''), 'San pham') AS item_name,
+                    COUNT(*) AS like_count
+                FROM yeuthich y
+                LEFT JOIN sanpham s ON s.id = y.sanpham_id
+                WHERE y.sanpham_id IS NOT NULL
+                GROUP BY item_name
+                ORDER BY like_count DESC, item_name ASC
+                LIMIT 1
+            ";
+            $favoriteProductResult = $conn->query($favoriteProductSql);
+            if ($favoriteProductResult && ($row = $favoriteProductResult->fetch_assoc())) {
+                $favoriteProduct = [
+                    'name' => (string) ($row['item_name'] ?? 'San pham'),
+                    'count' => (int) ($row['like_count'] ?? 0),
+                ];
+                $favoriteProductResult->free();
+            } elseif ($favoriteProductResult) {
+                $favoriteProductResult->free();
+            }
+        }
+
+        $favoriteService = [
+            'name' => 'Chua co du lieu',
+            'count' => 0,
+        ];
+        if (app_table_exists($conn, 'yeuthich') && app_column_exists($conn, 'yeuthich', 'dichvu_id')) {
+            $favoriteServiceSql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(d.tendichvu), ''), 'Dich vu') AS item_name,
+                    COUNT(*) AS like_count
+                FROM yeuthich y
+                LEFT JOIN dichvu d ON d.id = y.dichvu_id
+                WHERE y.dichvu_id IS NOT NULL
+                GROUP BY item_name
+                ORDER BY like_count DESC, item_name ASC
+                LIMIT 1
+            ";
+            $favoriteServiceResult = $conn->query($favoriteServiceSql);
+            if ($favoriteServiceResult && ($row = $favoriteServiceResult->fetch_assoc())) {
+                $favoriteService = [
+                    'name' => (string) ($row['item_name'] ?? 'Dich vu'),
+                    'count' => (int) ($row['like_count'] ?? 0),
+                ];
+                $favoriteServiceResult->free();
+            } elseif ($favoriteServiceResult) {
+                $favoriteServiceResult->free();
+            }
+        }
+
+        $favoritePet = [
+            'name' => 'Chua co du lieu',
+            'count' => 0,
+        ];
+        if (app_table_exists($conn, 'yeuthich') && app_column_exists($conn, 'yeuthich', 'thucung_id')) {
+            $favoritePetSql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(t.tenthucung), ''), 'Thu cung') AS item_name,
+                    COUNT(*) AS like_count
+                FROM yeuthich y
+                LEFT JOIN thucung t ON t.id = y.thucung_id
+                WHERE y.thucung_id IS NOT NULL
+                GROUP BY item_name
+                ORDER BY like_count DESC, item_name ASC
+                LIMIT 1
+            ";
+            $favoritePetResult = $conn->query($favoritePetSql);
+            if ($favoritePetResult && ($row = $favoritePetResult->fetch_assoc())) {
+                $favoritePet = [
+                    'name' => (string) ($row['item_name'] ?? 'Thu cung'),
+                    'count' => (int) ($row['like_count'] ?? 0),
+                ];
+                $favoritePetResult->free();
+            } elseif ($favoritePetResult) {
+                $favoritePetResult->free();
+            }
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'summary' => [
+                'current_month_revenue' => round($thisMonthTotal, 2),
+                'current_month_service_revenue' => round($thisMonthService, 2),
+                'completed_orders_this_month' => $completedOrdersThisMonth,
+                'growth_percent' => $growthPercent,
+            ],
+            'chart' => [
+                'labels' => $labels,
+                'service_revenue' => $serviceRevenue,
+                'product_revenue' => $productRevenue,
+            ],
+            'highlights' => [
+                'best_selling_product' => $bestProduct,
+                'best_selling_service' => $bestService,
+                'favorite_product' => $favoriteProduct,
+                'favorite_service' => $favoriteService,
+                'favorite_pet' => $favoritePet,
+            ],
+        ]);
+    }
+
     if ($api === 'checkout_pos_order') {
         if (!app_ensure_order_tables($conn)) {
             $conn->close();
@@ -466,6 +885,188 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             'ok' => true,
             'count' => count($rows),
             'data' => array_values($rows),
+        ]);
+    }
+
+    if ($api === 'get_sale_order_detail') {
+        if (!app_ensure_order_tables($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang donhang/donhang_chitiet',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $id = (int) ($_GET['id'] ?? 0);
+        $maHoaDon = trim((string) ($_GET['mahoadon'] ?? ''));
+
+        if ($id <= 0 && $maHoaDon === '') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Thieu id hoac mahoadon',
+            ], 400);
+        }
+
+        $whereSql = $id > 0 ? 'd.id = ?' : 'd.madonhang = ?';
+        $orderSql = "
+            SELECT
+                d.id,
+                d.madonhang,
+                d.ngaydatdonhang,
+                d.tongtiendonhang,
+                d.trangthaidonhang,
+                d.phuongthucthanhtoan,
+                d.tennhanvien,
+                d.nguondonhang,
+                d.ghichudonhang,
+                COALESCE(NULLIF(TRIM(k.tenkhachhang), ''), 'Khach le') AS tenkhachhang,
+                COALESCE(NULLIF(TRIM(k.sodienthoaikhachhang), ''), '') AS sodienthoai,
+                COALESCE(NULLIF(TRIM(k.emailkhachhang), ''), '') AS email
+            FROM donhang d
+            LEFT JOIN khachhang k ON k.id = d.khachhang_id
+            WHERE {$whereSql}
+            LIMIT 1
+        ";
+
+        $orderStmt = $conn->prepare($orderSql);
+        if (!$orderStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the lay thong tin don hang',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        if ($id > 0) {
+            $orderStmt->bind_param('i', $id);
+        } else {
+            $orderStmt->bind_param('s', $maHoaDon);
+        }
+
+        $orderStmt->execute();
+        $orderResult = $orderStmt->get_result();
+        $orderRow = $orderResult ? $orderResult->fetch_assoc() : null;
+        if ($orderResult) {
+            $orderResult->free();
+        }
+        $orderStmt->close();
+
+        if (!is_array($orderRow)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay don hang',
+            ], 404);
+        }
+
+        $orderId = (int) ($orderRow['id'] ?? 0);
+        $detailRows = [];
+
+        if ($orderId > 0 && app_table_exists($conn, 'donhang_chitiet')) {
+            $detailSql = "
+                SELECT
+                    ct.sanpham_id,
+                    ct.masanpham,
+                    ct.tensanpham,
+                    ct.soluong,
+                    ct.dongia,
+                    ct.thanhtien
+                FROM donhang_chitiet ct
+                WHERE ct.donhang_id = ?
+                ORDER BY ct.id ASC
+            ";
+
+            $detailStmt = $conn->prepare($detailSql);
+            if ($detailStmt) {
+                $detailStmt->bind_param('i', $orderId);
+                $detailStmt->execute();
+                $detailResult = $detailStmt->get_result();
+                while ($detailResult && ($row = $detailResult->fetch_assoc())) {
+                    $qty = (int) ($row['soluong'] ?? 0);
+                    $price = (float) ($row['dongia'] ?? 0);
+                    $line = (float) ($row['thanhtien'] ?? ($qty * $price));
+                    $detailRows[] = [
+                        'id' => (int) ($row['sanpham_id'] ?? 0),
+                        'code' => (string) ($row['masanpham'] ?? ''),
+                        'name' => (string) ($row['tensanpham'] ?? 'San pham'),
+                        'quantity' => $qty,
+                        'price' => $price,
+                        'line_total' => $line,
+                    ];
+                }
+                if ($detailResult) {
+                    $detailResult->free();
+                }
+                $detailStmt->close();
+            }
+        }
+
+        if (!$detailRows && $orderId > 0 && app_table_exists($conn, 'chitietdonhang')) {
+            $detailSql = "
+                SELECT
+                    ct.sanpham_id,
+                    sp.masanpham,
+                    COALESCE(NULLIF(TRIM(sp.tensanpham), ''), 'San pham') AS tensanpham,
+                    ct.soluongchitiet,
+                    ct.giachitiet
+                FROM chitietdonhang ct
+                LEFT JOIN sanpham sp ON sp.id = ct.sanpham_id
+                WHERE ct.donhang_id = ?
+                ORDER BY ct.id ASC
+            ";
+
+            $detailStmt = $conn->prepare($detailSql);
+            if ($detailStmt) {
+                $detailStmt->bind_param('i', $orderId);
+                $detailStmt->execute();
+                $detailResult = $detailStmt->get_result();
+                while ($detailResult && ($row = $detailResult->fetch_assoc())) {
+                    $qty = (int) ($row['soluongchitiet'] ?? 0);
+                    $price = (float) ($row['giachitiet'] ?? 0);
+                    $detailRows[] = [
+                        'id' => (int) ($row['sanpham_id'] ?? 0),
+                        'code' => (string) ($row['masanpham'] ?? ''),
+                        'name' => (string) ($row['tensanpham'] ?? 'San pham'),
+                        'quantity' => $qty,
+                        'price' => $price,
+                        'line_total' => $qty * $price,
+                    ];
+                }
+                if ($detailResult) {
+                    $detailResult->free();
+                }
+                $detailStmt->close();
+            }
+        }
+
+        $status = app_order_status_to_sell_status((string) ($orderRow['trangthaidonhang'] ?? 'dangxuly'));
+        $source = (string) ($orderRow['nguondonhang'] ?? 'tai_quay');
+        $ma = trim((string) ($orderRow['madonhang'] ?? ''));
+        if ($ma === '') {
+            $ma = 'DH' . str_pad((string) $orderId, 8, '0', STR_PAD_LEFT);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'data' => [
+                'id' => $orderId,
+                'mahoadon' => $ma,
+                'tenkhachhang' => (string) ($orderRow['tenkhachhang'] ?? 'Khach le'),
+                'sodienthoai' => (string) ($orderRow['sodienthoai'] ?? ''),
+                'email' => (string) ($orderRow['email'] ?? ''),
+                'tennhanvien' => (string) ($orderRow['tennhanvien'] ?? ''),
+                'ngayban' => (string) ($orderRow['ngaydatdonhang'] ?? ''),
+                'tongtien' => (float) ($orderRow['tongtiendonhang'] ?? 0),
+                'phuongthucthanhtoan' => (string) ($orderRow['phuongthucthanhtoan'] ?? 'tien_mat'),
+                'trangthai' => $status,
+                'nguon' => $source,
+                'ghichu' => (string) ($orderRow['ghichudonhang'] ?? ''),
+                'items' => $detailRows,
+            ],
         ]);
     }
 

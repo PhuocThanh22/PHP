@@ -15,53 +15,175 @@
             font-weight: 700;
             display: inline-block;
         }
+        .source-pill {
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-block;
+        }
+        .source-online { background: #e8f1ff; color: #1d4ed8; }
+        .source-store { background: #ecfdf3; color: #166534; }
         .status-cho_duyet { background: #fff7dd; color: #946200; }
         .status-da_duyet { background: #e8f8ef; color: #136f3a; }
         .status-tu_choi { background: #ffe9e9; color: #b42318; }
+        #ordersBody tr { cursor: pointer; }
+        #ordersBody tr:hover { background: #f8fafc; }
+
+        .order-detail-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.4);
+            z-index: 3200;
+        }
+        .order-detail-modal {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: min(860px, calc(100vw - 32px));
+            max-height: calc(100vh - 32px);
+            overflow: auto;
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
+            z-index: 3201;
+            padding: 16px;
+        }
+        .order-detail-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .order-detail-close {
+            border: 0;
+            background: #f1f5f9;
+            color: #334155;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            font-size: 20px;
+            line-height: 1;
+        }
+        .order-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .order-detail-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #f8fafc;
+        }
+        .order-detail-meta {
+            margin: 0;
+            font-size: 13px;
+            color: #334155;
+            line-height: 1.6;
+        }
+        @media (max-width: 768px) {
+            .order-detail-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 <div class="page-wrap">
     <div class="top-header d-flex justify-content-between align-items-center">
-        <h2>Quản Lý Đơn Hàng Online</h2>
+        <h2>Quản Lý Đơn Hàng</h2>
         <button id="btnReload" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Tải lại</button>
     </div>
     <div class="module-grid">
-        <div class="module-card"><div class="module-title"><i class="bi bi-hourglass-split"></i><span>Chờ Duyệt</span></div><div class="module-value" id="sumChoDuyet">0</div><div class="module-desc">Đơn chờ xác nhận</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-check2-circle"></i><span>Đã Duyệt</span></div><div class="module-value" id="sumDaDuyet">0</div><div class="module-desc">Đơn đã xác nhận</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-x-circle"></i><span>Từ Chối</span></div><div class="module-value" id="sumTuChoi">0</div><div class="module-desc">Đơn bị từ chối</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-receipt-cutoff"></i><span>Tổng Đơn</span></div><div class="module-value" id="sumAll">0</div><div class="module-desc">Tất cả đơn hàng</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-globe2"></i><span>Đơn Online</span></div><div class="module-value" id="sumOnline">0</div><div class="module-desc">Đặt trên website</div></div>
+        <div class="module-card"><div class="module-title"><i class="bi bi-shop"></i><span>Tại Cửa Hàng</span></div><div class="module-value" id="sumStore">0</div><div class="module-desc">Đơn bán tại quầy</div></div>
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-cart-check text-success me-2"></i>Đơn Hàng Online Gần Đây</h3></div>
+        <div class="section-header"><h3><i class="bi bi-card-checklist text-success me-2"></i>Tất Cả Đơn Hàng</h3></div>
         <div class="quick-stats">
-            <div class="quick-stat-item"><span class="number" id="statTotal">0</span><span class="label">Tổng đơn online</span></div>
-            <div class="quick-stat-item"><span class="number" id="statApproved">0</span><span class="label">Đã duyệt</span></div>
-            <div class="quick-stat-item"><span class="number" id="statRejected">0</span><span class="label">Từ chối</span></div>
+            <div class="quick-stat-item"><span class="number" id="statTotal">0</span><span class="label">Tổng số đơn</span></div>
+            <div class="quick-stat-item"><span class="number" id="statRevenue">0 đ</span><span class="label">Tổng doanh thu danh sách</span></div>
+            <div class="quick-stat-item"><span class="number" id="statPending">0</span><span class="label">Đơn online chờ duyệt</span></div>
         </div>
         <div id="statusText" class="small text-muted mb-2"></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Mã ĐH</th><th>Khách Hàng</th><th>Số điện thoại</th><th>Ngày Đặt</th><th>Tổng Tiền</th><th>Trạng Thái</th></tr></thead>
+                <thead><tr><th>Mã ĐH</th><th>Khách Hàng</th><th>Số điện thoại</th><th>Nguồn</th><th>Ngày Đặt</th><th>Tổng Tiền</th><th>Trạng Thái</th></tr></thead>
                 <tbody id="ordersBody"></tbody>
             </table>
+        </div>
+    </div>
+
+    <div id="orderDetailBackdrop" class="order-detail-backdrop" hidden></div>
+    <div id="orderDetailModal" class="order-detail-modal" role="dialog" aria-modal="true" aria-labelledby="orderDetailTitle" hidden>
+        <div class="order-detail-head">
+            <h5 id="orderDetailTitle" class="mb-0">Chi tiết đơn hàng</h5>
+            <button id="closeOrderDetailBtn" type="button" class="order-detail-close" aria-label="Đóng">&times;</button>
+        </div>
+
+        <div class="order-detail-grid">
+            <div class="order-detail-card">
+                <h6>Thông tin đơn</h6>
+                <p class="order-detail-meta" id="orderDetailMeta"></p>
+            </div>
+            <div class="order-detail-card">
+                <h6>Thông tin khách hàng</h6>
+                <p class="order-detail-meta" id="orderCustomerMeta"></p>
+            </div>
+        </div>
+
+        <div class="order-detail-card">
+            <h6>Sản phẩm trong đơn</h6>
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th>SL</th>
+                            <th>Đơn giá</th>
+                            <th>Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderDetailItemsBody"></tbody>
+                </table>
+            </div>
+            <div class="text-end mt-2">
+                <button id="closeOrderDetailFooterBtn" type="button" class="btn btn-outline-secondary">Đóng</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
 (function () {
+    let allRows = [];
+    let currentDetail = null;
+
     const statusText = document.getElementById('statusText');
     const ordersBody = document.getElementById('ordersBody');
-    const sumChoDuyet = document.getElementById('sumChoDuyet');
-    const sumDaDuyet = document.getElementById('sumDaDuyet');
-    const sumTuChoi = document.getElementById('sumTuChoi');
+    const sumAll = document.getElementById('sumAll');
+    const sumOnline = document.getElementById('sumOnline');
+    const sumStore = document.getElementById('sumStore');
     const statTotal = document.getElementById('statTotal');
-    const statApproved = document.getElementById('statApproved');
-    const statRejected = document.getElementById('statRejected');
+    const statRevenue = document.getElementById('statRevenue');
+    const statPending = document.getElementById('statPending');
     const btnReload = document.getElementById('btnReload');
 
+    const orderDetailBackdrop = document.getElementById('orderDetailBackdrop');
+    const orderDetailModal = document.getElementById('orderDetailModal');
+    const closeOrderDetailBtn = document.getElementById('closeOrderDetailBtn');
+    const closeOrderDetailFooterBtn = document.getElementById('closeOrderDetailFooterBtn');
+    const orderDetailMeta = document.getElementById('orderDetailMeta');
+    const orderCustomerMeta = document.getElementById('orderCustomerMeta');
+    const orderDetailItemsBody = document.getElementById('orderDetailItemsBody');
+
     const statusLabelMap = {
+        hoan_tat: 'Hoàn tất',
+        dang_xu_ly: 'Đang xử lý',
+        da_huy: 'Đã hủy',
         cho_duyet: 'Chờ duyệt',
         da_duyet: 'Đã duyệt',
         tu_choi: 'Đã hủy'
@@ -71,18 +193,38 @@
         return Number(value || 0).toLocaleString('vi-VN') + ' đ';
     }
 
-    function getCandidates() {
+    function esc(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getCandidates(apiName) {
         return [
-            new URL('../../index.php?api=get_online_orders', window.location.href).toString(),
-            '/phuocthanh/PHPCHINH/index.php?api=get_online_orders',
-            '/PHPCHINH/index.php?api=get_online_orders',
-            '/index.php?api=get_online_orders'
+            new URL(`../../index.php?api=${apiName}`, window.location.href).toString(),
+            `/phuocthanh/PHPCHINH/index.php?api=${apiName}`,
+            `/PHPCHINH/index.php?api=${apiName}`,
+            `/index.php?api=${apiName}`
         ];
     }
 
-    async function fetchOnlineOrders() {
+    function getSalesCandidates() {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        return [
+            `${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_sales`,
+            `${protocol}//localhost/PHPCHINH/index.php?api=get_sales`,
+            new URL('../../index.php?api=get_sales', window.location.href).toString(),
+            '/PHPCHINH/index.php?api=get_sales',
+            '/index.php?api=get_sales'
+        ];
+    }
+
+    async function fetchPayload(candidates) {
         let lastError = new Error('Không gọi được API');
-        for (const url of getCandidates()) {
+        for (const url of candidates) {
             try {
                 const sep = url.includes('?') ? '&' : '?';
                 const res = await fetch(url + sep + '_t=' + Date.now(), { cache: 'no-store' });
@@ -99,9 +241,139 @@
         throw lastError;
     }
 
+    function mapSalesOrder(item) {
+        const source = String(item.nguon || '').toLowerCase() === 'online' ? 'online' : 'store';
+        const status = String(item.trangthai || 'dang_xu_ly').toLowerCase();
+        const note = source === 'online' ? 'Đơn online' : 'Đơn tại cửa hàng';
+        return {
+            source,
+            sourceLabel: source === 'online' ? 'Online' : 'Tại cửa hàng',
+            sourceClass: source === 'online' ? 'source-online' : 'source-store',
+            id: Number(item.id || 0),
+            mahoadon: String(item.mahoadon || ''),
+            tenkhachhang: String(item.tenkhachhang || ''),
+            sodienthoai: '',
+            email: '',
+            ngaytao: String(item.ngayban || ''),
+            tongtien: Number(item.tongtien || 0),
+            trangthai: status,
+            phuongthucthanhtoan: String(item.phuongthucthanhtoan || ''),
+            ghichu: String(item.ghichu || note),
+            items: [],
+        };
+    }
+
+    function mapOnlineOrder(item) {
+        const status = String(item.trangthai || 'cho_duyet').toLowerCase();
+        return {
+            source: 'online',
+            sourceLabel: 'Online',
+            sourceClass: 'source-online',
+            id: Number(item.id || 0),
+            mahoadon: String(item.madonhang || ''),
+            tenkhachhang: String(item.tenkhachhang || ''),
+            sodienthoai: String(item.sodienthoai || ''),
+            email: String(item.email || ''),
+            ngaytao: String(item.ngaytao || ''),
+            tongtien: Number(item.tongtien || 0),
+            trangthai: status,
+            phuongthucthanhtoan: 'chuyen_khoan',
+            ghichu: 'Đơn online',
+            diachi: String(item.diachi || ''),
+            ldotuchoi: String(item.ldotuchoi || ''),
+            items: Array.isArray(item.items) ? item.items : [],
+        };
+    }
+
+    async function fetchSaleDetailById(id, mahoadon) {
+        const params = new URLSearchParams();
+        if (id) params.set('id', String(id));
+        if (mahoadon) params.set('mahoadon', String(mahoadon));
+
+        let lastError = new Error('Không gọi được API chi tiết đơn hàng');
+        for (const base of getCandidates('get_sale_order_detail')) {
+            try {
+                const sep = base.includes('?') ? '&' : '?';
+                const url = `${base}${sep}${params.toString()}`;
+                const response = await fetch(url, { cache: 'no-store' });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    lastError = new Error(payload.message || ('HTTP ' + response.status));
+                    continue;
+                }
+                return payload.data || null;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError;
+    }
+
+    function renderDetailItems(items) {
+        const rows = Array.isArray(items) ? items : [];
+        if (!rows.length) {
+            orderDetailItemsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Không có chi tiết sản phẩm.</td></tr>';
+            return;
+        }
+
+        orderDetailItemsBody.innerHTML = rows.map((item) => {
+            const qty = Number(item.quantity || item.qty || item.soluong || 0);
+            const price = Number(item.price || item.dongia || 0);
+            const line = Number(item.line_total || qty * price);
+            const name = String(item.name || item.tensanpham || 'Sản phẩm');
+            return `
+                <tr>
+                    <td>${esc(name)}</td>
+                    <td>${qty}</td>
+                    <td>${esc(toMoney(price))}</td>
+                    <td>${esc(toMoney(line))}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function openOrderDetail(detail) {
+        if (!detail) return;
+
+        currentDetail = detail;
+        const status = String(detail.trangthai || '').toLowerCase();
+        const statusLabel = statusLabelMap[status] || status;
+        const sourceLabel = String(detail.sourceLabel || (detail.source === 'store' ? 'Tại cửa hàng' : 'Online'));
+
+        orderDetailMeta.innerHTML = [
+            `Mã đơn: <b>${esc(detail.mahoadon || '')}</b>`,
+            `Nguồn: <b>${esc(sourceLabel)}</b>`,
+            `Trạng thái: <b>${esc(statusLabel)}</b>`,
+            `Ngày đặt: ${esc(detail.ngaytao || detail.ngayban || '')}`,
+            `Tổng tiền: <b>${esc(toMoney(detail.tongtien || 0))}</b>`,
+            `Thanh toán: ${esc(detail.phuongthucthanhtoan || '')}`,
+            detail.ldotuchoi ? `Lý do hủy: ${esc(detail.ldotuchoi)}` : '',
+            detail.ghichu ? `Ghi chú: ${esc(detail.ghichu)}` : ''
+        ].filter(Boolean).join('<br>');
+
+        orderCustomerMeta.innerHTML = [
+            `Khách hàng: <b>${esc(detail.tenkhachhang || '')}</b>`,
+            detail.sodienthoai ? `SĐT: ${esc(detail.sodienthoai)}` : '',
+            detail.email ? `Email: ${esc(detail.email)}` : '',
+            detail.diachi ? `Địa chỉ: ${esc(detail.diachi)}` : '',
+            detail.tennhanvien ? `Nhân viên: ${esc(detail.tennhanvien)}` : ''
+        ].filter(Boolean).join('<br>');
+
+        renderDetailItems(detail.items || []);
+        orderDetailBackdrop.hidden = false;
+        orderDetailModal.hidden = false;
+    }
+
+    function closeOrderDetail() {
+        currentDetail = null;
+        orderDetailBackdrop.hidden = true;
+        orderDetailModal.hidden = true;
+    }
+
     function renderRows(rows) {
         if (!Array.isArray(rows) || rows.length === 0) {
-            ordersBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có đơn online.</td></tr>';
+            ordersBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Chưa có dữ liệu đơn hàng.</td></tr>';
             return;
         }
 
@@ -109,11 +381,12 @@
             const status = String(item.trangthai || 'cho_duyet');
             const statusLabel = statusLabelMap[status] || status;
             return `
-                <tr>
-                    <td>${item.madonhang || ''}</td>
-                    <td>${item.tenkhachhang || ''}</td>
-                    <td>${item.sodienthoai || ''}</td>
-                    <td>${item.ngaytao || ''}</td>
+                <tr data-source="${esc(item.source)}" data-id="${Number(item.id || 0)}" data-code="${esc(item.mahoadon || '')}">
+                    <td><strong>${esc(item.mahoadon || '')}</strong></td>
+                    <td>${esc(item.tenkhachhang || '')}</td>
+                    <td>${esc(item.sodienthoai || '')}</td>
+                    <td><span class="source-pill ${esc(item.sourceClass || 'source-store')}">${esc(item.sourceLabel || '')}</span></td>
+                    <td>${esc(item.ngaytao || '')}</td>
                     <td>${toMoney(item.tongtien)}</td>
                     <td><span class="status-pill status-${status}">${statusLabel}</span></td>
                 </tr>
@@ -122,38 +395,96 @@
     }
 
     async function load() {
-        statusText.textContent = 'Đang tải dữ liệu đơn online...';
+        statusText.textContent = 'Đang tải dữ liệu đơn hàng...';
         try {
-            const payload = await fetchOnlineOrders();
-            renderRows(payload.data || []);
+            const [salesPayload, onlinePayload] = await Promise.all([
+                fetchPayload(getSalesCandidates()),
+                fetchPayload(getCandidates('get_online_orders'))
+            ]);
 
-            const total = Number(payload.count || 0);
-            const approved = Number(payload.summary?.da_duyet || 0);
-            const rejected = Number(payload.summary?.tu_choi || 0);
-            const pending = Number(payload.summary?.cho_duyet || 0);
+            const salesRows = (Array.isArray(salesPayload.data) ? salesPayload.data : []).map(mapSalesOrder);
+            const onlineRows = (Array.isArray(onlinePayload.data) ? onlinePayload.data : []).map(mapOnlineOrder);
+
+            const byCode = new Map();
+            onlineRows.forEach((row) => {
+                const code = String(row.mahoadon || '');
+                if (code) byCode.set(code, row);
+            });
+
+            salesRows.forEach((row) => {
+                const code = String(row.mahoadon || '');
+                if (!code || !byCode.has(code)) {
+                    byCode.set(code || `store-${row.id}`, row);
+                }
+            });
+
+            allRows = Array.from(byCode.values()).sort((a, b) => {
+                const ta = new Date(a.ngaytao || 0).getTime() || 0;
+                const tb = new Date(b.ngaytao || 0).getTime() || 0;
+                return tb - ta;
+            });
+
+            renderRows(allRows);
+
+            const total = allRows.length;
+            const onlineCount = allRows.filter((row) => row.source === 'online').length;
+            const storeCount = total - onlineCount;
+            const pendingOnline = allRows.filter((row) => row.source === 'online' && String(row.trangthai) === 'cho_duyet').length;
+            const totalRevenue = allRows.reduce((sum, row) => sum + Number(row.tongtien || 0), 0);
+
+            sumAll.textContent = String(total);
+            sumOnline.textContent = String(onlineCount);
+            sumStore.textContent = String(storeCount);
 
             statTotal.textContent = String(total);
-            statApproved.textContent = String(approved);
-            statRejected.textContent = String(rejected);
+            statRevenue.textContent = toMoney(totalRevenue);
+            statPending.textContent = String(pendingOnline);
 
-            sumChoDuyet.textContent = String(pending);
-            sumDaDuyet.textContent = String(approved);
-            sumTuChoi.textContent = String(rejected);
-
-            statusText.textContent = 'Đã tải ' + total + ' đơn online.';
+            statusText.textContent = 'Đã tải ' + total + ' đơn hàng (online + tại cửa hàng).';
         } catch (err) {
-            ordersBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Lỗi tải dữ liệu: ' + String(err.message || err) + '</td></tr>';
-            statusText.textContent = 'Không thể tải dữ liệu đơn online.';
+            ordersBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Lỗi tải dữ liệu: ' + String(err.message || err) + '</td></tr>';
+            statusText.textContent = 'Không thể tải dữ liệu đơn hàng.';
         }
     }
 
+    ordersBody.addEventListener('click', async (event) => {
+        const row = event.target.closest('tr[data-source]');
+        if (!row) return;
+
+        const source = String(row.dataset.source || 'store');
+        const id = Number(row.dataset.id || 0);
+        const code = String(row.dataset.code || '');
+
+        const selected = allRows.find((item) => String(item.mahoadon || '') === code) || null;
+        if (!selected) return;
+
+        if (source === 'online') {
+            openOrderDetail(selected);
+            return;
+        }
+
+        try {
+            const detail = await fetchSaleDetailById(id, code);
+            if (!detail) return;
+            openOrderDetail({
+                ...selected,
+                ...detail,
+                source: 'store',
+                sourceLabel: 'Tại cửa hàng',
+                sourceClass: 'source-store',
+                ghichu: detail.ghichu || 'Đơn tại cửa hàng'
+            });
+        } catch (error) {
+            alert('Không tải được chi tiết đơn hàng: ' + String(error.message || error));
+        }
+    });
+
+    closeOrderDetailBtn.addEventListener('click', closeOrderDetail);
+    closeOrderDetailFooterBtn.addEventListener('click', closeOrderDetail);
+    orderDetailBackdrop.addEventListener('click', closeOrderDetail);
+
     btnReload.addEventListener('click', load);
     load();
-    setInterval(() => {
-        if (document.visibilityState === 'visible') {
-            load();
-        }
-    }, 5000);
 })();
 </script>
 </body>

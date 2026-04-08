@@ -7,6 +7,36 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="staff-style.css">
+    <style>
+        .service-detail-meta {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.75;
+            color: #334155;
+        }
+
+        .service-detail-status {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid transparent;
+        }
+
+        .service-detail-status.active {
+            background: #e8f8ef;
+            color: #136f3a;
+            border-color: #a7f3c0;
+        }
+
+        .service-detail-status.inactive {
+            background: #fff1f2;
+            color: #b42318;
+            border-color: #fecdd3;
+        }
+    </style>
 </head>
 <body>
     <div class="page-wrap">
@@ -67,6 +97,56 @@
                     <button type="submit" class="btn btn-warning text-white" id="saveServiceBtn">Lưu thay đổi</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="service-modal" id="serviceDetailModal" aria-hidden="true">
+        <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="serviceDetailTitle">
+            <div class="service-modal-header">
+                <h3 class="service-modal-title" id="serviceDetailTitle">Chi tiết dịch vụ</h3>
+                <button type="button" class="service-modal-close" id="closeServiceDetailModal" aria-label="Đóng">&times;</button>
+            </div>
+
+            <div class="service-modal-body">
+                <div class="service-form-group full">
+                    <label>Tên dịch vụ</label>
+                    <p id="serviceDetailName" class="service-detail-meta"></p>
+                </div>
+
+                <div class="service-form-group">
+                    <label>Mã dịch vụ</label>
+                    <p id="serviceDetailId" class="service-detail-meta"></p>
+                </div>
+
+                <div class="service-form-group">
+                    <label>Giá dịch vụ</label>
+                    <p id="serviceDetailPrice" class="service-detail-meta"></p>
+                </div>
+
+                <div class="service-form-group">
+                    <label>Thời gian</label>
+                    <p id="serviceDetailDuration" class="service-detail-meta"></p>
+                </div>
+
+                <div class="service-form-group">
+                    <label>Ngày tạo</label>
+                    <p id="serviceDetailCreatedAt" class="service-detail-meta"></p>
+                </div>
+
+                <div class="service-form-group">
+                    <label>Trạng thái</label>
+                    <div><span id="serviceDetailStatus" class="service-detail-status"></span></div>
+                </div>
+
+                <div class="service-form-group full">
+                    <label>Thông tin dịch vụ</label>
+                    <p id="serviceDetailInfo" class="service-detail-meta"></p>
+                </div>
+            </div>
+
+            <div class="service-modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="closeServiceDetailFooterBtn">Đóng</button>
+            </div>
         </div>
     </div>
 
@@ -479,8 +559,48 @@
             modal.setAttribute('aria-hidden', 'false');
         }
 
+        function openServiceDetailModal(service) {
+            const modal = document.getElementById('serviceDetailModal');
+            if (!modal || !service) return;
+
+            const isActive = String(service.trangthaidichvu || '').toLowerCase() === 'hoatdong';
+            const createdAt = service.ngaytaodichvu ? new Date(service.ngaytaodichvu).toLocaleDateString('vi-VN') : 'N/A';
+
+            const nameEl = document.getElementById('serviceDetailName');
+            const idEl = document.getElementById('serviceDetailId');
+            const priceEl = document.getElementById('serviceDetailPrice');
+            const durationEl = document.getElementById('serviceDetailDuration');
+            const createdAtEl = document.getElementById('serviceDetailCreatedAt');
+            const statusEl = document.getElementById('serviceDetailStatus');
+            const infoEl = document.getElementById('serviceDetailInfo');
+
+            if (nameEl) nameEl.textContent = String(service.tendichvu || '');
+            if (idEl) idEl.textContent = `#${service.id}`;
+            if (priceEl) priceEl.textContent = formatCurrencyVND(service.giadichvu || 0);
+            if (durationEl) durationEl.textContent = `${Number(service.thoigiandichvu || 0)} phút`;
+            if (createdAtEl) createdAtEl.textContent = createdAt;
+            if (infoEl) {
+                const infoText = String(service.thongtin || '').trim();
+                infoEl.textContent = infoText || 'Chưa có thông tin mô tả cho dịch vụ này.';
+            }
+            if (statusEl) {
+                statusEl.textContent = isActive ? 'Hoạt động' : 'Ngừng hoạt động';
+                statusEl.className = isActive ? 'service-detail-status active' : 'service-detail-status inactive';
+            }
+
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
         function closeServiceModal() {
             const modal = document.getElementById('serviceEditModal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function closeServiceDetailModal() {
+            const modal = document.getElementById('serviceDetailModal');
             if (!modal) return;
             modal.classList.remove('show');
             modal.setAttribute('aria-hidden', 'true');
@@ -521,6 +641,35 @@
 
         document.getElementById('serviceEditModal').addEventListener('click', (event) => {
             if (event.target.id === 'serviceEditModal') closeServiceModal();
+        });
+
+        const serviceDetailModal = document.getElementById('serviceDetailModal');
+        const closeServiceDetailModalBtn = document.getElementById('closeServiceDetailModal');
+        const closeServiceDetailFooterBtn = document.getElementById('closeServiceDetailFooterBtn');
+
+        if (closeServiceDetailModalBtn) {
+            closeServiceDetailModalBtn.addEventListener('click', closeServiceDetailModal);
+        }
+        if (closeServiceDetailFooterBtn) {
+            closeServiceDetailFooterBtn.addEventListener('click', closeServiceDetailModal);
+        }
+        if (serviceDetailModal) {
+            serviceDetailModal.addEventListener('click', (event) => {
+                if (event.target.id === 'serviceDetailModal') closeServiceDetailModal();
+            });
+        }
+
+        document.getElementById('serviceGrid').addEventListener('click', (event) => {
+            const card = event.target.closest('.service-card[data-service-id]');
+            if (!card) return;
+
+            const serviceId = String(card.getAttribute('data-service-id') || '');
+            if (!serviceId) return;
+
+            const service = serviceStore.get(serviceId);
+            if (!service) return;
+
+            openServiceDetailModal(service);
         });
 
         document.getElementById('serviceEditForm').addEventListener('submit', async (event) => {
@@ -592,6 +741,7 @@
                     closeNotice();
                     return;
                 }
+                closeServiceDetailModal();
                 closeServiceModal();
             }
         });

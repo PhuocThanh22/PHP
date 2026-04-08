@@ -8,6 +8,13 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="admin-style.css?v=20260403-2">
     <style>
+        #categoryManagerModal,
+        #categoryManagerModal * {
+            font-family: 'Poppins', sans-serif !important;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: geometricPrecision;
+        }
+
         #spTableBody tr {
             cursor: pointer;
         }
@@ -73,6 +80,48 @@
                 aspect-ratio: 1 / 1;
             }
         }
+
+        .category-manager-list {
+            max-height: 320px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+            padding: 8px;
+        }
+
+        .category-manager-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 8px;
+            border-bottom: 1px dashed #dbe3ef;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #1f2937;
+        }
+
+        .category-manager-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-manager-main {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .category-manager-name,
+        .category-manager-meta {
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+
+        .category-manager-meta {
+            color: #475569;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -85,7 +134,7 @@
                 <input id="productSearchInput" type="text" placeholder="Tìm theo tên hoặc mã sản phẩm..." aria-label="Tìm sản phẩm">
             </div>
             <div class="service-toolbar-actions">
-                <button class="btn btn-primary" type="button" onclick="openAddCategoryModal()"><i class="bi bi-tags me-1"></i>Thêm danh mục</button>
+                <button class="btn btn-primary" type="button" onclick="openCategoryManagerModal()"><i class="bi bi-tags me-1"></i>Danh mục</button>
                 <button class="btn btn-success" type="button" onclick="openAddProductModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
                 <button class="btn btn-danger" type="button" onclick="deleteProductBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
             </div>
@@ -113,6 +162,27 @@
                 </thead>
                 <tbody id="spTableBody"></tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<div class="service-modal" id="categoryManagerModal" aria-hidden="true">
+    <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="categoryManagerTitle">
+        <div class="service-modal-header">
+            <h3 class="service-modal-title" id="categoryManagerTitle">Danh mục</h3>
+            <button type="button" class="service-modal-close" id="closeCategoryManagerModal" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="service-modal-body" style="grid-template-columns: 1fr;">
+            <div class="service-form-group full">
+                <div class="category-manager-list" id="categoryManagerList"></div>
+            </div>
+        </div>
+        <div class="service-modal-footer" style="justify-content: space-between;">
+            <button type="button" class="btn btn-success" id="addCategoryFromManagerBtn"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-danger" id="deleteCategoryFromManagerBtn"><i class="bi bi-trash me-1"></i>Xóa</button>
+                <button type="button" class="btn btn-outline-secondary" id="cancelCategoryManagerModal">Đóng</button>
+            </div>
         </div>
     </div>
 </div>
@@ -274,6 +344,7 @@
     let productEditMode = 'update';
     let selectedProductId = '';
     const selectedProductIds = new Set();
+    const selectedCategoryIds = new Set();
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -593,6 +664,46 @@
     function setCategoryImageHint(text) {
         const hintEl = document.getElementById('editCategoryImageHint');
         if (hintEl) hintEl.textContent = String(text || '');
+    }
+
+    function renderCategoryManagerList() {
+        const listEl = document.getElementById('categoryManagerList');
+        if (!listEl) return;
+
+        if (!allCategories.length) {
+            listEl.innerHTML = '<div class="text-muted text-center py-3">Chưa có danh mục nào.</div>';
+            return;
+        }
+
+        listEl.innerHTML = allCategories.map((category) => {
+            const id = String(category.id || '');
+            const countProducts = allProducts.filter((item) => String(item.danhmuc_id || '') === id).length;
+            const checked = selectedCategoryIds.has(id) ? 'checked' : '';
+            return `
+                <label class="category-manager-item" for="cm-cat-${escapeHtml(id)}">
+                    <span class="category-manager-main">
+                        <span class="category-manager-name">${escapeHtml(category.tendanhmuc || 'Danh mục')}</span>
+                        <span class="category-manager-meta">(${countProducts} sản phẩm)</span>
+                    </span>
+                    <input id="cm-cat-${escapeHtml(id)}" type="checkbox" data-category-id="${escapeHtml(id)}" ${checked}>
+                </label>
+            `;
+        }).join('');
+    }
+
+    function openCategoryManagerModal() {
+        renderCategoryManagerList();
+        const modal = document.getElementById('categoryManagerModal');
+        if (!modal) return;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCategoryManagerModal() {
+        const modal = document.getElementById('categoryManagerModal');
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
     }
 
     function normalizeProductRecord(item) {
@@ -1001,6 +1112,7 @@
     }
 
     function openAddCategoryModal() {
+        closeCategoryManagerModal();
         document.getElementById('editCategoryId').value = '';
         document.getElementById('editCategoryName').value = '';
         document.getElementById('editCategoryImageFile').value = '';
@@ -1123,6 +1235,9 @@
     document.getElementById('cancelProductModal').addEventListener('click', closeProductModal);
     document.getElementById('closeCategoryModal').addEventListener('click', closeCategoryModal);
     document.getElementById('cancelCategoryModal').addEventListener('click', closeCategoryModal);
+    document.getElementById('closeCategoryManagerModal').addEventListener('click', closeCategoryManagerModal);
+    document.getElementById('cancelCategoryManagerModal').addEventListener('click', closeCategoryManagerModal);
+    document.getElementById('addCategoryFromManagerBtn').addEventListener('click', openAddCategoryModal);
 
     document.getElementById('productEditModal').addEventListener('click', (event) => {
         if (event.target.id === 'productEditModal') {
@@ -1134,6 +1249,54 @@
         if (event.target.id === 'categoryEditModal') {
             closeCategoryModal();
         }
+    });
+
+    document.getElementById('categoryManagerModal').addEventListener('click', (event) => {
+        if (event.target.id === 'categoryManagerModal') {
+            closeCategoryManagerModal();
+        }
+    });
+
+    document.getElementById('categoryManagerList').addEventListener('change', (event) => {
+        const checkbox = event.target.closest('input[type="checkbox"][data-category-id]');
+        if (!checkbox) return;
+        const id = String(checkbox.dataset.categoryId || '');
+        if (!id) return;
+        if (checkbox.checked) {
+            selectedCategoryIds.add(id);
+        } else {
+            selectedCategoryIds.delete(id);
+        }
+    });
+
+    document.getElementById('deleteCategoryFromManagerBtn').addEventListener('click', async () => {
+        const ids = Array.from(selectedCategoryIds);
+        if (!ids.length) {
+            showNotice('Vui lòng chọn ít nhất 1 danh mục để xóa.', 'warning');
+            return;
+        }
+
+        const ok = confirm(`Bạn có chắc muốn xóa ${ids.length} danh mục đã chọn?`);
+        if (!ok) return;
+
+        let deleted = 0;
+        for (const id of ids) {
+            try {
+                await mutateCategory('delete', { id: Number(id) });
+                allCategories = allCategories.filter((item) => String(item.id) !== id);
+                categoryStore.delete(id);
+                selectedCategoryIds.delete(id);
+                deleted += 1;
+            } catch (error) {
+                showNotice('Xóa danh mục thất bại: ' + getErrorMessage(error), 'error');
+                return;
+            }
+        }
+
+        populateCategoryOptions();
+        refreshSummary();
+        renderCategoryManagerList();
+        showNotice(`Đã xóa ${deleted} danh mục.`, 'success');
     });
 
     document.getElementById('closeProductViewModal').addEventListener('click', hideProductDetail);
@@ -1198,6 +1361,7 @@
 
             refreshSummary();
             closeCategoryModal();
+            renderCategoryManagerList();
             showNotice(`Thêm danh mục "${newCategory.tendanhmuc || name}" thành công.`, 'success');
         } catch (error) {
             showNotice('Lưu danh mục thất bại: ' + getErrorMessage(error), 'error');
@@ -1309,6 +1473,7 @@
             }
             closeCategoryModal();
             closeProductModal();
+            closeCategoryManagerModal();
             hideProductDetail();
         }
     });

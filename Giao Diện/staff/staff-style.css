@@ -943,9 +943,32 @@ body.home-no-scroll .page-wrap {
     background: linear-gradient(180deg, #f3f7f5 0%, #eaf1ed 100%);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
     max-height: 372px;
     overflow-y: auto;
+}
+
+.home-chat-msg-row {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 6px;
+    max-width: 100%;
+    margin-top: 1px;
+}
+
+.home-chat-msg-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    border: 1px solid #b9dfc7;
+    background: linear-gradient(135deg, #e8f9ef 0%, #c9f0d8 100%);
+    color: #166534;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 24px;
+    text-align: center;
+    flex-shrink: 0;
+    user-select: none;
 }
 
 .home-chat-msg {
@@ -953,6 +976,7 @@ body.home-no-scroll .page-wrap {
     max-width: 76%;
     border-radius: 12px;
     padding: 8px 10px;
+    position: relative;
     font-size: 12px;
     line-height: 1.4;
     border: 1px solid transparent;
@@ -1000,16 +1024,32 @@ body.home-no-scroll .page-wrap {
 }
 
 .home-chat-msg-actions {
-    margin-top: 4px;
+    margin-top: 0;
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    position: absolute;
+    left: -56px;
+    top: 50%;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-50%);
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+}
+
+.home-chat-msg.staff:hover .home-chat-msg-actions,
+.home-chat-msg.staff:focus-within .home-chat-msg-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(-50%);
 }
 
 .home-chat-recall-btn {
-    border: none;
+    border: 1px solid #f59e0b;
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.12);
-    color: inherit;
+    background: #fef3c7;
+    color: #92400e;
     font-size: 10px;
     font-weight: 700;
     line-height: 1;
@@ -1018,8 +1058,20 @@ body.home-no-scroll .page-wrap {
 }
 
 .home-chat-msg.user .home-chat-recall-btn {
-    background: rgba(15, 23, 42, 0.08);
-    color: #1f2937;
+    border-color: #f59e0b;
+    background: #fef3c7;
+    color: #92400e;
+}
+
+@media (hover: none) {
+    .home-chat-msg.staff .home-chat-msg-actions {
+        position: static;
+        margin-top: 4px;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0);
+    }
 }
 
 .home-chat-compose {
@@ -1171,6 +1223,24 @@ body.home-no-scroll .page-wrap {
     font-size: 11px;
     opacity: 0.86;
     display: none;
+}
+
+.home-chat-media-error-note {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #4b5563;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    padding: 6px 8px;
+    max-width: min(250px, 58vw);
+}
+
+.home-chat-media-error-note a {
+    color: #166534;
+    font-weight: 700;
+    text-decoration: underline;
 }
 
 .home-chat-msg.media-only {

@@ -129,7 +129,6 @@
         <div class="module-card"><div class="module-title"><i class="bi bi-hourglass-split"></i><span>Chờ Duyệt</span></div><div id="sumChoDuyet" class="module-value">0</div><div class="module-desc">Đơn online mới</div></div>
         <div class="module-card"><div class="module-title"><i class="bi bi-check2-circle"></i><span>Hoàn Thành</span></div><div id="sumDaDuyet" class="module-value">0</div><div class="module-desc">Đơn online đã duyệt</div></div>
         <div class="module-card"><div class="module-title"><i class="bi bi-x-circle"></i><span>Từ Chối</span></div><div id="sumTuChoi" class="module-value">0</div><div class="module-desc">Đơn bị từ chối</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-check-circle"></i><span>Đơn Hoàn Tất</span></div><div id="sumHoanTat" class="module-value">0</div><div class="module-desc">Đơn đã thanh toán thành công</div></div>
     </div>
 
     <div class="content-section">
@@ -219,7 +218,6 @@
     const sumChoDuyet = document.getElementById('sumChoDuyet');
     const sumDaDuyet = document.getElementById('sumDaDuyet');
     const sumTuChoi = document.getElementById('sumTuChoi');
-    const sumHoanTat = document.getElementById('sumHoanTat');
     const statusFilter = document.getElementById('statusFilter');
     const keywordInput = document.getElementById('keywordInput');
     const btnSearch = document.getElementById('btnSearch');
@@ -380,40 +378,6 @@
         throw lastError;
     }
 
-    async function loadCompletedSalesCount() {
-        if (!sumHoanTat) return;
-        let lastError = null;
-
-        for (const url of getSalesCandidates()) {
-            try {
-                const sep = url.includes('?') ? '&' : '?';
-                const response = await fetch(url + sep + '_t=' + Date.now(), { cache: 'no-store' });
-                if (!response.ok) {
-                    lastError = new Error('HTTP ' + response.status);
-                    continue;
-                }
-
-                const payload = await response.json();
-                if (!payload.ok) {
-                    lastError = new Error(payload.message || 'API lỗi');
-                    continue;
-                }
-
-                const rows = Array.isArray(payload.data) ? payload.data : [];
-                const completed = rows.filter((item) => String(item.trangthai || '').toLowerCase() === 'hoan_tat').length;
-                sumHoanTat.textContent = String(completed);
-                return;
-            } catch (error) {
-                lastError = error;
-            }
-        }
-
-        sumHoanTat.textContent = '0';
-        if (lastError) {
-            // fallback on API failure
-        }
-    }
-
     function closeOrderDetailModal() {
         if (onlineDetailBackdrop) onlineDetailBackdrop.hidden = true;
         if (onlineDetailModal) onlineDetailModal.hidden = true;
@@ -571,13 +535,11 @@
             sumChoDuyet.textContent = String(payload.summary?.cho_duyet || 0);
             sumDaDuyet.textContent = String(payload.summary?.da_duyet || 0);
             sumTuChoi.textContent = String(payload.summary?.tu_choi || 0);
-            loadCompletedSalesCount();
             renderRows(payload.data || []);
             statusText.textContent = 'Đã tải ' + (payload.count || 0) + ' đơn online.';
         } catch (err) {
             ordersBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Lỗi tải dữ liệu: ' + String(err.message || err) + '</td></tr>';
             statusText.textContent = 'Không thể tải dữ liệu.';
-            sumHoanTat.textContent = '0';
         }
     }
 
