@@ -3485,6 +3485,7 @@
       style.id = AUTH_STYLE_ID;
       style.textContent =
                 '.u-auth-overlay{position:fixed;inset:0;background:rgba(15,23,42,.52);display:none;align-items:center;justify-content:center;z-index:3000;padding:16px;}' +
+                'body.auth-modal-open{overflow:hidden;}' +
                 '.u-auth-card{width:min(560px,100%);background:#fff;border-radius:16px;box-shadow:0 28px 76px rgba(0,0,0,.32);overflow:hidden;font-family:Poppins,Arial,sans-serif;border:1px solid #d9e2ec;color:#0f172a;}' +
                 '.u-auth-head{padding:14px 18px 6px;position:relative;display:flex;justify-content:center;align-items:center;}' +
                 '.u-auth-head-copy{display:grid;gap:0;justify-items:center;}' +
@@ -3559,14 +3560,21 @@
 
       document.body.appendChild(shell);
 
+            const setAuthModalVisibility = (isVisible) => {
+                shell.style.display = isVisible ? 'flex' : 'none';
+                document.body.classList.toggle('auth-modal-open', isVisible);
+            };
+
+            shell.setAuthModalVisibility = setAuthModalVisibility;
+
       const closeBtn = shell.querySelector('#uAuthClose');
       closeBtn.addEventListener('click', () => {
-        shell.style.display = 'none';
+                setAuthModalVisibility(false);
       });
 
       shell.addEventListener('click', (event) => {
         if (event.target === shell) {
-          shell.style.display = 'none';
+                    setAuthModalVisibility(false);
         }
       });
     };
@@ -3616,7 +3624,12 @@
 
             const completeAuth = (payload) => {
                 saveCustomerSession(payload);
-                refs.modal.style.display = 'none';
+                if (typeof refs.modal.setAuthModalVisibility === 'function') {
+                    refs.modal.setAuthModalVisibility(false);
+                } else {
+                    refs.modal.style.display = 'none';
+                    document.body.classList.remove('auth-modal-open');
+                }
                 localStorage.removeItem(AUTH_STORAGE_KEYS.pendingAuthPrompt);
 
                 if (postLoginAction) {
@@ -3638,7 +3651,12 @@
             refs.email.required = authMode === 'register';
             refs.email.disabled = authMode !== 'register';
 
-      refs.modal.style.display = 'flex';
+            if (typeof refs.modal.setAuthModalVisibility === 'function') {
+                refs.modal.setAuthModalVisibility(true);
+            } else {
+                refs.modal.style.display = 'flex';
+                document.body.classList.add('auth-modal-open');
+            }
       refs.form.dataset.mode = authMode;
       clearAuthError(refs);
       refs.form.reset();
@@ -5408,6 +5426,836 @@
             feather.replace();
         }
     })();
+</script>
+<style>
+    .voucher-hunt-bubble {
+        position: fixed;
+        left: 20px;
+        bottom: 92px;
+        z-index: 2400;
+        border: 0;
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #ff6f3d, #ff3d63);
+        color: #fff;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, .26);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        animation: voucherBubbleFloat 2.2s ease-in-out infinite;
+    }
+
+    .voucher-hunt-bubble span {
+        position: absolute;
+        left: 50%;
+        top: -10px;
+        transform: translateX(-50%);
+        background: #101828;
+        color: #fff;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .2px;
+        white-space: nowrap;
+    }
+
+    @keyframes voucherBubbleFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+    }
+
+    .voucher-hunt-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .58);
+        z-index: 2500;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+    }
+
+    .voucher-hunt-backdrop.show { display: flex; }
+
+    .voucher-hunt-modal {
+        width: min(980px, 100%);
+        max-height: calc(100vh - 28px);
+        overflow: auto;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, .35);
+    }
+
+    .voucher-hunt-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, #042f2e, #0f766e);
+        color: #fff;
+    }
+
+    .voucher-head-actions {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .voucher-hunt-grid {
+        display: grid;
+        grid-template-columns: 1.2fr .8fr;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .voucher-hunt-list {
+        display: grid;
+        gap: 10px;
+        max-height: 62vh;
+        overflow: auto;
+        padding-right: 4px;
+    }
+
+    .voucher-hunt-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+    }
+
+    .voucher-hunt-item.active {
+        border-color: #0f766e;
+        box-shadow: 0 0 0 2px rgba(15, 118, 110, .15);
+        background: #f0fdfa;
+    }
+
+    .voucher-hunt-item .code { font-weight: 800; color: #0f172a; }
+    .voucher-hunt-item .meta { color: #475467; font-size: 13px; }
+
+    .voucher-game-box {
+        border: 1px solid #dbe2ea;
+        border-radius: 14px;
+        padding: 12px;
+        background: #f8fafc;
+        min-height: 320px;
+    }
+
+    .voucher-game-play {
+        margin-top: 10px;
+        border-radius: 12px;
+        background: #fff;
+        border: 1px dashed #cbd5e1;
+        padding: 12px;
+        min-height: 220px;
+    }
+
+    .vh-game-visual {
+        border-radius: 10px;
+        height: 120px;
+        background-size: cover;
+        background-position: center;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+
+    .vh-game-visual::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(15, 23, 42, .2), rgba(15, 23, 42, .7));
+    }
+
+    .vh-game-visual span {
+        position: absolute;
+        left: 10px;
+        bottom: 8px;
+        z-index: 2;
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: .2px;
+    }
+
+    .vh-btn {
+        border: 0;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 14px;
+        background: #0f766e;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .vh-btn.secondary { background: #334155; }
+    .vh-btn[disabled] { opacity: .6; cursor: not-allowed; }
+
+    .vh-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .vh-mini-grid button {
+        border: 1px solid #d0d5dd;
+        border-radius: 10px;
+        padding: 8px;
+        background: #fff;
+    }
+
+    .vh-status {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #14532d;
+        font-weight: 600;
+    }
+
+    @media (max-width: 920px) {
+        .voucher-hunt-grid { grid-template-columns: 1fr; }
+        .voucher-hunt-bubble { left: 14px; bottom: 84px; }
+    }
+</style>
+<script>
+(() => {
+    const VOUCHER_STORAGE_KEY = 'userVouchers';
+    const AUTH_KEYS = ['authUser', 'userSession'];
+
+    const state = {
+        vouchers: [],
+        games: {},
+        selectedVoucherId: 0,
+        gameScore: 0,
+        gameWon: false,
+    };
+
+    const esc = (value) => String(value || '').replace(/[&<>\"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[ch]));
+
+    const parseJson = (raw) => {
+        try {
+            const data = JSON.parse(raw);
+            return data && typeof data === 'object' ? data : null;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    const getCurrentUserId = () => {
+        for (const key of AUTH_KEYS) {
+            const fromSession = parseJson(sessionStorage.getItem(key));
+            const fromLocal = parseJson(localStorage.getItem(key));
+            const candidates = [fromSession, fromLocal];
+            for (const c of candidates) {
+                if (!c) continue;
+                const id = Number(c.id || c.user_id || c.userId || 0);
+                if (Number.isFinite(id) && id > 0) return id;
+            }
+        }
+        return 0;
+    };
+
+    const readStoredVouchers = () => {
+        const parsed = parseJson(localStorage.getItem(VOUCHER_STORAGE_KEY));
+        return Array.isArray(parsed) ? parsed : [];
+    };
+
+    const saveStoredVouchers = (list) => {
+        localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+    };
+
+    const addVoucherToStorage = (voucher) => {
+        const list = readStoredVouchers();
+        const exists = list.some((item) => String(item.code || '').trim() === String(voucher.code || '').trim());
+        if (exists) return;
+        list.unshift(voucher);
+        saveStoredVouchers(list);
+    };
+
+    const apiGet = async (api, params = {}) => {
+        const query = new URLSearchParams(params);
+        const candidates = [
+            `home_api.php?api=${encodeURIComponent(api)}&${query.toString()}`,
+            new URL(`home_api.php?api=${encodeURIComponent(api)}&${query.toString()}`, window.location.href).toString(),
+        ];
+
+        let lastError = new Error('Không gọi được API');
+        for (const c of candidates) {
+            try {
+                const url = `${c}${c.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+                const res = await fetch(url, { cache: 'no-store' });
+                const json = await res.json().catch(() => null);
+                if (!res.ok || !json || !json.ok) {
+                    lastError = new Error((json && json.message) || ('HTTP ' + res.status));
+                    continue;
+                }
+                return json;
+            } catch (e) {
+                lastError = e;
+            }
+        }
+        throw lastError;
+    };
+
+    const apiPost = async (api, payload) => {
+        const candidates = [
+            `home_api.php?api=${encodeURIComponent(api)}`,
+            new URL(`home_api.php?api=${encodeURIComponent(api)}`, window.location.href).toString(),
+        ];
+
+        let lastError = new Error('Không gọi được API');
+        for (const c of candidates) {
+            try {
+                const url = `${c}${c.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const json = await res.json().catch(() => null);
+                if (!res.ok || !json || !json.ok) {
+                    lastError = new Error((json && json.message) || ('HTTP ' + res.status));
+                    continue;
+                }
+                return json;
+            } catch (e) {
+                lastError = e;
+            }
+        }
+        throw lastError;
+    };
+
+    const appRoot = document.createElement('div');
+    appRoot.innerHTML = `
+        <button class="voucher-hunt-bubble" id="voucherHuntBubble" type="button" title="Săn voucher">
+            <i class="bi bi-gift-fill"></i>
+            <span>Ưu đãi</span>
+        </button>
+        <div class="voucher-hunt-backdrop" id="voucherHuntBackdrop">
+            <div class="voucher-hunt-modal" role="dialog" aria-modal="true">
+                <div class="voucher-hunt-head">
+                    <div>
+                        <h5 style="margin:0;font-weight:800;">Săn Voucher Mini Game</h5>
+                        <small>Thắng game để nhận voucher ngay</small>
+                    </div>
+                    <div class="voucher-head-actions">
+                        <button class="vh-btn" id="voucherSoundBtn" type="button">Âm thanh: Bật</button>
+                        <button class="vh-btn secondary" id="voucherHuntClose" type="button">Đóng</button>
+                    </div>
+                </div>
+                <div class="voucher-hunt-grid">
+                    <div>
+                        <div id="voucherHuntList" class="voucher-hunt-list"></div>
+                    </div>
+                    <div class="voucher-game-box">
+                        <div id="voucherGameTitle" style="font-weight:800;">Chọn voucher để chơi</div>
+                        <div id="voucherGameHint" style="font-size:13px;color:#475467;"></div>
+                        <div id="voucherGamePlay" class="voucher-game-play"></div>
+                        <div class="d-flex gap-2 mt-2">
+                            <button class="vh-btn" id="voucherClaimBtn" type="button" disabled>Nhận voucher</button>
+                            <button class="vh-btn secondary" id="voucherReloadBtn" type="button">Tải lại</button>
+                        </div>
+                        <div id="voucherGameStatus" class="vh-status"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(appRoot);
+
+    const bubble = document.getElementById('voucherHuntBubble');
+    const backdrop = document.getElementById('voucherHuntBackdrop');
+    const closeBtn = document.getElementById('voucherHuntClose');
+    const soundBtn = document.getElementById('voucherSoundBtn');
+    const listWrap = document.getElementById('voucherHuntList');
+    const gameTitle = document.getElementById('voucherGameTitle');
+    const gameHint = document.getElementById('voucherGameHint');
+    const gamePlay = document.getElementById('voucherGamePlay');
+    const gameStatus = document.getElementById('voucherGameStatus');
+    const claimBtn = document.getElementById('voucherClaimBtn');
+    const reloadBtn = document.getElementById('voucherReloadBtn');
+
+    const GAME_VISUALS = {
+        jigsaw_pet: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=960&h=480&fit=crop',
+        clip_guess_word: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=960&h=480&fit=crop',
+        word_chain: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=960&h=480&fit=crop',
+        image_puzzle: 'https://images.unsplash.com/photo-1581888227599-779811939961?w=960&h=480&fit=crop',
+        pet_quiz: 'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=960&h=480&fit=crop',
+    };
+
+    const audioState = {
+        enabled: true,
+        ctx: null,
+    };
+
+    const ensureAudioCtx = () => {
+        if (audioState.ctx) return audioState.ctx;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        audioState.ctx = new AC();
+        return audioState.ctx;
+    };
+
+    const playTone = (freq = 440, duration = 0.12, type = 'sine', volume = 0.03) => {
+        if (!audioState.enabled) return;
+        const ctx = ensureAudioCtx();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.value = volume;
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        osc.stop(ctx.currentTime + duration);
+    };
+
+    const playWinSound = () => {
+        playTone(523, 0.09, 'triangle', 0.04);
+        setTimeout(() => playTone(659, 0.1, 'triangle', 0.04), 90);
+        setTimeout(() => playTone(784, 0.12, 'triangle', 0.04), 190);
+    };
+
+    const playFailSound = () => {
+        playTone(220, 0.12, 'sawtooth', 0.03);
+        setTimeout(() => playTone(160, 0.15, 'sawtooth', 0.03), 110);
+    };
+
+    const gameVisual = (key, label) => {
+        const img = GAME_VISUALS[key] || GAME_VISUALS.jigsaw_pet;
+        return `<div class="vh-game-visual" style="background-image:url('${img}');"><span>${esc(label)}</span></div>`;
+    };
+
+    const setStatus = (message, ok = true) => {
+        gameStatus.style.color = ok ? '#14532d' : '#b42318';
+        gameStatus.textContent = String(message || '');
+    };
+
+    const resetGameResult = () => {
+        state.gameScore = 0;
+        state.gameWon = false;
+        claimBtn.disabled = true;
+    };
+
+    const parseTime = (raw) => {
+        const text = String(raw || '').trim();
+        if (!text) return null;
+        const ts = new Date(text.replace(' ', 'T')).getTime();
+        return Number.isFinite(ts) ? ts : null;
+    };
+
+    const getVoucherUnavailableReason = (item) => {
+        if (!item) return 'Voucher không hợp lệ.';
+
+        const status = String(item.trangthai || '').trim().toLowerCase();
+        if (status !== 'active') {
+            return 'Voucher chưa kích hoạt.';
+        }
+
+        const now = Date.now();
+        const startTs = parseTime(item.ngaybatdau);
+        const endTs = parseTime(item.ngayketthuc);
+        if (startTs && now < startTs) {
+            return 'Voucher chưa đến thời gian bắt đầu.';
+        }
+        if (endTs && now > endTs) {
+            return 'Voucher đã hết hạn.';
+        }
+
+        const quantity = Number(item.soluong || 0);
+        if (quantity <= 0) {
+            return 'Voucher đã hết số lượng.';
+        }
+
+        const claimed = Number(item.claimed_count || 0);
+        const maxPerUser = Math.max(1, Number(item.toida_sudung_moikhach || 1));
+        if (claimed >= maxPerUser) {
+            return 'Bạn đã dùng hết lượt voucher này.';
+        }
+
+        return '';
+    };
+
+    const renderVoucherList = () => {
+        listWrap.innerHTML = state.vouchers.map((item) => {
+            const canClaim = !!item.can_claim;
+            const activeCls = Number(item.id || 0) === Number(state.selectedVoucherId || 0) ? 'active' : '';
+            const discountLabel = String(item.loaigiamgia || 'percent') === 'fixed'
+                ? `${Number(item.giatri || 0).toLocaleString('vi-VN')}đ`
+                : `${Number(item.giatri || 0)}%`;
+            return `
+                <div class="voucher-hunt-item ${activeCls}">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <div class="code">${esc(item.magiamgia || '')}</div>
+                            <div class="meta">${esc(item.mota || '')}</div>
+                            <div class="meta">Giảm: ${discountLabel} • Đơn tối thiểu: ${Number(item.giatridonhangtoithieu || 0).toLocaleString('vi-VN')}đ</div>
+                            <div class="meta">Mini game: ${esc(item.minigame_label || item.minigame_key || '')}</div>
+                            <div class="meta">Độ khó: ${esc(item.minigame_level_label || item.minigame_level || 'Dễ')}</div>
+                            ${canClaim ? '' : `<div class="meta" style="color:#b42318;">${esc(getVoucherUnavailableReason(item))}</div>`}
+                        </div>
+                        <button class="vh-btn ${canClaim ? '' : 'secondary'}" data-voucher-id="${Number(item.id || 0)}">${canClaim ? 'Chơi' : 'Xem'}</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (!state.vouchers.length) {
+            listWrap.innerHTML = '<div class="voucher-hunt-item">Chưa có voucher khả dụng.</div>';
+        }
+    };
+
+    const pickVoucher = (id) => {
+        const voucher = state.vouchers.find((item) => Number(item.id || 0) === Number(id || 0));
+        if (!voucher) return;
+        state.selectedVoucherId = Number(voucher.id || 0);
+        resetGameResult();
+        if (voucher.can_claim) {
+            setStatus('Hoàn thành mini game để mở nút nhận voucher.', true);
+        } else {
+            setStatus(getVoucherUnavailableReason(voucher), false);
+        }
+        renderVoucherList();
+        renderGame(voucher);
+    };
+
+    const enableClaim = (score) => {
+        const selectedVoucher = state.vouchers.find((item) => Number(item.id || 0) === Number(state.selectedVoucherId || 0));
+        if (!selectedVoucher || !selectedVoucher.can_claim) {
+            setStatus(getVoucherUnavailableReason(selectedVoucher), false);
+            claimBtn.disabled = true;
+            playFailSound();
+            return;
+        }
+
+        state.gameScore = Number(score || 1);
+        state.gameWon = true;
+        claimBtn.disabled = false;
+        setStatus('Bạn đã vượt mini game. Nhấn vào nút "Nhận voucher".', true);
+        playWinSound();
+    };
+
+    const renderGame = (voucher) => {
+        const key = String(voucher.minigame_key || 'jigsaw_pet');
+        const level = String(voucher.minigame_level || 'easy');
+        const levelScoreMap = { easy: 1, medium: 2, hard: 3 };
+        const levelTextMap = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' };
+        const levelScore = levelScoreMap[level] || 1;
+        const label = voucher.minigame_label || (state.games[key] && state.games[key].label) || key;
+        gameTitle.textContent = `Mini game: ${label}`;
+        gameHint.textContent = `Mã voucher: ${voucher.magiamgia || ''} • Độ khó: ${levelTextMap[level] || 'Dễ'}`;
+
+        const finishSimple = (ok) => {
+            if (!ok) {
+                setStatus('Chưa đạt yêu cầu, thử lại nhé.', false);
+                playFailSound();
+                return;
+            }
+            enableClaim(levelScore);
+        };
+
+        if (key === 'jigsaw_pet') {
+            const tileCountMap = { easy: 4, medium: 9, hard: 16 };
+            const tileCount = tileCountMap[level] || 4;
+            const numbers = Array.from({ length: tileCount }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+            gamePlay.innerHTML = `${gameVisual(key, label)}<p>Sắp xếp các mảnh theo đúng thứ tự từ 1 đến ${tileCount}.</p><div class="vh-mini-grid" id="gJigsawGrid" style="grid-template-columns:repeat(${Math.sqrt(tileCount)},minmax(0,1fr));"></div><div class="meta" id="gJigsawMeta">Chọn 2 mảnh để đổi vị trí.</div>`;
+            const grid = document.getElementById('gJigsawGrid');
+            const meta = document.getElementById('gJigsawMeta');
+            let selectedIndex = -1;
+
+            const checkWin = () => numbers.every((v, i) => v === (i + 1));
+            const render = () => {
+                grid.innerHTML = '';
+                numbers.forEach((n, idx) => {
+                    const btn = document.createElement('button');
+                    btn.textContent = String(n);
+                    btn.style.fontWeight = '700';
+                    btn.style.background = selectedIndex === idx ? '#cffafe' : '#fff';
+                    btn.addEventListener('click', () => {
+                        playTone(560, 0.04, 'square', 0.02);
+                        if (selectedIndex < 0) {
+                            selectedIndex = idx;
+                            render();
+                            return;
+                        }
+                        if (selectedIndex === idx) {
+                            selectedIndex = -1;
+                            render();
+                            return;
+                        }
+                        const tmp = numbers[selectedIndex];
+                        numbers[selectedIndex] = numbers[idx];
+                        numbers[idx] = tmp;
+                        selectedIndex = -1;
+                        render();
+                        if (checkWin()) {
+                            meta.textContent = 'Tuyệt vời! Bạn đã ghép đúng toàn bộ mảnh.';
+                            finishSimple(true);
+                        }
+                    });
+                    grid.appendChild(btn);
+                });
+            };
+
+            render();
+            return;
+        }
+
+        if (key === 'clip_guess_word') {
+            const clipBank = {
+                easy: { answer: 'CHO', hint: 'Thú cưng biết sủa', media: 'https://media.giphy.com/media/26BRv0ThflsHCqDrG/giphy.gif' },
+                medium: { answer: 'MEO', hint: 'Thú cưng thích bắt chuột', media: 'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif' },
+                hard: { answer: 'VET', hint: 'Bác sĩ chăm sóc thú cưng', media: 'https://media.giphy.com/media/l0HlQ7LRalQqdWfao/giphy.gif' },
+            };
+            const q = clipBank[level] || clipBank.easy;
+            gamePlay.innerHTML = `${gameVisual(key, label)}<p>Xem clip gợi ý và đoán từ khóa.</p><img src="${q.media}" alt="clip-goi-y" style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;border:1px solid #d0d5dd;"><div class="meta mt-2">Gợi ý: ${q.hint}</div><input id="gClipWord" class="form-control mt-2" maxlength="12" placeholder="Nhập từ"><button id="gClipBtn" class="vh-btn mt-2">Xác nhận</button>`;
+            document.getElementById('gClipBtn').addEventListener('click', () => {
+                const value = String(document.getElementById('gClipWord').value || '').trim().toUpperCase();
+                finishSimple(value === q.answer);
+            });
+            return;
+        }
+
+        if (key === 'word_chain') {
+            const chainMap = {
+                easy: ['CHÓ', 'MÈO', 'THỎ'],
+                medium: ['CHÓ', 'MÈO', 'THỎ', 'HAMSTER'],
+                hard: ['CHÓ', 'MÈO', 'THỎ', 'HAMSTER', 'VẸT'],
+            };
+            const sequence = chainMap[level] || chainMap.easy;
+            const options = [...sequence].sort(() => Math.random() - 0.5);
+            let idx = 0;
+            gamePlay.innerHTML = `${gameVisual(key, label)}<p>Hãy chọn đúng chuỗi từ theo thứ tự thú cưng phổ biến.</p><div class="meta" id="gChainMeta">Từ cần chọn: ${sequence[idx]}</div><div class="vh-mini-grid" id="gChainGrid"></div>`;
+            const grid = document.getElementById('gChainGrid');
+            const meta = document.getElementById('gChainMeta');
+            options.forEach((opt) => {
+                const btn = document.createElement('button');
+                btn.textContent = opt;
+                btn.addEventListener('click', () => {
+                    if (opt !== sequence[idx]) {
+                        finishSimple(false);
+                        return;
+                    }
+                    btn.disabled = true;
+                    idx += 1;
+                    if (idx >= sequence.length) {
+                        finishSimple(true);
+                        return;
+                    }
+                    meta.textContent = `Từ cần chọn: ${sequence[idx]}`;
+                });
+                grid.appendChild(btn);
+            });
+            return;
+        }
+
+        if (key === 'image_puzzle') {
+            const puzzleMap = {
+                easy: { answer: 'CHO', image: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=600&h=300&fit=crop' },
+                medium: { answer: 'MEO', image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&h=300&fit=crop' },
+                hard: { answer: 'THUCUNG', image: 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=600&h=300&fit=crop' },
+            };
+            const pz = puzzleMap[level] || puzzleMap.easy;
+            const letters = pz.answer.split('').sort(() => Math.random() - 0.5);
+            let built = '';
+            gamePlay.innerHTML = `${gameVisual(key, label)}<p>Nhìn hình và chọn chữ để ghép đáp án đúng.</p><img src="${pz.image}" alt="duoi-hinh" style="width:100%;max-height:130px;object-fit:cover;border-radius:10px;border:1px solid #d0d5dd;"><div class="meta mt-2" id="gImageWord">Đáp án: _</div><div class="vh-mini-grid" id="gImageGrid"></div><button id="gImageReset" class="vh-btn secondary mt-2">Làm lại</button>`;
+            const wordEl = document.getElementById('gImageWord');
+            const grid = document.getElementById('gImageGrid');
+            const renderLetters = () => {
+                grid.innerHTML = '';
+                letters.forEach((ch, idx) => {
+                    const btn = document.createElement('button');
+                    btn.textContent = ch;
+                    btn.disabled = false;
+                    btn.addEventListener('click', () => {
+                        built += ch;
+                        letters.splice(idx, 1);
+                        wordEl.textContent = `Đáp án: ${built}`;
+                        if (built === pz.answer) {
+                            finishSimple(true);
+                            return;
+                        }
+                        renderLetters();
+                    });
+                    grid.appendChild(btn);
+                });
+            };
+            renderLetters();
+            document.getElementById('gImageReset').addEventListener('click', () => {
+                built = '';
+                const next = pz.answer.split('').sort(() => Math.random() - 0.5);
+                letters.splice(0, letters.length, ...next);
+                wordEl.textContent = 'Đáp án: _';
+                renderLetters();
+            });
+            return;
+        }
+
+        if (key === 'pet_quiz') {
+            const quizBank = {
+                easy: [
+                    { q: 'Chó là động vật có vú.', a: true },
+                    { q: 'Cá vàng có 4 chân.', a: false },
+                ],
+                medium: [
+                    { q: 'Mèo trưởng thành cần bổ sung nước mỗi ngày.', a: true },
+                    { q: 'Thú cưng không cần tiêm phòng định kỳ.', a: false },
+                    { q: 'Sô-cô-la có thể gây hại cho chó.', a: true },
+                ],
+                hard: [
+                    { q: 'Nhiệt độ cơ thể chó thường cao hơn người.', a: true },
+                    { q: 'Mèo có thể tự tổng hợp đầy đủ taurine từ mọi loại thức ăn.', a: false },
+                    { q: 'Tẩy giun định kỳ là cần thiết cho thú cưng.', a: true },
+                    { q: 'Tai thỏ không tham gia điều hòa thân nhiệt.', a: false },
+                ],
+            };
+            const list = quizBank[level] || quizBank.easy;
+            let idx = 0;
+            let correct = 0;
+            const needCorrect = Math.max(1, Math.floor(list.length * 0.75));
+            gamePlay.innerHTML = `${gameVisual(key, label)}<p id="gQuizQ"></p><div class="d-flex gap-2"><button class="vh-btn" id="gQuizTrue">Đúng</button><button class="vh-btn secondary" id="gQuizFalse">Sai</button></div><div class="meta mt-2" id="gQuizMeta"></div>`;
+            const qEl = document.getElementById('gQuizQ');
+            const mEl = document.getElementById('gQuizMeta');
+            const renderQ = () => {
+                qEl.textContent = `${idx + 1}/${list.length}: ${list[idx].q}`;
+                mEl.textContent = `Đúng hiện tại: ${correct}`;
+            };
+            const answer = (val) => {
+                if (val === list[idx].a) {
+                    correct += 1;
+                }
+                idx += 1;
+                if (idx >= list.length) {
+                    finishSimple(correct >= needCorrect);
+                    return;
+                }
+                renderQ();
+            };
+            document.getElementById('gQuizTrue').addEventListener('click', () => answer(true));
+            document.getElementById('gQuizFalse').addEventListener('click', () => answer(false));
+            renderQ();
+            return;
+        }
+
+        gamePlay.innerHTML = `${gameVisual(key, label)}<p>Mini game chưa sẵn sàng.</p>`;
+    };
+
+    const loadVoucherHunt = async () => {
+        const userId = getCurrentUserId();
+        if (userId <= 0) {
+            state.vouchers = [];
+            state.selectedVoucherId = 0;
+            renderVoucherList();
+            gameTitle.textContent = 'Cần đăng nhập để săn voucher';
+            gameHint.textContent = '';
+            gamePlay.innerHTML = '<p>Vui lòng đăng nhập tài khoản user để tham gia mini game nhận voucher.</p>';
+            setStatus('Chưa có phiên đăng nhập user.', false);
+            return;
+        }
+
+        const payload = await apiGet('get_voucher_hunt_list', { user_id: userId });
+        state.games = payload.games || {};
+        state.vouchers = Array.isArray(payload.data)
+            ? payload.data.filter((item) => item && Number(item.claimed_count || 0) <= 0)
+            : [];
+        const firstClaimable = state.vouchers.find((item) => item.can_claim);
+        state.selectedVoucherId = firstClaimable
+            ? Number(firstClaimable.id || 0)
+            : (state.vouchers.length ? Number(state.vouchers[0].id || 0) : 0);
+        renderVoucherList();
+        if (state.selectedVoucherId > 0) {
+            pickVoucher(state.selectedVoucherId);
+        } else {
+            gameTitle.textContent = 'Chưa có voucher để hiển thị';
+            gameHint.textContent = '';
+            gamePlay.innerHTML = '<p>Hiện chưa có voucher nào trong hệ thống.</p>';
+            setStatus('Không có voucher để hiển thị.', false);
+        }
+    };
+
+    const claimVoucher = async () => {
+        const userId = getCurrentUserId();
+        if (userId <= 0) {
+            setStatus('Vui lòng đăng nhập tài khoản user.', false);
+            return;
+        }
+
+        if (!state.gameWon || state.selectedVoucherId <= 0) {
+            setStatus('Bạn cần thắng mini game trước.', false);
+            return;
+        }
+
+        const voucher = state.vouchers.find((item) => Number(item.id || 0) === Number(state.selectedVoucherId || 0));
+        if (!voucher) {
+            setStatus('Không tìm thấy voucher đang chọn.', false);
+            return;
+        }
+
+        try {
+            const result = await apiPost('claim_voucher_game', {
+                user_id: userId,
+                voucher_id: Number(voucher.id || 0),
+                game_key: String(voucher.minigame_key || 'jigsaw_pet'),
+                game_level: String(voucher.minigame_level || 'easy'),
+                score: Number(state.gameScore || 1),
+                is_win: true,
+            });
+
+            if (result && result.data) {
+                addVoucherToStorage(result.data);
+            }
+            setStatus(result.message || 'Nhận voucher thành công!', true);
+            await loadVoucherHunt();
+        } catch (e) {
+            setStatus(e.message || 'Không thể nhận voucher', false);
+        }
+    };
+
+    listWrap.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-voucher-id]');
+        if (!button || button.disabled) return;
+        playTone(560, 0.05, 'square', 0.02);
+        pickVoucher(Number(button.dataset.voucherId || 0));
+    });
+
+    bubble.addEventListener('click', async () => {
+        backdrop.classList.add('show');
+        playTone(680, 0.07, 'triangle', 0.03);
+        await loadVoucherHunt();
+    });
+
+    closeBtn.addEventListener('click', () => {
+        backdrop.classList.remove('show');
+    });
+
+    backdrop.addEventListener('click', (event) => {
+        if (event.target === backdrop) {
+            backdrop.classList.remove('show');
+        }
+    });
+
+    claimBtn.addEventListener('click', claimVoucher);
+    reloadBtn.addEventListener('click', () => {
+        playTone(520, 0.06, 'square', 0.02);
+        loadVoucherHunt().catch((e) => setStatus(e.message || 'Không tải được voucher', false));
+    });
+
+    soundBtn.addEventListener('click', () => {
+        audioState.enabled = !audioState.enabled;
+        soundBtn.textContent = audioState.enabled ? 'Âm thanh: Bật' : 'Âm thanh: Tắt';
+        if (audioState.enabled) {
+            playTone(740, 0.05, 'triangle', 0.03);
+        }
+    });
+})();
 </script>
 </body>
 </html>

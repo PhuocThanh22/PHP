@@ -22,6 +22,24 @@ if (!defined('APP_RUNNING_FROM_INDEX')) {
     exit;
 }
 
+function app_staff_customer_tier_key(float $spending): string
+{
+    $value = max(0, $spending);
+    if ($value >= 60000000) {
+        return 'kim_cuong';
+    }
+    if ($value >= 30000000) {
+        return 'bach_kim';
+    }
+    if ($value >= 15000000) {
+        return 'vang';
+    }
+    if ($value >= 5000000) {
+        return 'bac';
+    }
+    return 'dong';
+}
+
 function app_booking_ensure_table(mysqli $conn): bool
 {
     $sql = "
@@ -1777,6 +1795,13 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 k.tongchitieukhachhang,
                 k.loaikhachhang,
                 k.ngaytaokhachhang,
+                (
+                    SELECT COALESCE(NULLIF(TRIM(u.anhdaidiennguoidung), ''), '')
+                    FROM nguoidung u
+                    WHERE LOWER(TRIM(COALESCE(u.emailnguoidung, ''))) = LOWER(TRIM(COALESCE(k.emailkhachhang, '')))
+                    ORDER BY u.id DESC
+                    LIMIT 1
+                ) AS anhdaidiennguoidung,
                 COUNT(t.id) AS so_thu_cung
             FROM khachhang k
             LEFT JOIN thucung t ON t.chusohuu_id = k.id
@@ -1805,15 +1830,24 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         $data = [];
         $vipCount = 0;
         $totalSpending = 0.0;
+        $tierCounts = [
+            'dong' => 0,
+            'bac' => 0,
+            'vang' => 0,
+            'bach_kim' => 0,
+            'kim_cuong' => 0,
+        ];
 
         while ($row = $result->fetch_assoc()) {
-            $isVip = (string) $row['loaikhachhang'] === 'vip';
-            if ($isVip) {
-                $vipCount++;
-            }
-
             $spending = (float) $row['tongchitieukhachhang'];
             $totalSpending += $spending;
+            $tierKey = app_staff_customer_tier_key($spending);
+            if (isset($tierCounts[$tierKey])) {
+                $tierCounts[$tierKey]++;
+            }
+            if (in_array($tierKey, ['vang', 'bach_kim', 'kim_cuong'], true)) {
+                $vipCount++;
+            }
 
             $data[] = [
                 'id' => (int) $row['id'],
@@ -1821,8 +1855,10 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'sodienthoaikhachhang' => (string) $row['sodienthoaikhachhang'],
                 'emailkhachhang' => (string) $row['emailkhachhang'],
                 'tongchitieukhachhang' => $spending,
-                'loaikhachhang' => (string) $row['loaikhachhang'],
+                'loaikhachhang' => $tierKey,
                 'ngaytaokhachhang' => (string) $row['ngaytaokhachhang'],
+                'anhdaidiennguoidung' => (string) ($row['anhdaidiennguoidung'] ?? ''),
+                'anhdaidiennguoidung_url' => app_to_public_image_url((string) ($row['anhdaidiennguoidung'] ?? '')),
                 'so_thu_cung' => (int) $row['so_thu_cung'],
             ];
         }
@@ -1836,7 +1872,11 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             'summary' => [
                 'total' => count($data),
                 'vip' => $vipCount,
-                'thuong' => count($data) - $vipCount,
+                'dong' => $tierCounts['dong'],
+                'bac' => $tierCounts['bac'],
+                'vang' => $tierCounts['vang'],
+                'bach_kim' => $tierCounts['bach_kim'],
+                'kim_cuong' => $tierCounts['kim_cuong'],
                 'total_spending' => $totalSpending,
             ],
             'data' => $data,
@@ -1869,6 +1909,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 t.chusohuu_id,
                 k.tenkhachhang AS tenchusohuu,
                 t.trangthaithucung,
+                t.thongtin,
                 t.ngaydangkythucung
             FROM thucung t
             LEFT JOIN khachhang k ON k.id = t.chusohuu_id
@@ -1908,6 +1949,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'chusohuu_id' => (int) $row['chusohuu_id'],
                 'tenchusohuu' => (string) ($row['tenchusohuu'] ?? ''),
                 'trangthaithucung' => $status,
+                'thongtin' => (string) ($row['thongtin'] ?? ''),
                 'ngaydangkythucung' => (string) $row['ngaydangkythucung'],
             ];
         }

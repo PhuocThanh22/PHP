@@ -166,11 +166,529 @@ function app_chat_handle_upload(string $kind): void
     ]);
 }
 
+function app_user_voucher_games(): array
+{
+    return [
+        'jigsaw_pet' => ['label' => 'Ghép hình thú cưng', 'levels' => ['easy' => 1, 'medium' => 2, 'hard' => 3]],
+        'clip_guess_word' => ['label' => 'Xem clip đoán từ', 'levels' => ['easy' => 1, 'medium' => 2, 'hard' => 3]],
+        'word_chain' => ['label' => 'Nối từ', 'levels' => ['easy' => 1, 'medium' => 2, 'hard' => 3]],
+        'image_puzzle' => ['label' => 'Đuổi hình bắt chữ', 'levels' => ['easy' => 1, 'medium' => 2, 'hard' => 3]],
+        'pet_quiz' => ['label' => 'Đố vui thú cưng', 'levels' => ['easy' => 1, 'medium' => 2, 'hard' => 3]],
+    ];
+}
+
+function app_user_voucher_level_labels(): array
+{
+    return [
+        'easy' => 'Dễ',
+        'medium' => 'Trung bình',
+        'hard' => 'Khó',
+    ];
+}
+
+function app_user_voucher_required_score(array $gameConfig, string $level): int
+{
+    $levelKey = trim($level);
+    if ($levelKey === '') {
+        $levelKey = 'easy';
+    }
+
+    $levels = $gameConfig['levels'] ?? null;
+    if (is_array($levels) && array_key_exists($levelKey, $levels)) {
+        return max(1, (int) $levels[$levelKey]);
+    }
+
+    return max(1, (int) ($gameConfig['minScore'] ?? 1));
+}
+
+function app_user_voucher_can_use_now(array $voucherRow): bool
+{
+    $status = (string) ($voucherRow['trangthai'] ?? 'inactive');
+    if ($status !== 'active') {
+        return false;
+    }
+
+    $now = time();
+    $startRaw = trim((string) ($voucherRow['ngaybatdau'] ?? ''));
+    $endRaw = trim((string) ($voucherRow['ngayketthuc'] ?? ''));
+
+    if ($startRaw !== '') {
+        $startAt = strtotime($startRaw);
+        if ($startAt !== false && $now < $startAt) {
+            return false;
+        }
+    }
+
+    if ($endRaw !== '') {
+        $endAt = strtotime($endRaw);
+        if ($endAt !== false && $now > $endAt) {
+            return false;
+        }
+    }
+
+    $quantity = (int) ($voucherRow['soluong'] ?? 0);
+    return $quantity > 0;
+}
+
+function app_user_save_avatar_data_url(string $dataUrl): array
+{
+    $raw = trim($dataUrl);
+    if ($raw === '') {
+        return [false, '', 'Du lieu anh trong'];
+    }
+
+    if (!preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+\/=\r\n]+)$/i', $raw, $matches)) {
+        return [false, '', 'Du lieu anh khong hop le'];
+    }
+
+    $extMap = [
+        'jpeg' => 'jpg',
+        'jpg' => 'jpg',
+        'png' => 'png',
+        'webp' => 'webp',
+    ];
+
+    $mimeExt = strtolower((string) ($matches[1] ?? 'jpg'));
+    $ext = $extMap[$mimeExt] ?? 'jpg';
+
+    $decoded = base64_decode((string) ($matches[2] ?? ''), true);
+    if (!is_string($decoded) || $decoded === '') {
+        return [false, '', 'Khong the giai ma anh'];
+    }
+
+    $size = strlen($decoded);
+    if ($size <= 0 || $size > 5 * 1024 * 1024) {
+        return [false, '', 'Kich thuoc anh khong hop le (toi da 5MB)'];
+    }
+
+    $relativeDir = 'anhdata/users/avatars';
+    $absoluteDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativeDir);
+    if (!is_dir($absoluteDir) && !mkdir($absoluteDir, 0775, true) && !is_dir($absoluteDir)) {
+        return [false, '', 'Khong the tao thu muc luu avatar'];
+    }
+
+    try {
+        $rand = bin2hex(random_bytes(5));
+    } catch (Throwable $e) {
+        $rand = (string) mt_rand(100000, 999999);
+    }
+
+    $fileName = 'avatar_' . date('YmdHis') . '_' . $rand . '.' . $ext;
+    $target = $absoluteDir . DIRECTORY_SEPARATOR . $fileName;
+
+    $written = @file_put_contents($target, $decoded);
+    if (!is_int($written) || $written <= 0) {
+        return [false, '', 'Khong the luu avatar len may chu'];
+    }
+
+    return [true, $relativeDir . '/' . $fileName, ''];
+}
+
 function app_handle_user_api(mysqli $conn, string $api): bool
 {
+    if ($api === 'update_user_avatar') {
+        if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Phuong thuc khong hop le',
+            ], 405);
+        }
+
+        if (!app_table_exists($conn, 'nguoidung')) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay bang nguoidung',
+            ], 500);
+        }
+
+        if (!app_column_exists($conn, 'nguoidung', 'anhdaidiennguoidung')) {
+            $conn->query("ALTER TABLE nguoidung ADD COLUMN anhdaidiennguoidung VARCHAR(255) NULL AFTER emailnguoidung");
+        }
+
+        $input = app_input_payload();
+        $userId = (int) ($input['user_id'] ?? 0);
+        $userEmail = trim((string) ($input['user_email'] ?? ''));
+        $avatarDataUrl = trim((string) ($input['avatar_data_url'] ?? ''));
+
+        if ($userId <= 0 || $avatarDataUrl === '') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Thieu user_id hoac avatar_data_url',
+            ], 400);
+        }
+
+        $findStmt = $conn->prepare('SELECT id, emailnguoidung FROM nguoidung WHERE id = ? LIMIT 1');
+        if (!$findStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the xac thuc nguoi dung',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $findStmt->bind_param('i', $userId);
+        $findStmt->execute();
+        $findResult = $findStmt->get_result();
+        $userRow = $findResult ? $findResult->fetch_assoc() : null;
+        if ($findResult) {
+            $findResult->free();
+        }
+        $findStmt->close();
+
+        if (!is_array($userRow)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Nguoi dung khong ton tai',
+            ], 404);
+        }
+
+        $dbEmail = app_lower(trim((string) ($userRow['emailnguoidung'] ?? '')));
+        if ($userEmail !== '' && $dbEmail !== '' && !hash_equals($dbEmail, app_lower($userEmail))) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Thong tin xac thuc khong khop',
+            ], 403);
+        }
+
+        [$savedOk, $relativePath, $saveMessage] = app_user_save_avatar_data_url($avatarDataUrl);
+        if (!$savedOk) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => $saveMessage !== '' ? $saveMessage : 'Khong the luu avatar',
+            ], 400);
+        }
+
+        $updateStmt = $conn->prepare('UPDATE nguoidung SET anhdaidiennguoidung = ? WHERE id = ?');
+        if (!$updateStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the cap nhat avatar',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $updateStmt->bind_param('si', $relativePath, $userId);
+        $ok = $updateStmt->execute();
+        $updateStmt->close();
+
+        if (!$ok) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Cap nhat avatar that bai',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'data' => [
+                'avatar_path' => $relativePath,
+                'avatar_url' => app_to_public_image_url($relativePath),
+            ],
+        ]);
+    }
+
     if ($api === 'upload_chat_media') {
         $kind = trim((string) ($_POST['kind'] ?? $_GET['kind'] ?? ''));
         app_chat_handle_upload($kind);
+    }
+
+    if ($api === 'get_voucher_hunt_list') {
+        if (!app_ensure_voucher_tables($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao du lieu voucher',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $userId = (int) ($_GET['user_id'] ?? 0);
+
+        $sql = "
+            SELECT
+                v.id,
+                v.magiamgia,
+                COALESCE(v.mota, '') AS mota,
+                v.loaigiamgia,
+                v.giatri,
+                v.giatridonhangtoithieu,
+                v.ngaybatdau,
+                v.ngayketthuc,
+                v.soluong,
+                v.toida_sudung_moikhach,
+                v.trangthai,
+                COALESCE(v.minigame_key, 'jigsaw_pet') AS minigame_key,
+                COALESCE(v.minigame_level, 'easy') AS minigame_level,
+                COALESCE(mu.soluong_danhan, 0) AS claimed_count
+            FROM magiamgia v
+            LEFT JOIN magiamgia_nguoidung mu
+                ON mu.magiamgia_id = v.id
+               AND mu.nguoidung_id = {$userId}
+            ORDER BY v.id DESC
+            LIMIT 300
+        ";
+        $result = $conn->query($sql);
+        if (!$result) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the tai danh sach voucher',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $games = app_user_voucher_games();
+        $items = [];
+        while ($row = $result->fetch_assoc()) {
+            $gameKey = (string) ($row['minigame_key'] ?? 'jigsaw_pet');
+            if (!isset($games[$gameKey])) {
+                $gameKey = 'jigsaw_pet';
+            }
+
+            $levelKey = trim((string) ($row['minigame_level'] ?? 'easy'));
+            $levelLabels = app_user_voucher_level_labels();
+            if (!array_key_exists($levelKey, $levelLabels)) {
+                $levelKey = 'easy';
+            }
+
+            $maxPerUser = max(1, (int) ($row['toida_sudung_moikhach'] ?? 1));
+            $claimedCount = max(0, (int) ($row['claimed_count'] ?? 0));
+            $isOpen = app_user_voucher_can_use_now($row);
+
+            $items[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'magiamgia' => (string) ($row['magiamgia'] ?? ''),
+                'mota' => (string) ($row['mota'] ?? ''),
+                'loaigiamgia' => (string) ($row['loaigiamgia'] ?? 'percent'),
+                'giatri' => (float) ($row['giatri'] ?? 0),
+                'giatridonhangtoithieu' => (float) ($row['giatridonhangtoithieu'] ?? 0),
+                'ngaybatdau' => (string) ($row['ngaybatdau'] ?? ''),
+                'ngayketthuc' => (string) ($row['ngayketthuc'] ?? ''),
+                'soluong' => (int) ($row['soluong'] ?? 0),
+                'toida_sudung_moikhach' => $maxPerUser,
+                'trangthai' => (string) ($row['trangthai'] ?? 'inactive'),
+                'minigame_key' => $gameKey,
+                'minigame_level' => $levelKey,
+                'minigame_level_label' => (string) ($levelLabels[$levelKey] ?? 'Dễ'),
+                'minigame_label' => (string) ($games[$gameKey]['label'] ?? ''),
+                'can_claim' => $isOpen && $claimedCount < $maxPerUser,
+                'claimed_count' => $claimedCount,
+            ];
+        }
+
+        $result->free();
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'count' => count($items),
+            'games' => $games,
+            'levels' => app_user_voucher_level_labels(),
+            'data' => $items,
+        ]);
+    }
+
+    if ($api === 'claim_voucher_game') {
+        if (!app_ensure_voucher_tables($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao du lieu voucher',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $input = app_input_payload();
+        $voucherId = (int) ($input['voucher_id'] ?? 0);
+        $userId = (int) ($input['user_id'] ?? 0);
+        $gameKey = trim((string) ($input['game_key'] ?? ''));
+        $gameLevel = trim((string) ($input['game_level'] ?? 'easy'));
+        $score = (int) ($input['score'] ?? 0);
+        $isWin = (bool) ($input['is_win'] ?? false);
+
+        if ($voucherId <= 0 || $userId <= 0) {
+            $conn->close();
+            app_json_response(['ok' => false, 'message' => 'Du lieu nhan voucher khong hop le'], 400);
+        }
+
+        $games = app_user_voucher_games();
+        if (!isset($games[$gameKey])) {
+            $conn->close();
+            app_json_response(['ok' => false, 'message' => 'Mini game khong hop le'], 400);
+        }
+
+        $userSql = 'SELECT id, vaitronguoidung FROM nguoidung WHERE id = ? LIMIT 1';
+        $userStmt = $conn->prepare($userSql);
+        if (!$userStmt) {
+            $conn->close();
+            app_json_response(['ok' => false, 'message' => 'Khong the xac thuc nguoi dung', 'error' => $conn->error], 500);
+        }
+        $userStmt->bind_param('i', $userId);
+        $userStmt->execute();
+        $userResult = $userStmt->get_result();
+        $userRow = $userResult ? $userResult->fetch_assoc() : null;
+        if ($userResult) {
+            $userResult->free();
+        }
+        $userStmt->close();
+
+        if (!is_array($userRow) || app_normalize_role((string) ($userRow['vaitronguoidung'] ?? 'user')) !== 'user') {
+            $conn->close();
+            app_json_response(['ok' => false, 'message' => 'Tai khoan khong hop le'], 403);
+        }
+
+        $minScore = app_user_voucher_required_score($games[$gameKey], $gameLevel);
+        if (!$isWin || $score < $minScore) {
+            $conn->close();
+            app_json_response(['ok' => false, 'message' => 'Ban chua vuot qua mini game'], 400);
+        }
+
+        $conn->begin_transaction();
+        try {
+            $voucherSql = 'SELECT id, magiamgia, mota, loaigiamgia, giatri, giatridonhangtoithieu, ngaybatdau, ngayketthuc, soluong, toida_sudung_moikhach, trangthai, minigame_key, minigame_level FROM magiamgia WHERE id = ? FOR UPDATE';
+            $voucherStmt = $conn->prepare($voucherSql);
+            if (!$voucherStmt) {
+                throw new RuntimeException('Khong the khoa voucher');
+            }
+            $voucherStmt->bind_param('i', $voucherId);
+            $voucherStmt->execute();
+            $voucherResult = $voucherStmt->get_result();
+            $voucherRow = $voucherResult ? $voucherResult->fetch_assoc() : null;
+            if ($voucherResult) {
+                $voucherResult->free();
+            }
+            $voucherStmt->close();
+
+            if (!is_array($voucherRow)) {
+                throw new RuntimeException('Voucher khong ton tai');
+            }
+
+            $voucherGameKey = trim((string) ($voucherRow['minigame_key'] ?? 'jigsaw_pet'));
+            if ($voucherGameKey === '') {
+                $voucherGameKey = 'jigsaw_pet';
+            }
+
+            if ($voucherGameKey !== $gameKey) {
+                throw new RuntimeException('Voucher nay khong danh cho mini game vua choi');
+            }
+
+            $voucherGameLevel = trim((string) ($voucherRow['minigame_level'] ?? 'easy'));
+            if ($voucherGameLevel === '') {
+                $voucherGameLevel = 'easy';
+            }
+
+            if ($voucherGameLevel !== $gameLevel) {
+                throw new RuntimeException('Muc do mini game khong dung voi voucher nay');
+            }
+
+            $requiredScore = app_user_voucher_required_score($games[$gameKey], $voucherGameLevel);
+            if ($score < $requiredScore) {
+                throw new RuntimeException('Diem mini game chua dat muc yeu cau cua voucher');
+            }
+
+            if (!app_user_voucher_can_use_now($voucherRow)) {
+                throw new RuntimeException('Voucher da het luot hoac het han');
+            }
+
+            $maxPerUser = max(1, (int) ($voucherRow['toida_sudung_moikhach'] ?? 1));
+
+            $claimSql = 'SELECT id, soluong_danhan, diemgame_cao_nhat FROM magiamgia_nguoidung WHERE magiamgia_id = ? AND nguoidung_id = ? FOR UPDATE';
+            $claimStmt = $conn->prepare($claimSql);
+            if (!$claimStmt) {
+                throw new RuntimeException('Khong the kiem tra luot nhan');
+            }
+            $claimStmt->bind_param('ii', $voucherId, $userId);
+            $claimStmt->execute();
+            $claimResult = $claimStmt->get_result();
+            $claimRow = $claimResult ? $claimResult->fetch_assoc() : null;
+            if ($claimResult) {
+                $claimResult->free();
+            }
+            $claimStmt->close();
+
+            $claimed = (int) ($claimRow['soluong_danhan'] ?? 0);
+            if ($claimed >= $maxPerUser) {
+                throw new RuntimeException('Ban da nhan toi da so luot voucher nay');
+            }
+
+            if (is_array($claimRow)) {
+                $claimId = (int) ($claimRow['id'] ?? 0);
+                $nextCount = $claimed + 1;
+                $bestScore = max((int) ($claimRow['diemgame_cao_nhat'] ?? 0), $score);
+                $updateClaimStmt = $conn->prepare('UPDATE magiamgia_nguoidung SET soluong_danhan = ?, diemgame_cao_nhat = ? WHERE id = ?');
+                if (!$updateClaimStmt) {
+                    throw new RuntimeException('Khong the cap nhat luot nhan voucher');
+                }
+                $updateClaimStmt->bind_param('iii', $nextCount, $bestScore, $claimId);
+                $okUpdateClaim = $updateClaimStmt->execute();
+                $updateClaimStmt->close();
+                if (!$okUpdateClaim) {
+                    throw new RuntimeException('Cap nhat luot nhan that bai');
+                }
+            } else {
+                $insertClaimStmt = $conn->prepare('INSERT INTO magiamgia_nguoidung (magiamgia_id, nguoidung_id, soluong_danhan, diemgame_cao_nhat) VALUES (?, ?, 1, ?)');
+                if (!$insertClaimStmt) {
+                    throw new RuntimeException('Khong the tao luot nhan voucher');
+                }
+                $insertClaimStmt->bind_param('iii', $voucherId, $userId, $score);
+                $okInsertClaim = $insertClaimStmt->execute();
+                $insertClaimStmt->close();
+                if (!$okInsertClaim) {
+                    throw new RuntimeException('Tao luot nhan voucher that bai');
+                }
+            }
+
+            $decreaseStmt = $conn->prepare('UPDATE magiamgia SET soluong = soluong - 1 WHERE id = ? AND soluong > 0');
+            if (!$decreaseStmt) {
+                throw new RuntimeException('Khong the cap nhat so luong voucher');
+            }
+            $decreaseStmt->bind_param('i', $voucherId);
+            $decreaseStmt->execute();
+            $affected = (int) $decreaseStmt->affected_rows;
+            $decreaseStmt->close();
+
+            if ($affected <= 0) {
+                throw new RuntimeException('Voucher da het so luong');
+            }
+
+            $conn->commit();
+
+            $conn->close();
+            app_json_response([
+                'ok' => true,
+                'message' => 'Chuc mung! Ban da nhan voucher thanh cong',
+                'data' => [
+                    'id' => (int) ($voucherRow['id'] ?? 0),
+                    'code' => (string) ($voucherRow['magiamgia'] ?? ''),
+                    'title' => (string) ($voucherRow['mota'] ?? ''),
+                    'desc' => (string) ($voucherRow['mota'] ?? ''),
+                    'type' => (string) ($voucherRow['loaigiamgia'] ?? 'percent'),
+                    'value' => (float) ($voucherRow['giatri'] ?? 0),
+                    'minOrder' => (float) ($voucherRow['giatridonhangtoithieu'] ?? 0),
+                    'expiry' => (string) ($voucherRow['ngayketthuc'] ?? ''),
+                    'status' => 'available',
+                    'game' => $gameKey,
+                    'gameLevel' => $voucherGameLevel,
+                ],
+            ]);
+        } catch (Throwable $e) {
+            $conn->rollback();
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
     }
 
     if ($api === 'register_user') {

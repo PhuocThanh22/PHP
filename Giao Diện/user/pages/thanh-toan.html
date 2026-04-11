@@ -216,12 +216,25 @@
   .checkout-success-modal {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(2px);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 12000;
     padding: 20px;
+  }
+
+  html.checkout-modal-open,
+  body.checkout-modal-open {
+    overflow: hidden !important;
+  }
+
+  body.checkout-modal-open {
+    position: fixed;
+    width: 100%;
+    left: 0;
+    right: 0;
   }
 
   .checkout-success-modal.open {
@@ -231,10 +244,12 @@
   .checkout-success-card {
     width: min(620px, 100%);
     background: #ffffff;
+    opacity: 1;
     border-radius: 16px;
     box-shadow: 0 20px 42px rgba(15, 23, 42, 0.24);
     border: 1px solid #d9e2ef;
     overflow: hidden;
+    position: relative;
   }
 
   .checkout-success-head {
@@ -450,6 +465,59 @@
 
 <script>
   const DIRECT_CHECKOUT_KEY = 'checkoutDirectItems';
+  const USER_VOUCHERS_KEY = 'userVouchers';
+  const checkoutVoucherState = {
+    code: '',
+    voucher: null,
+    subtotal: 0,
+    discount: 0,
+  };
+
+  const parsePriceNumber = (value) => Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
+  const formatVnMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`;
+
+  const getStoredVouchers = () => {
+    try {
+      const raw = localStorage.getItem(USER_VOUCHERS_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const getVoucherType = (voucher) => String(voucher?.type || voucher?.loaigiamgia || 'percent').trim().toLowerCase();
+
+  const calcVoucherDiscount = (subtotal, voucher) => {
+    const total = Number(subtotal || 0);
+    if (!voucher || total <= 0) return 0;
+
+    const minOrder = Number(voucher.minOrder ?? voucher.giatridonhangtoithieu ?? 0);
+    if (total < minOrder) return 0;
+
+    const value = Number(voucher.value ?? voucher.giatri ?? 0);
+    if (value <= 0) return 0;
+
+    if (getVoucherType(voucher) === 'fixed') {
+      return Math.max(0, Math.min(total, Math.round(value)));
+    }
+
+    return Math.max(0, Math.min(total, Math.round((total * value) / 100)));
+  };
+
+  const syncCheckoutTotals = () => {
+    const subtotalEl = document.getElementById('checkoutSubtotal');
+    const totalEl = document.getElementById('checkoutTotal');
+    if (!subtotalEl || !totalEl) return;
+
+    const subtotal = Number(checkoutVoucherState.subtotal || 0);
+    const discount = Math.max(0, Math.min(subtotal, Number(checkoutVoucherState.discount || 0)));
+    const finalTotal = Math.max(0, subtotal - discount);
+
+    subtotalEl.textContent = formatVnMoney(subtotal);
+    totalEl.textContent = formatVnMoney(finalTotal);
+    totalEl.dataset.raw = String(finalTotal);
+  };
 
   const getCheckoutItems = () => {
     try {
@@ -640,36 +708,45 @@
 
     if (!rowsEl || !subtotalEl || !totalEl) return;
 
-    const formatVn = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`;
-    const parsePrice = (value) => Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
-
     if (cart.length === 0) {
       rowsEl.innerHTML = `
         <tr>
           <td colspan="2" style="padding: 16px 18px; border: 1px solid #e5e7eb; color: #6b7280; font-size: 16px;">Giỏ hàng đang trống.</td>
         </tr>
       `;
-      subtotalEl.textContent = formatVn(0);
-      totalEl.textContent = formatVn(0);
+      checkoutVoucherState.subtotal = 0;
+      checkoutVoucherState.discount = 0;
+      checkoutVoucherState.code = '';
+      checkoutVoucherState.voucher = null;
+      syncCheckoutTotals();
       return;
     }
 
     const rowsHtml = cart.map((item) => {
       const qty = Number(item.quantity || 1);
-      const lineTotal = parsePrice(item.price) * qty;
+      const lineTotal = parsePriceNumber(item.price) * qty;
       return `
         <tr>
           <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 16px; font-weight: 700; color: #131e2e;">${item.name} &nbsp;× ${qty}</td>
-          <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 16px; color: #6b7280;">${formatVn(lineTotal)}</td>
+          <td style="padding: 16px 18px; border: 1px solid #e5e7eb; font-size: 16px; color: #6b7280;">${formatVnMoney(lineTotal)}</td>
         </tr>
       `;
     }).join('');
 
     rowsEl.innerHTML = rowsHtml;
 
-    const subtotal = cart.reduce((sum, item) => sum + parsePrice(item.price) * Number(item.quantity || 1), 0);
-    subtotalEl.textContent = formatVn(subtotal);
-    totalEl.textContent = formatVn(subtotal);
+    const subtotal = cart.reduce((sum, item) => sum + parsePriceNumber(item.price) * Number(item.quantity || 1), 0);
+    checkoutVoucherState.subtotal = subtotal;
+
+    if (checkoutVoucherState.voucher) {
+      checkoutVoucherState.discount = calcVoucherDiscount(subtotal, checkoutVoucherState.voucher);
+      if (checkoutVoucherState.discount <= 0) {
+        checkoutVoucherState.code = '';
+        checkoutVoucherState.voucher = null;
+      }
+    }
+
+    syncCheckoutTotals();
   })();
 
   (function bindCouponToggle() {
@@ -699,7 +776,6 @@
 
     applyBtn.addEventListener('click', () => {
       const code = couponInput.value.trim().toUpperCase();
-      const validCodes = ['PET10', 'GIAM10', 'FREESHIP'];
 
       if (!code) {
         couponInvalidText.textContent = 'Vui lòng nhập mã ưu đãi.';
@@ -708,14 +784,41 @@
         return;
       }
 
-      if (!validCodes.includes(code)) {
-        couponInvalidText.textContent = 'Vui lòng nhập mã ưu đãi.';
+      const staticVouchers = [
+        { code: 'PET10', type: 'percent', value: 10, minOrder: 0, status: 'available', title: 'Giảm 10%' },
+        { code: 'GIAM10', type: 'percent', value: 10, minOrder: 0, status: 'available', title: 'Giảm 10%' },
+        { code: 'FREESHIP', type: 'fixed', value: 30000, minOrder: 199000, status: 'available', title: 'Giảm phí vận chuyển' },
+      ];
+
+      const allVouchers = [...getStoredVouchers(), ...staticVouchers];
+      const voucher = allVouchers.find((item) => {
+        const itemCode = String(item?.code || item?.magiamgia || '').trim().toUpperCase();
+        const status = String(item?.status || 'available').trim().toLowerCase();
+        return itemCode === code && status === 'available';
+      });
+
+      if (!voucher) {
+        couponInvalidText.textContent = 'Mã ưu đãi không hợp lệ hoặc đã được sử dụng.';
         couponBox.style.display = 'none';
         couponInvalidBox.style.display = 'block';
         return;
       }
 
-      couponInvalidText.textContent = 'Áp dụng mã ưu đãi thành công.';
+      const discount = calcVoucherDiscount(checkoutVoucherState.subtotal, voucher);
+      if (discount <= 0) {
+        const minOrder = Number(voucher.minOrder ?? voucher.giatridonhangtoithieu ?? 0);
+        couponInvalidText.textContent = `Đơn hàng chưa đạt giá trị tối thiểu ${formatVnMoney(minOrder)} để dùng mã này.`;
+        couponBox.style.display = 'none';
+        couponInvalidBox.style.display = 'block';
+        return;
+      }
+
+      checkoutVoucherState.code = code;
+      checkoutVoucherState.voucher = voucher;
+      checkoutVoucherState.discount = discount;
+      syncCheckoutTotals();
+
+      couponInvalidText.textContent = `Áp dụng mã ${code} thành công. Bạn được giảm ${formatVnMoney(discount)}.`;
       couponBox.style.display = 'none';
       couponInvalidBox.style.display = 'block';
     });
@@ -732,6 +835,30 @@
     const goHomeAfterOrderBtn = document.getElementById('goHomeAfterOrderBtn');
 
     if (!placeOrderBtn || !errorBox) return;
+
+    let lockedScrollY = 0;
+
+    const lockPageScroll = () => {
+      if (document.body.classList.contains('checkout-modal-open')) {
+        return;
+      }
+
+      lockedScrollY = window.scrollY || window.pageYOffset || 0;
+      document.documentElement.classList.add('checkout-modal-open');
+      document.body.classList.add('checkout-modal-open');
+      document.body.style.top = `-${lockedScrollY}px`;
+    };
+
+    const unlockPageScroll = () => {
+      if (!document.body.classList.contains('checkout-modal-open')) {
+        return;
+      }
+
+      document.documentElement.classList.remove('checkout-modal-open');
+      document.body.classList.remove('checkout-modal-open');
+      document.body.style.top = '';
+      window.scrollTo(0, lockedScrollY);
+    };
 
     const toMoney = (value) => Number(value || 0).toLocaleString('vi-VN') + ' ₫';
   const parsePrice = (value) => Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
@@ -807,6 +934,7 @@
         <div><strong>Tổng thanh toán:</strong> ${toMoney(orderInfo.total)}</div>
         <div><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</div>
       `;
+      lockPageScroll();
       successModal.classList.add('open');
     };
 
@@ -829,11 +957,13 @@
         <div style="margin-top: 10px;">Thời gian: ${new Date().toLocaleString('vi-VN')}</div>
       `;
 
+      lockPageScroll();
       successModal.classList.add('open');
     };
 
     const closeSuccessPopup = () => {
       successModal?.classList.remove('open');
+      unlockPageScroll();
     };
 
     continueShoppingBtn?.addEventListener('click', () => {
@@ -1106,11 +1236,13 @@
       const paymentMethod = String(paymentInput?.value || 'COD').toUpperCase() === 'BANK'
         ? 'chuyen_khoan'
         : 'tien_mat';
-      const total = cartList.reduce((sum, item) => {
+      const subtotal = cartList.reduce((sum, item) => {
         const price = parsePrice(item.price);
         const quantity = Number(item.quantity || 1);
         return sum + (price * quantity);
       }, 0);
+      const voucherDiscount = Math.max(0, Math.min(subtotal, Number(checkoutVoucherState.discount || 0)));
+      const total = Math.max(0, subtotal - voucherDiscount);
 
       const orderPayload = {
         customer_name: (lastName + ' ' + firstName).trim(),
@@ -1119,6 +1251,8 @@
         address: [addressDetail, ward, district, province].filter(Boolean).join(', '),
         note,
         payment_method: paymentMethod,
+        voucher_code: checkoutVoucherState.code || '',
+        voucher_discount: voucherDiscount,
         total,
         items: cartList.map((item) => ({
           id: item.id || 0,

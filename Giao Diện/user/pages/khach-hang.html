@@ -1314,6 +1314,51 @@
         window.location.origin + '/index.php?api=save_order_review'
       ]));
 
+      const getUpdateAvatarApiCandidates = () => Array.from(new Set([
+        new URL('../../index.php?api=update_user_avatar', window.location.href).toString(),
+        window.location.origin + '/phuocthanh/PHPCHINH/index.php?api=update_user_avatar',
+        window.location.origin + '/PHPCHINH/index.php?api=update_user_avatar',
+        window.location.origin + '/index.php?api=update_user_avatar'
+      ]));
+
+      const saveAvatarToServer = async (avatarDataUrl) => {
+        const authUser = getCurrentAuthUser();
+        const userId = Number(authUser?.id || 0);
+        const userEmail = String(authUser?.email || authUser?.emailnguoidung || authUser?.identifier || '').trim();
+
+        if (userId <= 0) {
+          return String(avatarDataUrl || '');
+        }
+
+        let lastError = new Error('Không thể lưu avatar lên hệ thống');
+
+        for (const url of getUpdateAvatarApiCandidates()) {
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_id: userId,
+                user_email: userEmail,
+                avatar_data_url: avatarDataUrl
+              })
+            });
+
+            const data = await response.json().catch(() => null);
+            if (!response.ok || !data?.ok) {
+              lastError = new Error((data && data.message) || ('HTTP ' + response.status));
+              continue;
+            }
+
+            return String(data?.data?.avatar_url || avatarDataUrl || '');
+          } catch (error) {
+            lastError = error;
+          }
+        }
+
+        throw lastError;
+      };
+
       const renderEmptyOrderDetail = () => {
         const wrap = document.getElementById('orderDetailContent');
         if (wrap) {
@@ -2285,13 +2330,14 @@
           try {
             const rawDataUrl = await readFileAsDataUrl(file);
             const optimizedDataUrl = await optimizeAvatarImage(rawDataUrl);
+            const savedAvatarUrl = await saveAvatarToServer(optimizedDataUrl);
             const profile = store.get(KEYS.profile, {});
-            profile.avatar = optimizedDataUrl;
+            profile.avatar = savedAvatarUrl || optimizedDataUrl;
             store.set(KEYS.profile, profile);
             renderSidebarProfile();
             pushNotification('Ảnh đại diện đã được cập nhật.', 'profile');
           } catch (error) {
-            alert('Không thể cập nhật ảnh đại diện. Vui lòng thử lại.');
+            alert(error?.message || 'Không thể cập nhật ảnh đại diện. Vui lòng thử lại.');
           } finally {
             event.target.value = '';
           }

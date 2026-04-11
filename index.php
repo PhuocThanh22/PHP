@@ -248,6 +248,40 @@ function app_ensure_product_info_column(mysqli $conn): bool
     return (bool) $conn->query("ALTER TABLE sanpham ADD COLUMN thongtin TEXT NULL AFTER hinhanhsanpham");
 }
 
+function app_ensure_user_avatar_column(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'nguoidung')) {
+        return false;
+    }
+
+    if (app_column_exists($conn, 'nguoidung', 'anhdaidiennguoidung')) {
+        return true;
+    }
+
+    return (bool) $conn->query("ALTER TABLE nguoidung ADD COLUMN anhdaidiennguoidung VARCHAR(255) NULL AFTER emailnguoidung");
+}
+
+function app_ensure_voucher_tables(mysqli $conn): bool
+{
+    $ok = true;
+
+    $ok = (bool) $conn->query("\n        CREATE TABLE IF NOT EXISTS magiamgia (\n            id INT NOT NULL AUTO_INCREMENT,\n            magiamgia VARCHAR(50) NOT NULL,\n            mota VARCHAR(255) DEFAULT NULL,\n            loaigiamgia ENUM('percent','fixed') NOT NULL DEFAULT 'percent',\n            giatri DECIMAL(12,2) NOT NULL,\n            giatridonhangtoithieu DECIMAL(12,2) NOT NULL DEFAULT 0,\n            ngaybatdau DATETIME DEFAULT NULL,\n            ngayketthuc DATETIME DEFAULT NULL,\n            soluong INT NOT NULL DEFAULT 0,\n            toida_sudung_moikhach INT NOT NULL DEFAULT 1,\n            trangthai ENUM('active','inactive','expired') NOT NULL DEFAULT 'active',\n            ngaytao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,\n            PRIMARY KEY (id),\n            UNIQUE KEY uk_magiamgia_code (magiamgia)\n        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4\n    ") && $ok;
+
+    if (!app_column_exists($conn, 'magiamgia', 'minigame_key')) {
+        $ok = (bool) $conn->query("ALTER TABLE magiamgia ADD COLUMN minigame_key VARCHAR(64) NOT NULL DEFAULT 'quick_click' AFTER trangthai") && $ok;
+    }
+
+    if (!app_column_exists($conn, 'magiamgia', 'minigame_level')) {
+        $ok = (bool) $conn->query("ALTER TABLE magiamgia ADD COLUMN minigame_level VARCHAR(16) NOT NULL DEFAULT 'easy' AFTER minigame_key") && $ok;
+    }
+
+    $ok = (bool) $conn->query("\n        CREATE TABLE IF NOT EXISTS magiamgia_sanpham (\n            id INT NOT NULL AUTO_INCREMENT,\n            magiamgia_id INT NOT NULL,\n            sanpham_id INT NOT NULL,\n            PRIMARY KEY (id),\n            UNIQUE KEY uk_magiamgia_sanpham (magiamgia_id, sanpham_id),\n            KEY idx_magiamgia_sanpham_sanpham (sanpham_id),\n            CONSTRAINT fk_magiamgia_sanpham_magiamgia\n                FOREIGN KEY (magiamgia_id) REFERENCES magiamgia (id)\n                ON DELETE CASCADE ON UPDATE CASCADE,\n            CONSTRAINT fk_magiamgia_sanpham_sanpham\n                FOREIGN KEY (sanpham_id) REFERENCES sanpham (id)\n                ON DELETE CASCADE ON UPDATE CASCADE\n        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4\n    ") && $ok;
+
+    $ok = (bool) $conn->query("\n        CREATE TABLE IF NOT EXISTS magiamgia_nguoidung (\n            id INT NOT NULL AUTO_INCREMENT,\n            magiamgia_id INT NOT NULL,\n            nguoidung_id INT NOT NULL,\n            soluong_danhan INT NOT NULL DEFAULT 1,\n            diemgame_cao_nhat INT NOT NULL DEFAULT 0,\n            ngaynhan DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n            ngaycapnhat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            PRIMARY KEY (id),\n            UNIQUE KEY uk_magiamgia_nguoidung (magiamgia_id, nguoidung_id),\n            KEY idx_magiamgia_nguoidung_user (nguoidung_id),\n            CONSTRAINT fk_magiamgia_nguoidung_magiamgia\n                FOREIGN KEY (magiamgia_id) REFERENCES magiamgia (id)\n                ON DELETE CASCADE ON UPDATE CASCADE,\n            CONSTRAINT fk_magiamgia_nguoidung_nguoidung\n                FOREIGN KEY (nguoidung_id) REFERENCES nguoidung (id)\n                ON DELETE CASCADE ON UPDATE CASCADE\n        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4\n    ") && $ok;
+
+    return $ok;
+}
+
 function app_input_payload(): array
 {
     $rawBody = (string) file_get_contents('php://input');
@@ -793,6 +827,19 @@ function app_detect_pet_type_column(mysqli $conn): string
     return '';
 }
 
+function app_ensure_pet_note_column(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'thucung')) {
+        return false;
+    }
+
+    if (app_column_exists($conn, 'thucung', 'thongtin')) {
+        return true;
+    }
+
+    return (bool) $conn->query("ALTER TABLE thucung ADD COLUMN thongtin TEXT NULL AFTER trangthaithucung");
+}
+
 function app_seed_dichvu_image_column(mysqli $conn): void
 {
     if (!app_ensure_dichvu_image_column($conn)) {
@@ -845,6 +892,8 @@ if ($api !== '') {
     require_once __DIR__ . '/Giao Diện/user/home_api.php';
 
     $conn = app_db_connect();
+    app_ensure_user_avatar_column($conn);
+    app_ensure_pet_note_column($conn);
 
     $handled = app_handle_admin_api($conn, $api)
         || app_handle_staff_api($conn, $api)

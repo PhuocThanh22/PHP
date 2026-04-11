@@ -93,7 +93,6 @@
 <div class="page-wrap">
     <div class="top-header d-flex justify-content-between align-items-center">
         <h2>Quản Lý Đơn Hàng</h2>
-        <button id="btnReload" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Tải lại</button>
     </div>
     <div class="module-grid">
         <div class="module-card"><div class="module-title"><i class="bi bi-receipt-cutoff"></i><span>Tổng Đơn</span></div><div class="module-value" id="sumAll">0</div><div class="module-desc">Tất cả đơn hàng</div></div>
@@ -170,7 +169,6 @@
     const statTotal = document.getElementById('statTotal');
     const statRevenue = document.getElementById('statRevenue');
     const statPending = document.getElementById('statPending');
-    const btnReload = document.getElementById('btnReload');
 
     const orderDetailBackdrop = document.getElementById('orderDetailBackdrop');
     const orderDetailModal = document.getElementById('orderDetailModal');
@@ -483,7 +481,6 @@
     closeOrderDetailFooterBtn.addEventListener('click', closeOrderDetail);
     orderDetailBackdrop.addEventListener('click', closeOrderDetail);
 
-    btnReload.addEventListener('click', load);
     load();
 })();
 </script>

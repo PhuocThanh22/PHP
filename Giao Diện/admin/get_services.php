@@ -121,6 +121,106 @@ function app_admin_normalize_datetime_input(string $value): ?string
     return date('Y-m-d H:i:s', $timestamp);
 }
 
+function app_admin_voucher_games(): array
+{
+    return [
+        'jigsaw_pet' => 'Ghép hình thú cưng',
+        'clip_guess_word' => 'Xem clip đoán từ',
+        'word_chain' => 'Nối từ',
+        'image_puzzle' => 'Đuổi hình bắt chữ',
+        'pet_quiz' => 'Đố vui thú cưng',
+    ];
+}
+
+function app_admin_voucher_levels(): array
+{
+    return [
+        'easy' => 'Dễ',
+        'medium' => 'Trung bình',
+        'hard' => 'Khó',
+    ];
+}
+
+function app_admin_customer_tier_key(float $spending): string
+{
+    $value = max(0, $spending);
+    if ($value >= 60000000) {
+        return 'kim_cuong';
+    }
+    if ($value >= 30000000) {
+        return 'bach_kim';
+    }
+    if ($value >= 15000000) {
+        return 'vang';
+    }
+    if ($value >= 5000000) {
+        return 'bac';
+    }
+    return 'dong';
+}
+
+function app_admin_parse_id_list($value): array
+{
+    if (is_array($value)) {
+        $rawList = $value;
+    } else {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return [];
+        }
+        $rawList = explode(',', $raw);
+    }
+
+    $ids = [];
+    foreach ($rawList as $item) {
+        $id = (int) $item;
+        if ($id > 0) {
+            $ids[$id] = true;
+        }
+    }
+
+    return array_keys($ids);
+}
+
+function app_admin_sync_voucher_products(mysqli $conn, int $voucherId, array $productIds): bool
+{
+    $deleteStmt = $conn->prepare('DELETE FROM magiamgia_sanpham WHERE magiamgia_id = ?');
+    if (!$deleteStmt) {
+        return false;
+    }
+    $deleteStmt->bind_param('i', $voucherId);
+    $ok = $deleteStmt->execute();
+    $deleteStmt->close();
+    if (!$ok) {
+        return false;
+    }
+
+    if (count($productIds) === 0) {
+        return true;
+    }
+
+    $insertStmt = $conn->prepare('INSERT INTO magiamgia_sanpham (magiamgia_id, sanpham_id) VALUES (?, ?)');
+    if (!$insertStmt) {
+        return false;
+    }
+
+    foreach ($productIds as $productId) {
+        $pid = (int) $productId;
+        if ($pid <= 0) {
+            continue;
+        }
+        $insertStmt->bind_param('ii', $voucherId, $pid);
+        $ok = $insertStmt->execute();
+        if (!$ok) {
+            $insertStmt->close();
+            return false;
+        }
+    }
+
+    $insertStmt->close();
+    return true;
+}
+
 function app_handle_admin_api(mysqli $conn, string $api): bool
 {
     if ($api === 'upload_image') {
@@ -261,6 +361,93 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
         ]);
     }
 
+    if ($api === 'get_voucher_games') {
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'data' => app_admin_voucher_games(),
+            'levels' => app_admin_voucher_levels(),
+        ]);
+    }
+
+    if ($api === 'get_vouchers') {
+        if (!app_ensure_voucher_tables($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang voucher',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $sql = "
+            SELECT
+                v.id,
+                v.magiamgia,
+                COALESCE(v.mota, '') AS mota,
+                v.loaigiamgia,
+                v.giatri,
+                v.giatridonhangtoithieu,
+                v.ngaybatdau,
+                v.ngayketthuc,
+                v.soluong,
+                v.toida_sudung_moikhach,
+                v.trangthai,
+                COALESCE(v.minigame_key, 'jigsaw_pet') AS minigame_key,
+                COALESCE(v.minigame_level, 'easy') AS minigame_level,
+                v.ngaytao,
+                COALESCE(GROUP_CONCAT(DISTINCT mgs.sanpham_id ORDER BY mgs.sanpham_id SEPARATOR ','), '') AS product_ids,
+                COALESCE(GROUP_CONCAT(DISTINCT s.tensanpham ORDER BY s.tensanpham SEPARATOR ' | '), '') AS product_names
+            FROM magiamgia v
+            LEFT JOIN magiamgia_sanpham mgs ON mgs.magiamgia_id = v.id
+            LEFT JOIN sanpham s ON s.id = mgs.sanpham_id
+            GROUP BY v.id
+            ORDER BY v.id DESC
+            LIMIT 500
+        ";
+        $result = $conn->query($sql);
+        if (!$result) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the lay danh sach voucher',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'magiamgia' => (string) ($row['magiamgia'] ?? ''),
+                'mota' => (string) ($row['mota'] ?? ''),
+                'loaigiamgia' => (string) ($row['loaigiamgia'] ?? 'percent'),
+                'giatri' => (float) ($row['giatri'] ?? 0),
+                'giatridonhangtoithieu' => (float) ($row['giatridonhangtoithieu'] ?? 0),
+                'ngaybatdau' => (string) ($row['ngaybatdau'] ?? ''),
+                'ngayketthuc' => (string) ($row['ngayketthuc'] ?? ''),
+                'soluong' => (int) ($row['soluong'] ?? 0),
+                'toida_sudung_moikhach' => (int) ($row['toida_sudung_moikhach'] ?? 1),
+                'trangthai' => (string) ($row['trangthai'] ?? 'active'),
+                'minigame_key' => (string) ($row['minigame_key'] ?? 'jigsaw_pet'),
+                'minigame_level' => (string) ($row['minigame_level'] ?? 'easy'),
+                'ngaytao' => (string) ($row['ngaytao'] ?? ''),
+                'product_ids' => app_admin_parse_id_list((string) ($row['product_ids'] ?? '')),
+                'product_names' => (string) ($row['product_names'] ?? ''),
+            ];
+        }
+
+        $result->free();
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'count' => count($rows),
+            'data' => $rows,
+            'games' => app_admin_voucher_games(),
+            'levels' => app_admin_voucher_levels(),
+        ]);
+    }
+
     if ($api === 'manage_entity') {
         $input = app_input_payload();
         $action = trim((string) ($input['action'] ?? ''));
@@ -280,6 +467,158 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 'ok' => false,
                 'message' => 'Action khong hop le',
             ], 400);
+        }
+
+        if ($entity === 'vouchers') {
+            if (!app_ensure_voucher_tables($conn)) {
+                $conn->close();
+                app_json_response(['ok' => false, 'message' => 'Khong the khoi tao bang voucher', 'error' => $conn->error], 500);
+            }
+
+            $games = app_admin_voucher_games();
+            $levels = app_admin_voucher_levels();
+
+            if ($action === 'create' || $action === 'update') {
+                $id = (int) ($input['id'] ?? 0);
+                $code = strtoupper(trim((string) ($input['magiamgia'] ?? '')));
+                $desc = trim((string) ($input['mota'] ?? ''));
+                $type = trim((string) ($input['loaigiamgia'] ?? 'percent'));
+                $value = (float) ($input['giatri'] ?? 0);
+                $minOrder = (float) ($input['giatridonhangtoithieu'] ?? 0);
+                $start = app_admin_normalize_datetime_input((string) ($input['ngaybatdau'] ?? ''));
+                $end = app_admin_normalize_datetime_input((string) ($input['ngayketthuc'] ?? ''));
+                $quantity = (int) ($input['soluong'] ?? 0);
+                $maxPerUser = (int) ($input['toida_sudung_moikhach'] ?? 1);
+                $status = trim((string) ($input['trangthai'] ?? 'active'));
+                $miniGameKey = trim((string) ($input['minigame_key'] ?? 'jigsaw_pet'));
+                $miniGameLevel = trim((string) ($input['minigame_level'] ?? 'easy'));
+                $productIds = app_admin_parse_id_list($input['product_ids'] ?? []);
+
+                if ($code === '') {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Ma voucher khong duoc de trong'], 400);
+                }
+
+                if (!in_array($type, ['percent', 'fixed'], true)) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Loai giam gia khong hop le'], 400);
+                }
+
+                if ($type === 'percent' && ($value <= 0 || $value > 100)) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Voucher theo phan tram phai > 0 va <= 100'], 400);
+                }
+
+                if ($type === 'fixed' && $value <= 0) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Voucher giam tien phai > 0'], 400);
+                }
+
+                if ($start !== null && $end !== null && $start >= $end) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Ngay ket thuc phai lon hon ngay bat dau'], 400);
+                }
+
+                if ($quantity < 0) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'So luong voucher khong hop le'], 400);
+                }
+
+                if ($maxPerUser <= 0) {
+                    $maxPerUser = 1;
+                }
+
+                if (!in_array($status, ['active', 'inactive', 'expired'], true)) {
+                    $status = 'active';
+                }
+
+                if (!array_key_exists($miniGameKey, $games)) {
+                    $miniGameKey = 'jigsaw_pet';
+                }
+
+                if (!array_key_exists($miniGameLevel, $levels)) {
+                    $miniGameLevel = 'easy';
+                }
+
+                if ($action === 'create') {
+                    $stmt = $conn->prepare('INSERT INTO magiamgia (magiamgia, mota, loaigiamgia, giatri, giatridonhangtoithieu, ngaybatdau, ngayketthuc, soluong, toida_sudung_moikhach, trangthai, minigame_key, minigame_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                    if (!$stmt) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Khong the tao voucher', 'error' => $conn->error], 500);
+                    }
+
+                    $stmt->bind_param('sssddssiisss', $code, $desc, $type, $value, $minOrder, $start, $end, $quantity, $maxPerUser, $status, $miniGameKey, $miniGameLevel);
+                    $ok = $stmt->execute();
+                    $voucherId = (int) $conn->insert_id;
+                    $stmt->close();
+
+                    if (!$ok || $voucherId <= 0) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Tao voucher that bai', 'error' => $conn->error], 500);
+                    }
+
+                    if (!app_admin_sync_voucher_products($conn, $voucherId, $productIds)) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Khong the luu danh sach san pham voucher', 'error' => $conn->error], 500);
+                    }
+
+                    $conn->close();
+                    app_json_response(['ok' => true]);
+                }
+
+                if ($id <= 0) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'ID voucher khong hop le'], 400);
+                }
+
+                $stmt = $conn->prepare('UPDATE magiamgia SET magiamgia = ?, mota = ?, loaigiamgia = ?, giatri = ?, giatridonhangtoithieu = ?, ngaybatdau = ?, ngayketthuc = ?, soluong = ?, toida_sudung_moikhach = ?, trangthai = ?, minigame_key = ?, minigame_level = ? WHERE id = ?');
+                if (!$stmt) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the cap nhat voucher', 'error' => $conn->error], 500);
+                }
+
+                $stmt->bind_param('sssddssiisssi', $code, $desc, $type, $value, $minOrder, $start, $end, $quantity, $maxPerUser, $status, $miniGameKey, $miniGameLevel, $id);
+                $ok = $stmt->execute();
+                $stmt->close();
+
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Cap nhat voucher that bai', 'error' => $conn->error], 500);
+                }
+
+                if (!app_admin_sync_voucher_products($conn, $id, $productIds)) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the cap nhat san pham voucher', 'error' => $conn->error], 500);
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true]);
+            }
+
+            if ($action === 'delete') {
+                $id = (int) ($input['id'] ?? 0);
+                if ($id <= 0) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'ID voucher khong hop le'], 400);
+                }
+
+                $stmt = $conn->prepare('DELETE FROM magiamgia WHERE id = ?');
+                if (!$stmt) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the xoa voucher', 'error' => $conn->error], 500);
+                }
+
+                $stmt->bind_param('i', $id);
+                $ok = $stmt->execute();
+                $stmt->close();
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Xoa voucher that bai', 'error' => $conn->error], 500);
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true]);
+            }
         }
 
         if ($entity === 'services') {
@@ -713,8 +1052,8 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $name = trim((string) ($input['tenkhachhang'] ?? ''));
                 $phone = trim((string) ($input['sodienthoaikhachhang'] ?? ''));
                 $email = trim((string) ($input['emailkhachhang'] ?? ''));
-                $spending = (float) ($input['tongchitieukhachhang'] ?? 0);
-                $type = trim((string) ($input['loaikhachhang'] ?? 'thuong'));
+                $spending = max(0, (float) ($input['tongchitieukhachhang'] ?? 0));
+                $type = app_admin_customer_tier_key($spending);
 
                 if ($name === '' || $phone === '' || $email === '') {
                     $conn->close();
@@ -735,13 +1074,14 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Them khach hang that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query('SELECT id, tenkhachhang, sodienthoaikhachhang, emailkhachhang, tongchitieukhachhang, loaikhachhang, ngaytaokhachhang FROM khachhang WHERE id = ' . $newId . ' LIMIT 1');
+                $rowResult = $conn->query('SELECT id, tenkhachhang, sodienthoaikhachhang, emailkhachhang, tongchitieukhachhang, loaikhachhang, ngaytaokhachhang, (SELECT COALESCE(NULLIF(TRIM(u.anhdaidiennguoidung), ""), "") FROM nguoidung u WHERE LOWER(TRIM(COALESCE(u.emailnguoidung, ""))) = LOWER(TRIM(COALESCE(khachhang.emailkhachhang, ""))) ORDER BY u.id DESC LIMIT 1) AS anhdaidiennguoidung FROM khachhang WHERE id = ' . $newId . ' LIMIT 1');
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
                 }
                 if (is_array($row)) {
                     $row['so_thu_cung'] = 0;
+                    $row['anhdaidiennguoidung_url'] = app_to_public_image_url((string) ($row['anhdaidiennguoidung'] ?? ''));
                 }
 
                 $conn->close();
@@ -753,8 +1093,8 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $name = trim((string) ($input['tenkhachhang'] ?? ''));
                 $phone = trim((string) ($input['sodienthoaikhachhang'] ?? ''));
                 $email = trim((string) ($input['emailkhachhang'] ?? ''));
-                $spending = (float) ($input['tongchitieukhachhang'] ?? 0);
-                $type = trim((string) ($input['loaikhachhang'] ?? 'thuong'));
+                $spending = max(0, (float) ($input['tongchitieukhachhang'] ?? 0));
+                $type = app_admin_customer_tier_key($spending);
 
                 if ($id <= 0 || $name === '' || $phone === '' || $email === '') {
                     $conn->close();
@@ -774,10 +1114,13 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Cap nhat khach hang that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query('SELECT k.id, k.tenkhachhang, k.sodienthoaikhachhang, k.emailkhachhang, k.tongchitieukhachhang, k.loaikhachhang, k.ngaytaokhachhang, COUNT(t.id) AS so_thu_cung FROM khachhang k LEFT JOIN thucung t ON t.chusohuu_id = k.id WHERE k.id = ' . $id . ' GROUP BY k.id, k.tenkhachhang, k.sodienthoaikhachhang, k.emailkhachhang, k.tongchitieukhachhang, k.loaikhachhang, k.ngaytaokhachhang LIMIT 1');
+                $rowResult = $conn->query('SELECT k.id, k.tenkhachhang, k.sodienthoaikhachhang, k.emailkhachhang, k.tongchitieukhachhang, k.loaikhachhang, k.ngaytaokhachhang, (SELECT COALESCE(NULLIF(TRIM(u.anhdaidiennguoidung), ""), "") FROM nguoidung u WHERE LOWER(TRIM(COALESCE(u.emailnguoidung, ""))) = LOWER(TRIM(COALESCE(k.emailkhachhang, ""))) ORDER BY u.id DESC LIMIT 1) AS anhdaidiennguoidung, COUNT(t.id) AS so_thu_cung FROM khachhang k LEFT JOIN thucung t ON t.chusohuu_id = k.id WHERE k.id = ' . $id . ' GROUP BY k.id, k.tenkhachhang, k.sodienthoaikhachhang, k.emailkhachhang, k.tongchitieukhachhang, k.loaikhachhang, k.ngaytaokhachhang LIMIT 1');
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
+                }
+                if (is_array($row)) {
+                    $row['anhdaidiennguoidung_url'] = app_to_public_image_url((string) ($row['anhdaidiennguoidung'] ?? ''));
                 }
 
                 $conn->close();
@@ -823,6 +1166,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $breed = trim((string) ($input['giongthucung'] ?? ''));
                 $ownerId = (int) ($input['chusohuu_id'] ?? 0);
                 $status = trim((string) ($input['trangthaithucung'] ?? ''));
+                $note = trim((string) ($input['thongtin'] ?? ''));
                 $regDate = trim((string) ($input['ngaydangkythucung'] ?? ''));
 
                 if ($name === '' || $type === '' || $breed === '' || $ownerId <= 0 || $status === '' || $regDate === '') {
@@ -840,14 +1184,14 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Chu so huu khong ton tai'], 400);
                 }
 
-                $sqlInsert = "INSERT INTO thucung (tenthucung, {$petTypeColumn}, giongthucung, chusohuu_id, trangthaithucung, ngaydangkythucung) VALUES (?, ?, ?, ?, ?, ?)";
+                $sqlInsert = "INSERT INTO thucung (tenthucung, {$petTypeColumn}, giongthucung, chusohuu_id, trangthaithucung, thongtin, ngaydangkythucung) VALUES (?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $conn->prepare($sqlInsert);
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the them thu cung', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sssiss', $name, $type, $breed, $ownerId, $status, $regDate);
+                $stmt->bind_param('sssisss', $name, $type, $breed, $ownerId, $status, $note, $regDate);
                 $ok = $stmt->execute();
                 $newId = (int) $conn->insert_id;
                 $stmt->close();
@@ -856,7 +1200,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Them thu cung that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query("SELECT t.id, t.tenthucung, t.{$petTypeColumn} AS loaithucung, t.giongthucung, t.chusohuu_id, k.tenkhachhang AS tenchusohuu, t.trangthaithucung, t.ngaydangkythucung FROM thucung t LEFT JOIN khachhang k ON k.id = t.chusohuu_id WHERE t.id = {$newId} LIMIT 1");
+                $rowResult = $conn->query("SELECT t.id, t.tenthucung, t.{$petTypeColumn} AS loaithucung, t.giongthucung, t.chusohuu_id, k.tenkhachhang AS tenchusohuu, t.trangthaithucung, t.thongtin, t.ngaydangkythucung FROM thucung t LEFT JOIN khachhang k ON k.id = t.chusohuu_id WHERE t.id = {$newId} LIMIT 1");
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
@@ -873,6 +1217,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $breed = trim((string) ($input['giongthucung'] ?? ''));
                 $ownerId = (int) ($input['chusohuu_id'] ?? 0);
                 $status = trim((string) ($input['trangthaithucung'] ?? ''));
+                $note = trim((string) ($input['thongtin'] ?? ''));
                 $regDate = trim((string) ($input['ngaydangkythucung'] ?? ''));
 
                 if ($id <= 0 || $name === '' || $type === '' || $breed === '' || $ownerId <= 0 || $status === '' || $regDate === '') {
@@ -890,14 +1235,14 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Chu so huu khong ton tai'], 400);
                 }
 
-                $sqlUpdate = "UPDATE thucung SET tenthucung = ?, {$petTypeColumn} = ?, giongthucung = ?, chusohuu_id = ?, trangthaithucung = ?, ngaydangkythucung = ? WHERE id = ?";
+                $sqlUpdate = "UPDATE thucung SET tenthucung = ?, {$petTypeColumn} = ?, giongthucung = ?, chusohuu_id = ?, trangthaithucung = ?, thongtin = ?, ngaydangkythucung = ? WHERE id = ?";
                 $stmt = $conn->prepare($sqlUpdate);
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the cap nhat thu cung', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sssissi', $name, $type, $breed, $ownerId, $status, $regDate, $id);
+                $stmt->bind_param('sssisssi', $name, $type, $breed, $ownerId, $status, $note, $regDate, $id);
                 $ok = $stmt->execute();
                 $stmt->close();
                 if (!$ok) {
@@ -905,7 +1250,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Cap nhat thu cung that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query("SELECT t.id, t.tenthucung, t.{$petTypeColumn} AS loaithucung, t.giongthucung, t.chusohuu_id, k.tenkhachhang AS tenchusohuu, t.trangthaithucung, t.ngaydangkythucung FROM thucung t LEFT JOIN khachhang k ON k.id = t.chusohuu_id WHERE t.id = {$id} LIMIT 1");
+                $rowResult = $conn->query("SELECT t.id, t.tenthucung, t.{$petTypeColumn} AS loaithucung, t.giongthucung, t.chusohuu_id, k.tenkhachhang AS tenchusohuu, t.trangthaithucung, t.thongtin, t.ngaydangkythucung FROM thucung t LEFT JOIN khachhang k ON k.id = t.chusohuu_id WHERE t.id = {$id} LIMIT 1");
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();

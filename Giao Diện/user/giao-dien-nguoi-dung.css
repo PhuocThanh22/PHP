@@ -5572,8 +5572,8 @@ html {
 
         .scroll-top-btn {
             position: fixed;
-            left: 24px;
-            right: auto;
+            right: 24px;
+            left: auto;
             bottom: 24px;
             width: 62px;
             height: 62px;
@@ -5912,8 +5912,8 @@ html {
             .scroll-top-btn {
                 width: 54px;
                 height: 54px;
-                left: 16px;
-                right: auto;
+                right: 16px;
+                left: auto;
                 bottom: 16px;
             }
         }

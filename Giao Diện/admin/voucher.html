@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Voucher</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #f4f6f8;
+            font-family: 'Be Vietnam Pro', 'Segoe UI', Tahoma, sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+        }
+        .page-wrap { padding: 20px; }
+        .card { border: 0; border-radius: 14px; box-shadow: 0 8px 22px rgba(0,0,0,.08); }
+        .table thead th { white-space: nowrap; font-weight: 600; font-size: 15px; }
+        .form-label { font-weight: 600; font-size: 15px; }
+        .actions { display: inline-flex; gap: 8px; }
+        .badge-game { background: #e8f5e9; color: #2e7d32; }
+    </style>
+</head>
+<body>
+<div class="page-wrap container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="m-0" style="font-weight: 700; font-size: 34px;">Quản Lý Voucher</h3>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form id="voucherForm" class="row g-3">
+                <input type="hidden" id="voucherId">
+                <div class="col-md-3">
+                    <label class="form-label">Mã voucher</label>
+                    <input type="text" id="magiamgia" class="form-control" maxlength="50" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Loại giảm</label>
+                    <select id="loaigiamgia" class="form-select">
+                        <option value="percent">Giảm theo phần trăm (%)</option>
+                        <option value="fixed">Giảm số tiền (VND)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Giá trị</label>
+                    <input type="number" id="giatri" class="form-control" min="0" step="0.01" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Trạng thái</label>
+                    <select id="trangthai" class="form-select">
+                        <option value="active">Đang hoạt động</option>
+                        <option value="inactive">Tạm ngưng</option>
+                        <option value="expired">Hết hạn</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Mô tả</label>
+                    <input type="text" id="mota" class="form-control" maxlength="255">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Đơn tối thiểu</label>
+                    <input type="number" id="giatridonhangtoithieu" class="form-control" min="0" step="0.01" value="0">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Mini game</label>
+                    <select id="minigame_key" class="form-select"></select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Mức độ khó</label>
+                    <select id="minigame_level" class="form-select"></select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Ngày bắt đầu</label>
+                    <input type="datetime-local" id="ngaybatdau" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ngày kết thúc</label>
+                    <input type="datetime-local" id="ngayketthuc" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Số lượng</label>
+                    <input type="number" id="soluong" class="form-control" min="0" value="0">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tối đa mỗi khách</label>
+                    <input type="number" id="toida_sudung_moikhach" class="form-control" min="1" value="1">
+                </div>
+
+                <div class="col-12">
+                    <div class="alert alert-info mb-0" style="font-weight:600;">
+                        Voucher sẽ áp dụng cho tất cả sản phẩm và dịch vụ.
+                    </div>
+                </div>
+
+                <div class="col-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-success"><i class="bi bi-save"></i> Lưu voucher</button>
+                    <button type="button" id="btnDelete" class="btn btn-danger d-none"><i class="bi bi-trash"></i> Xóa voucher</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="voucherTable">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Mã</th>
+                        <th>Mô tả</th>
+                        <th>Loại</th>
+                        <th>Giá trị</th>
+                        <th>Số lượng</th>
+                        <th>Mini game</th>
+                        <th>Độ khó</th>
+                        <th>Thời gian</th>
+                        <th>Phạm vi áp dụng</th>
+                        <th>Hành động</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const state = {
+        vouchers: [],
+        games: {},
+        levels: {},
+    };
+
+    const form = document.getElementById('voucherForm');
+    const voucherTableBody = document.querySelector('#voucherTable tbody');
+    const gameSelect = document.getElementById('minigame_key');
+    const levelSelect = document.getElementById('minigame_level');
+    const btnDelete = document.getElementById('btnDelete');
+
+    const esc = (v) => String(v || '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+    const toInputDateTime = (value) => {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        return raw.replace(' ', 'T').slice(0, 16);
+    };
+
+    const toSqlDateTime = (value) => {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        return raw.replace('T', ' ') + (raw.length === 16 ? ':00' : '');
+    };
+
+    const getApi = async (api) => {
+        const candidates = [
+            `get_services.php?api=${encodeURIComponent(api)}`,
+            new URL(`get_services.php?api=${encodeURIComponent(api)}`, window.location.href).toString(),
+        ];
+
+        let lastError = new Error('Không gọi được API');
+        for (const c of candidates) {
+            try {
+                const url = `${c}${c.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) {
+                    lastError = new Error('HTTP ' + res.status);
+                    continue;
+                }
+                const json = await res.json();
+                if (!json.ok) {
+                    lastError = new Error(json.message || 'API ok=false');
+                    continue;
+                }
+                return json;
+            } catch (e) {
+                lastError = e;
+            }
+        }
+
+        throw lastError;
+    };
+
+    const mutateVoucher = async (action, payload = {}) => {
+        const candidates = [
+            'get_services.php?api=manage_entity',
+            new URL('get_services.php?api=manage_entity', window.location.href).toString(),
+        ];
+
+        let lastError = new Error('Không xử lý được voucher');
+        for (const c of candidates) {
+            try {
+                const url = `${c}${c.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entity: 'vouchers', action, ...payload }),
+                });
+                const json = await res.json().catch(() => null);
+                if (!res.ok || !json || !json.ok) {
+                    lastError = new Error((json && json.message) || ('HTTP ' + res.status));
+                    continue;
+                }
+                return json;
+            } catch (e) {
+                lastError = e;
+            }
+        }
+
+        throw lastError;
+    };
+
+    const renderGames = () => {
+        const entries = Object.entries(state.games);
+        gameSelect.innerHTML = entries.map(([key, label]) => `<option value="${esc(key)}">${esc(label)}</option>`).join('');
+        if (!entries.length) {
+            gameSelect.innerHTML = '<option value="jigsaw_pet">Ghép hình thú cưng</option>';
+        }
+    };
+
+    const renderLevels = () => {
+        const entries = Object.entries(state.levels);
+        levelSelect.innerHTML = entries.map(([key, label]) => `<option value="${esc(key)}">${esc(label)}</option>`).join('');
+        if (!entries.length) {
+            levelSelect.innerHTML = '<option value="easy">Dễ</option><option value="medium">Trung bình</option><option value="hard">Khó</option>';
+        }
+    };
+
+    const renderVouchers = () => {
+        const loaiMap = {
+            percent: 'Giảm theo phần trăm',
+            fixed: 'Giảm số tiền',
+        };
+        voucherTableBody.innerHTML = state.vouchers.map((v) => {
+            const range = `${esc(v.ngaybatdau || '')} - ${esc(v.ngayketthuc || '')}`;
+            return `
+                <tr>
+                    <td>${Number(v.id || 0)}</td>
+                    <td><strong>${esc(v.magiamgia)}</strong></td>
+                    <td>${esc(v.mota)}</td>
+                    <td>${esc(loaiMap[v.loaigiamgia] || v.loaigiamgia)}</td>
+                    <td>${Number(v.giatri || 0).toLocaleString('vi-VN')}</td>
+                    <td>${Number(v.soluong || 0)}</td>
+                    <td><span class="badge badge-game">${esc(state.games[v.minigame_key] || v.minigame_key)}</span></td>
+                    <td><small>${esc(state.levels[v.minigame_level] || v.minigame_level || 'Dễ')}</small></td>
+                    <td><small>${range}</small></td>
+                    <td><small>Tất cả sản phẩm, dịch vụ</small></td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-sm btn-primary" data-action="edit" data-id="${Number(v.id || 0)}"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-danger" data-action="delete" data-id="${Number(v.id || 0)}"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    const resetForm = () => {
+        form.reset();
+        document.getElementById('voucherId').value = '';
+        document.getElementById('toida_sudung_moikhach').value = '1';
+        document.getElementById('soluong').value = '0';
+        document.getElementById('minigame_level').value = 'easy';
+        btnDelete.classList.add('d-none');
+    };
+
+    const fillForm = (voucher) => {
+        document.getElementById('voucherId').value = Number(voucher.id || 0);
+        document.getElementById('magiamgia').value = voucher.magiamgia || '';
+        document.getElementById('mota').value = voucher.mota || '';
+        document.getElementById('loaigiamgia').value = voucher.loaigiamgia || 'percent';
+        document.getElementById('giatri').value = Number(voucher.giatri || 0);
+        document.getElementById('giatridonhangtoithieu').value = Number(voucher.giatridonhangtoithieu || 0);
+        document.getElementById('ngaybatdau').value = toInputDateTime(voucher.ngaybatdau || '');
+        document.getElementById('ngayketthuc').value = toInputDateTime(voucher.ngayketthuc || '');
+        document.getElementById('soluong').value = Number(voucher.soluong || 0);
+        document.getElementById('toida_sudung_moikhach').value = Number(voucher.toida_sudung_moikhach || 1);
+        document.getElementById('trangthai').value = voucher.trangthai || 'active';
+        document.getElementById('minigame_key').value = voucher.minigame_key || 'jigsaw_pet';
+        document.getElementById('minigame_level').value = voucher.minigame_level || 'easy';
+
+        btnDelete.classList.remove('d-none');
+    };
+
+    const loadData = async () => {
+        const voucherPayload = await getApi('get_vouchers');
+
+        state.vouchers = Array.isArray(voucherPayload.data) ? voucherPayload.data : [];
+        state.games = voucherPayload.games || {};
+        state.levels = voucherPayload.levels || {};
+
+        renderGames();
+        renderLevels();
+        renderVouchers();
+    };
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const voucherId = Number(document.getElementById('voucherId').value || 0);
+        const payload = {
+            id: voucherId,
+            magiamgia: String(document.getElementById('magiamgia').value || '').trim(),
+            mota: String(document.getElementById('mota').value || '').trim(),
+            loaigiamgia: document.getElementById('loaigiamgia').value,
+            giatri: Number(document.getElementById('giatri').value || 0),
+            giatridonhangtoithieu: Number(document.getElementById('giatridonhangtoithieu').value || 0),
+            ngaybatdau: toSqlDateTime(document.getElementById('ngaybatdau').value),
+            ngayketthuc: toSqlDateTime(document.getElementById('ngayketthuc').value),
+            soluong: Number(document.getElementById('soluong').value || 0),
+            toida_sudung_moikhach: Number(document.getElementById('toida_sudung_moikhach').value || 1),
+            trangthai: document.getElementById('trangthai').value,
+            minigame_key: document.getElementById('minigame_key').value,
+            minigame_level: document.getElementById('minigame_level').value,
+            product_ids: [],
+        };
+
+        try {
+            await mutateVoucher(voucherId > 0 ? 'update' : 'create', payload);
+            await loadData();
+            resetForm();
+            alert('Lưu voucher thành công');
+        } catch (e) {
+            alert(e.message || 'Không thể lưu voucher');
+        }
+    });
+
+    voucherTableBody.addEventListener('click', async (event) => {
+        const btn = event.target.closest('button[data-action][data-id]');
+        if (!btn) return;
+
+        const id = Number(btn.dataset.id || 0);
+        const action = btn.dataset.action || '';
+        const item = state.vouchers.find((v) => Number(v.id || 0) === id);
+        if (!item) return;
+
+        if (action === 'edit') {
+            fillForm(item);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        if (action === 'delete') {
+            if (!confirm(`Xóa voucher ${item.magiamgia}?`)) return;
+            try {
+                await mutateVoucher('delete', { id });
+                await loadData();
+                if (Number(document.getElementById('voucherId').value || 0) === id) {
+                    resetForm();
+                }
+                alert('Đã xóa voucher');
+            } catch (e) {
+                alert(e.message || 'Không thể xóa voucher');
+            }
+        }
+    });
+
+    btnDelete.addEventListener('click', async () => {
+        const id = Number(document.getElementById('voucherId').value || 0);
+        if (id <= 0) return;
+        if (!confirm('Xóa voucher đang chỉnh sửa?')) return;
+        try {
+            await mutateVoucher('delete', { id });
+            await loadData();
+            resetForm();
+            alert('Đã xóa voucher');
+        } catch (e) {
+            alert(e.message || 'Không thể xóa voucher');
+        }
+    });
+
+    loadData().catch((e) => {
+        alert(e.message || 'Không tải được dữ liệu voucher');
+    });
+})();
+</script>
+</body>
+</html>

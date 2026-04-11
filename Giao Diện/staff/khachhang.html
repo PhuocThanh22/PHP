@@ -45,6 +45,14 @@
             font-weight: 700;
         }
 
+        .customer-avatar.has-image {
+            color: transparent;
+            text-indent: -9999px;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
         .customer-detail-meta {
             display: grid;
             gap: 8px;
@@ -66,6 +74,48 @@
             padding: 0 16px 16px;
         }
 
+        .customer-tier-progress {
+            margin-top: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px;
+            background: #f8fafc;
+        }
+
+        .customer-tier-progress-track {
+            width: 100%;
+            height: 10px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .customer-tier-progress-fill {
+            width: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #22c55e);
+            transition: width 0.3s ease;
+        }
+
+        .customer-tier-progress-text {
+            font-size: 13px;
+            color: #334155;
+        }
+
+        .customer-tier-progress-next {
+            margin-top: 4px;
+            font-size: 13px;
+            color: #0f766e;
+            font-weight: 600;
+        }
+
+        .status-badge.tier-dong { background: #e2e8f0; color: #334155; }
+        .status-badge.tier-bac { background: #dbeafe; color: #1d4ed8; }
+        .status-badge.tier-vang { background: #fef3c7; color: #b45309; }
+        .status-badge.tier-bach-kim { background: #dcfce7; color: #15803d; }
+        .status-badge.tier-kim-cuong { background: #ede9fe; color: #6d28d9; }
+
         @media (max-width: 768px) {
             .customer-detail-grid {
                 grid-template-columns: 1fr;
@@ -84,6 +134,7 @@
             </div>
             <div class="service-toolbar-actions">
                 <button class="btn btn-success" type="button" onclick="openAddCustomerModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+                <button class="btn btn-danger" type="button" onclick="deleteCustomerBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
             </div>
         </div>
     </div>
@@ -110,7 +161,16 @@
         <div class="section-header"><h3><i class="bi bi-people text-warning me-2"></i>Danh Sách Khách Hàng</h3></div>
         <div class="data-table">
             <table>
-                <thead><tr><th>Khách Hàng</th><th>SĐT</th><th>Loại</th><th>Số Thú Cưng</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th style="width:44px;"><input id="customerSelectAll" type="checkbox" aria-label="Chọn tất cả khách hàng"></th>
+                        <th>Khách Hàng</th>
+                        <th>SĐT</th>
+                        <th>Tổng chi tiêu</th>
+                        <th>Loại</th>
+                        <th>Số Thú Cưng</th>
+                    </tr>
+                </thead>
                 <tbody id="customerTableBody"></tbody>
             </table>
         </div>
@@ -132,7 +192,15 @@
                     <div><b>Số điện thoại:</b> <span id="customerDetailPhone">-</span></div>
                     <div><b>Email:</b> <span id="customerDetailEmail">-</span></div>
                     <div><b>Loại khách:</b> <span id="customerDetailType">-</span></div>
+                    <div><b>Ưu đãi hiện tại:</b> <span id="customerDetailBenefits">-</span></div>
                     <div><b>Tổng chi tiêu:</b> <span id="customerDetailSpending">-</span></div>
+                    <div class="customer-tier-progress">
+                        <div class="customer-tier-progress-track">
+                            <div class="customer-tier-progress-fill" id="customerTierProgressFill"></div>
+                        </div>
+                        <div class="customer-tier-progress-text" id="customerTierProgressText">-</div>
+                        <div class="customer-tier-progress-next" id="customerTierProgressNext">-</div>
+                    </div>
                     <div><b>Số thú cưng:</b> <span id="customerDetailPetCount">-</span></div>
                     <div><b>Ngày tạo:</b> <span id="customerDetailCreated">-</span></div>
                 </div>
@@ -166,11 +234,9 @@
                 </div>
 
                 <div class="service-form-group">
-                    <label for="editCustomerType">Loại khách</label>
-                    <select class="service-form-control" id="editCustomerType" required>
-                        <option value="thuong">Thường</option>
-                        <option value="vip">VIP</option>
-                    </select>
+                    <label for="editCustomerTier">Hạng khách</label>
+                    <input class="service-form-control" id="editCustomerTier" type="text" readonly>
+                    <small class="text-muted" id="editCustomerTierBenefit"></small>
                 </div>
 
                 <div class="service-form-group full">
@@ -198,7 +264,7 @@
     let customerFilter = '';
     let customerMode = 'update';
     let selectedCustomerId = '';
-    const STAFF_CAN_DELETE = false;
+    const selectedCustomerIds = new Set();
 
     function escapeHtml(value) {
         return String(value)
@@ -218,6 +284,70 @@
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return String(value);
         return date.toLocaleString('vi-VN');
+    }
+
+    const CUSTOMER_TIER_RULES = [
+        { key: 'dong', label: 'Đồng', min: 0, perks: 'Giảm 2% cho đơn từ 300.000đ.' },
+        { key: 'bac', label: 'Bạc', min: 5000000, perks: 'Giảm 4% và ưu tiên tư vấn.' },
+        { key: 'vang', label: 'Vàng', min: 15000000, perks: 'Giảm 7% và miễn phí giao hàng nội thành.' },
+        { key: 'bach_kim', label: 'Bạch kim', min: 30000000, perks: 'Giảm 10% và ưu tiên lịch dịch vụ.' },
+        { key: 'kim_cuong', label: 'Kim cương', min: 60000000, perks: 'Giảm 15%, quà sinh nhật và hotline riêng.' },
+    ];
+
+    function getCustomerTierBySpending(value) {
+        const spending = Math.max(0, Number(value || 0));
+        for (let index = CUSTOMER_TIER_RULES.length - 1; index >= 0; index -= 1) {
+            const rule = CUSTOMER_TIER_RULES[index];
+            if (spending >= rule.min) return rule;
+        }
+        return CUSTOMER_TIER_RULES[0];
+    }
+
+    function normalizeCustomerTierKey(type, spending) {
+        const raw = String(type || '').trim().toLowerCase();
+        if (raw === 'kim cương') return 'kim_cuong';
+        if (raw === 'bạch kim') return 'bach_kim';
+        if (raw === 'vàng') return 'vang';
+        if (raw === 'bạc') return 'bac';
+        if (raw === 'đồng') return 'dong';
+
+        const existing = CUSTOMER_TIER_RULES.find((rule) => rule.key === raw);
+        if (existing) return existing.key;
+
+        if (raw === 'vip') return 'vang';
+        if (raw === 'thuong') return getCustomerTierBySpending(spending).key;
+        return getCustomerTierBySpending(spending).key;
+    }
+
+    function getCustomerTier(type, spending) {
+        const tierKey = normalizeCustomerTierKey(type, spending);
+        return CUSTOMER_TIER_RULES.find((rule) => rule.key === tierKey) || getCustomerTierBySpending(spending);
+    }
+
+    function getCustomerTierProgress(spendingValue) {
+        const spending = Math.max(0, Number(spendingValue || 0));
+        const currentTier = getCustomerTierBySpending(spending);
+        const currentIndex = CUSTOMER_TIER_RULES.findIndex((rule) => rule.key === currentTier.key);
+        const nextTier = currentIndex >= 0 ? (CUSTOMER_TIER_RULES[currentIndex + 1] || null) : null;
+
+        if (!nextTier) {
+            return {
+                percent: 100,
+                progressText: 'Đã đạt hạng cao nhất.',
+                nextText: 'Bạn đang ở mốc Kim cương, nhận đầy đủ ưu đãi cao cấp.',
+            };
+        }
+
+        const range = Math.max(1, nextTier.min - currentTier.min);
+        const progressed = Math.min(range, Math.max(0, spending - currentTier.min));
+        const percent = Math.max(0, Math.min(100, (progressed / range) * 100));
+        const remaining = Math.max(0, nextTier.min - spending);
+
+        return {
+            percent,
+            progressText: `Đã đạt ${formatCurrencyVND(spending)} / ${formatCurrencyVND(nextTier.min)}`,
+            nextText: `Còn ${formatCurrencyVND(remaining)} để lên hạng ${nextTier.label}.`,
+        };
     }
 
     function getErrorMessage(error) {
@@ -343,15 +473,35 @@
         return new Error(errorMessage);
     }
 
-    function customerTypeText(type) {
-        return String(type) === 'vip' ? 'VIP' : 'Thường';
+    function customerTypeText(type, spending = 0) {
+        return getCustomerTier(type, spending).label;
+    }
+
+    function customerTypeBadgeClass(type, spending = 0) {
+        const key = getCustomerTier(type, spending).key;
+        if (key === 'dong') return 'tier-dong';
+        if (key === 'bac') return 'tier-bac';
+        if (key === 'vang') return 'tier-vang';
+        if (key === 'bach_kim') return 'tier-bach-kim';
+        return 'tier-kim-cuong';
+    }
+
+    function customerBenefitText(type, spending = 0) {
+        return getCustomerTier(type, spending).perks;
+    }
+
+    function updateCustomerTierPreview(spendingValue) {
+        const tierInput = document.getElementById('editCustomerTier');
+        const benefitHint = document.getElementById('editCustomerTierBenefit');
+        if (!tierInput || !benefitHint) return;
+
+        const tier = getCustomerTierBySpending(spendingValue);
+        tierInput.value = tier.label;
+        benefitHint.textContent = tier.perks;
     }
 
     function getApiCandidates(path) {
         const candidates = [];
-        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-        candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=${path}`);
-        candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=${path}`);
         candidates.push(new URL(`../../index.php?api=${path}`, window.location.href).toString());
 
         const marker = '/admin/';
@@ -364,6 +514,7 @@
             if (detectedBase) candidates.push(`${detectedBase}/index.php?api=${path}`);
         }
 
+        candidates.push(`/phuocthanh/PHPCHINH/index.php?api=${path}`);
         candidates.push(`/PHPCHINH/index.php?api=${path}`);
         candidates.push(`/index.php?api=${path}`);
 
@@ -400,7 +551,10 @@
     }
 
     async function mutateCustomer(action, payload = {}) {
-        const candidates = getApiCandidates('get_customers');
+        const candidates = [
+            'get_services.php?api=get_customers',
+            new URL('get_services.php?api=get_customers', window.location.href).toString(),
+        ];
         let lastError = new Error('Khong the xu ly khach hang');
 
         for (const candidate of candidates) {
@@ -436,7 +590,10 @@
 
     function updateCustomerSummary() {
         const total = allCustomers.length;
-        const vip = allCustomers.filter((item) => String(item.loaikhachhang) === 'vip').length;
+        const vip = allCustomers.filter((item) => {
+            const tier = getCustomerTier(item.loaikhachhang, item.tongchitieukhachhang);
+            return ['vang', 'bach_kim', 'kim_cuong'].includes(tier.key);
+        }).length;
         const petCount = allCustomers.reduce((sum, item) => sum + Number(item.so_thu_cung || 0), 0);
 
         document.getElementById('customerTotal').textContent = total;
@@ -457,6 +614,45 @@
         });
     }
 
+    function syncCustomerSelectAllState() {
+        const selectAll = document.getElementById('customerSelectAll');
+        if (!selectAll) return;
+
+        const rows = getFilteredCustomers();
+        if (!rows.length) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
+        }
+
+        const selectedCount = rows.filter((item) => selectedCustomerIds.has(String(item.id))).length;
+        selectAll.checked = selectedCount === rows.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < rows.length;
+    }
+
+    function toggleCustomerSelection(customerId, checked) {
+        const id = String(customerId);
+        if (checked) {
+            selectedCustomerIds.add(id);
+        } else {
+            selectedCustomerIds.delete(id);
+        }
+        syncCustomerSelectAllState();
+    }
+
+    function toggleAllCustomers(checked) {
+        const rows = getFilteredCustomers();
+        rows.forEach((item) => {
+            const id = String(item.id);
+            if (checked) {
+                selectedCustomerIds.add(id);
+            } else {
+                selectedCustomerIds.delete(id);
+            }
+        });
+        renderCustomers();
+    }
+
     function renderCustomers() {
         const tbody = document.getElementById('customerTableBody');
         if (!tbody) return;
@@ -466,19 +662,24 @@
         if (!hasSelected) selectedCustomerId = '';
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="4">Không tìm thấy khách hàng phù hợp.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6">Không tìm thấy khách hàng phù hợp.</td></tr>';
             hideCustomerDetail();
+            syncCustomerSelectAllState();
             return;
         }
 
         tbody.innerHTML = rows.map((row) => `
             <tr data-customer-id="${row.id}" class="${String(selectedCustomerId) === String(row.id) ? 'is-selected' : ''}" onclick="showCustomerDetail(${row.id})">
+                <td onclick="event.stopPropagation()"><input type="checkbox" ${selectedCustomerIds.has(String(row.id)) ? 'checked' : ''} onchange="toggleCustomerSelection(${row.id}, this.checked)"></td>
                 <td>${escapeHtml(row.tenkhachhang || '-')}</td>
                 <td>${escapeHtml(row.sodienthoaikhachhang || '-')}</td>
-                <td><span class="status-badge ${String(row.loaikhachhang) === 'vip' ? 'success' : 'warning'}">${customerTypeText(row.loaikhachhang)}</span></td>
+                <td>${formatCurrencyVND(row.tongchitieukhachhang)}</td>
+                <td><span class="status-badge ${customerTypeBadgeClass(row.loaikhachhang, row.tongchitieukhachhang)}">${customerTypeText(row.loaikhachhang, row.tongchitieukhachhang)}</span></td>
                 <td>${Number(row.so_thu_cung || 0)}</td>
             </tr>
         `).join('');
+
+        syncCustomerSelectAllState();
     }
 
     async function loadCustomers(forceReload = false) {
@@ -486,7 +687,7 @@
         if (!tbody) return;
         if (tbody.dataset.loaded === '1' && !forceReload) return;
 
-        tbody.innerHTML = '<tr><td colspan="4">Đang tải dữ liệu khách hàng...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">Đang tải dữ liệu khách hàng...</td></tr>';
 
         try {
             const payload = await fetchPayload('get_customers');
@@ -498,7 +699,7 @@
             renderCustomers();
             tbody.dataset.loaded = '1';
         } catch (error) {
-            tbody.innerHTML = `<tr><td colspan="4">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
         }
     }
 
@@ -533,10 +734,14 @@
         const phone = document.getElementById('customerDetailPhone');
         const email = document.getElementById('customerDetailEmail');
         const type = document.getElementById('customerDetailType');
+        const benefits = document.getElementById('customerDetailBenefits');
         const spending = document.getElementById('customerDetailSpending');
+        const progressFill = document.getElementById('customerTierProgressFill');
+        const progressText = document.getElementById('customerTierProgressText');
+        const progressNext = document.getElementById('customerTierProgressNext');
         const petCount = document.getElementById('customerDetailPetCount');
         const created = document.getElementById('customerDetailCreated');
-        if (!avatar || !id || !name || !phone || !email || !type || !spending || !petCount || !created) return false;
+        if (!avatar || !id || !name || !phone || !email || !type || !benefits || !spending || !progressFill || !progressText || !progressNext || !petCount || !created) return false;
 
         const displayName = String(row.tenkhachhang || '-');
         const initials = displayName
@@ -546,13 +751,29 @@
             .map((part) => part.charAt(0).toUpperCase())
             .join('') || 'KH';
 
+        const avatarUrl = String(row.anhdaidiennguoidung_url || row.anhdaidiennguoidung || '').trim();
+
         avatar.textContent = initials;
+        avatar.classList.remove('has-image');
+        avatar.style.removeProperty('background-image');
+        if (avatarUrl !== '') {
+            avatar.classList.add('has-image');
+            avatar.style.backgroundImage = `url("${avatarUrl.replace(/"/g, '%22')}")`;
+        }
+
         id.textContent = String(row.id || '-');
         name.textContent = displayName;
         phone.textContent = String(row.sodienthoaikhachhang || '-');
         email.textContent = String(row.emailkhachhang || '-');
-        type.textContent = customerTypeText(row.loaikhachhang);
+        type.textContent = customerTypeText(row.loaikhachhang, row.tongchitieukhachhang);
+        benefits.textContent = customerBenefitText(row.loaikhachhang, row.tongchitieukhachhang);
         spending.textContent = formatCurrencyVND(row.tongchitieukhachhang);
+
+        const tierProgress = getCustomerTierProgress(row.tongchitieukhachhang);
+        progressFill.style.width = `${tierProgress.percent}%`;
+        progressText.textContent = tierProgress.progressText;
+        progressNext.textContent = tierProgress.nextText;
+
         petCount.textContent = String(Number(row.so_thu_cung || 0));
         created.textContent = formatDateTime(row.ngaytaokhachhang);
         return true;
@@ -579,7 +800,7 @@
         document.getElementById('editCustomerPhone').value = '';
         document.getElementById('editCustomerEmail').value = '';
         document.getElementById('editCustomerSpending').value = 0;
-        document.getElementById('editCustomerType').value = 'thuong';
+        updateCustomerTierPreview(0);
         openCustomerModal();
     }
 
@@ -595,43 +816,40 @@
         document.getElementById('editCustomerPhone').value = row.sodienthoaikhachhang || '';
         document.getElementById('editCustomerEmail').value = row.emailkhachhang || '';
         document.getElementById('editCustomerSpending').value = Number(row.tongchitieukhachhang || 0);
-        document.getElementById('editCustomerType').value = String(row.loaikhachhang) === 'vip' ? 'vip' : 'thuong';
+        updateCustomerTierPreview(Number(row.tongchitieukhachhang || 0));
         openCustomerModal();
     }
 
     async function deleteCustomerBySearch() {
-        if (!STAFF_CAN_DELETE) {
-            showNotice('Tai khoan staff khong co quyen xoa khach hang.', 'warning');
+        const selectedIds = Array.from(selectedCustomerIds).filter((id) => customerStore.has(String(id)));
+        if (!selectedIds.length) {
+            showNotice('Vui lòng chọn ít nhất 1 khách hàng cần xóa.', 'warning');
             return;
         }
 
-        const keyword = String(document.getElementById('customerSearchInput')?.value || '').trim().toLowerCase();
-        if (!keyword) {
-            showNotice('Nhập mã, tên, email hoặc số điện thoại khách hàng cần xóa.', 'warning');
-            return;
-        }
-
-        const target = getFilteredCustomers()[0];
-        if (!target) {
-            showNotice('Không tìm thấy khách hàng để xóa.', 'warning');
-            return;
-        }
-
-        if (!confirm(`Bạn có chắc muốn xóa khách hàng "${target.tenkhachhang}" (ID: ${target.id})?`)) return;
+        if (!confirm(`Bạn có chắc muốn xóa ${selectedIds.length} khách hàng đã chọn?`)) return;
 
         try {
-            await mutateCustomer('delete', { id: target.id });
-            allCustomers = allCustomers.filter((item) => String(item.id) !== String(target.id));
-            customerStore.delete(String(target.id));
+            let deletedCount = 0;
+            for (const id of selectedIds) {
+                const target = customerStore.get(String(id));
+                if (!target) continue;
 
-            if (String(selectedCustomerId) === String(target.id)) {
-                selectedCustomerId = '';
-                hideCustomerDetail();
+                await mutateCustomer('delete', { id: target.id });
+                allCustomers = allCustomers.filter((item) => String(item.id) !== String(target.id));
+                customerStore.delete(String(target.id));
+                selectedCustomerIds.delete(String(target.id));
+                deletedCount += 1;
+
+                if (String(selectedCustomerId) === String(target.id)) {
+                    selectedCustomerId = '';
+                    hideCustomerDetail();
+                }
             }
 
             updateCustomerSummary();
             renderCustomers();
-            showNotice(`Xóa khách hàng "${target.tenkhachhang}" thành công.`, 'success');
+            showNotice(`Đã xóa ${deletedCount} khách hàng đã chọn.`, 'success');
         } catch (error) {
             showNotice('Xóa khách hàng thất bại: ' + getErrorMessage(error), 'error');
         }
@@ -653,6 +871,12 @@
         hideCustomerDetail();
         editCustomer(selectedCustomerId);
     });
+    document.getElementById('customerSelectAll').addEventListener('change', (event) => {
+        toggleAllCustomers(Boolean(event.target.checked));
+    });
+    document.getElementById('editCustomerSpending').addEventListener('input', (event) => {
+        updateCustomerTierPreview(event.target.value);
+    });
 
     document.getElementById('customerModal').addEventListener('click', (event) => {
         if (event.target.id === 'customerModal') closeCustomerModal();
@@ -666,7 +890,6 @@
         const phone = document.getElementById('editCustomerPhone').value.trim();
         const email = document.getElementById('editCustomerEmail').value.trim();
         const spending = Number(document.getElementById('editCustomerSpending').value || 0);
-        const type = document.getElementById('editCustomerType').value;
 
         if (!name || !phone || !email) return;
 
@@ -677,7 +900,6 @@
                     sodienthoaikhachhang: phone,
                     emailkhachhang: email,
                     tongchitieukhachhang: spending,
-                    loaikhachhang: type,
                 });
 
                 const created = res.data || {};
@@ -692,7 +914,6 @@
                     sodienthoaikhachhang: phone,
                     emailkhachhang: email,
                     tongchitieukhachhang: spending,
-                    loaikhachhang: type,
                 });
 
                 const updated = res.data || {};
@@ -731,6 +952,4 @@
 </script>
 </body>
 </html>
-
-
 
