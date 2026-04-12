@@ -801,43 +801,9 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         }
 
         if (app_table_exists($conn, 'khachhang')) {
-            $customerId = 0;
-
-            $findCustomerSql = "
-                SELECT id
-                FROM khachhang
-                WHERE LOWER(COALESCE(emailkhachhang, '')) = LOWER(?)
-                   OR (sodienthoaikhachhang IS NOT NULL AND sodienthoaikhachhang = ?)
-                LIMIT 1
-            ";
-            $findCustomerStmt = $conn->prepare($findCustomerSql);
-            if ($findCustomerStmt) {
-                $findCustomerStmt->bind_param('ss', $email, $phone);
-                $findCustomerStmt->execute();
-                $findCustomerResult = $findCustomerStmt->get_result();
-                $foundCustomer = $findCustomerResult ? $findCustomerResult->fetch_assoc() : null;
-                if ($findCustomerResult) {
-                    $findCustomerResult->free();
-                }
-                $findCustomerStmt->close();
-                if (is_array($foundCustomer)) {
-                    $customerId = (int) ($foundCustomer['id'] ?? 0);
-                }
-            }
-
-            if ($customerId <= 0) {
-                $insertCustomerSql = "
-                    INSERT INTO khachhang
-                        (tenkhachhang, sodienthoaikhachhang, emailkhachhang, tongchitieukhachhang, loaikhachhang)
-                    VALUES
-                        (?, ?, ?, 0, 'thuong')
-                ";
-                $insertCustomerStmt = $conn->prepare($insertCustomerSql);
-                if ($insertCustomerStmt) {
-                    $insertCustomerStmt->bind_param('sss', $name, $phone, $email);
-                    $insertCustomerStmt->execute();
-                    $insertCustomerStmt->close();
-                }
+            $customerId = app_find_or_create_customer_for_identity($conn, $newUserId, $email, $phone);
+            if ($customerId > 0) {
+                app_sync_customer_identity($conn, $customerId, $name, $email, $phone);
             }
         }
 
@@ -857,6 +823,26 @@ function app_handle_user_api(mysqli $conn, string $api): bool
     if ($api === 'get_home_categories') {
         if (function_exists('app_ensure_category_image_column')) {
             app_ensure_category_image_column($conn);
+        }
+
+        $subcategoryMap = [];
+        if (app_table_exists($conn, 'danhmuccon')) {
+            $subResult = $conn->query("SELECT danhmuc_id, COALESCE(NULLIF(TRIM(tendanhmuccon), ''), '') AS tendanhmuccon FROM danhmuccon ORDER BY danhmuc_id ASC, tendanhmuccon ASC");
+            if ($subResult) {
+                while ($subRow = $subResult->fetch_assoc()) {
+                    $categoryId = (int) ($subRow['danhmuc_id'] ?? 0);
+                    $subName = (string) ($subRow['tendanhmuccon'] ?? '');
+                    if ($categoryId <= 0 || $subName === '') {
+                        continue;
+                    }
+
+                    if (!isset($subcategoryMap[$categoryId])) {
+                        $subcategoryMap[$categoryId] = [];
+                    }
+                    $subcategoryMap[$categoryId][] = $subName;
+                }
+                $subResult->free();
+            }
         }
 
         $sql = "
@@ -888,11 +874,18 @@ function app_handle_user_api(mysqli $conn, string $api): bool
 
         $data = [];
         while ($row = $result->fetch_assoc()) {
+            $categoryId = (int) ($row['id'] ?? 0);
+            $subcategories = $subcategoryMap[$categoryId] ?? [];
+            $subcategories = array_values(array_unique(array_map(static function ($value) {
+                return trim((string) $value);
+            }, $subcategories)));
+
             $data[] = [
-                'id' => (int) ($row['id'] ?? 0),
+                'id' => $categoryId,
                 'tendanhmuc' => (string) ($row['tendanhmuc'] ?? ''),
                 'soluongsanpham' => (int) ($row['soluongsanpham'] ?? 0),
                 'hinhanh' => app_to_public_image_url((string) ($row['hinhanh'] ?? '')),
+                'danhmuccon' => $subcategories,
             ];
         }
         $result->free();
@@ -922,6 +915,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
                         'tendanhmuc' => (string) ($row['tendanhmuc'] ?? ''),
                         'soluongsanpham' => (int) ($row['soluongsanpham'] ?? 0),
                         'hinhanh' => app_to_public_image_url((string) ($row['hinhanh'] ?? '')),
+                        'danhmuccon' => [],
                     ];
                 }
                 $fallbackResult->free();
@@ -1074,7 +1068,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
 
         $identifierLower = app_lower($identifier);
         $sql = "
-            SELECT id, tennguoidung, emailnguoidung, matkhaunguoidung, vaitronguoidung, ngaytaonguoidung
+            SELECT id, tennguoidung, emailnguoidung, matkhaunguoidung, vaitronguoidung, ngaytaonguoidung, anhdaidiennguoidung
             FROM nguoidung
             WHERE (
                 LOWER(COALESCE(emailnguoidung, '')) = ?
@@ -1193,12 +1187,15 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         }
 
         $role = $rowRole;
+        $avatarPath = trim((string) ($row['anhdaidiennguoidung'] ?? ''));
         $userPayload = [
             'id' => (int) ($row['id'] ?? 0),
             'tennguoidung' => (string) ($row['tennguoidung'] ?? ''),
             'emailnguoidung' => (string) ($row['emailnguoidung'] ?? ''),
             'vaitronguoidung' => $role,
             'ngaytaonguoidung' => (string) ($row['ngaytaonguoidung'] ?? ''),
+            'anhdaidiennguoidung' => $avatarPath,
+            'anhdaidiennguoidung_url' => $avatarPath !== '' ? app_to_public_image_url($avatarPath) : '',
         ];
 
         $conn->close();
@@ -1211,6 +1208,8 @@ function app_handle_user_api(mysqli $conn, string $api): bool
                 'name' => $userPayload['tennguoidung'],
                 'identifier' => $userPayload['emailnguoidung'] !== '' ? $userPayload['emailnguoidung'] : $userPayload['tennguoidung'],
                 'role' => $role,
+                'avatar' => $userPayload['anhdaidiennguoidung'],
+                'avatar_url' => $userPayload['anhdaidiennguoidung_url'],
             ],
             'token' => '',
         ]);
@@ -1237,21 +1236,27 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         $items = $input['items'] ?? [];
         $normalizedItems = app_prepare_order_items(is_array($items) ? $items : []);
         $accountUserId = (int) ($input['user_id'] ?? 0);
+        $accountName = '';
+        $accountEmail = '';
+        $accountPhone = '';
 
         if ($accountUserId > 0) {
+            $hasUserPhoneColumn = app_column_exists($conn, 'nguoidung', 'sodienthoainguoidung');
+            $phoneFieldSql = $hasUserPhoneColumn ? 'sodienthoainguoidung' : "'' AS sodienthoainguoidung";
             $userCheckSql = "
-                SELECT id, vaitronguoidung
+                SELECT id, tennguoidung, emailnguoidung, {$phoneFieldSql}, vaitronguoidung
                 FROM nguoidung
                 WHERE id = ?
                 LIMIT 1
             ";
             $userCheckStmt = $conn->prepare($userCheckSql);
             if (!$userCheckStmt) {
+                $prepareError = $conn->error;
                 $conn->close();
                 app_json_response([
                     'ok' => false,
                     'message' => 'Khong the xac thuc tai khoan',
-                    'error' => $conn->error,
+                    'error' => $prepareError,
                 ], 500);
             }
             $userCheckStmt->bind_param('i', $accountUserId);
@@ -1269,6 +1274,20 @@ function app_handle_user_api(mysqli $conn, string $api): bool
                     'ok' => false,
                     'message' => 'Tai khoan khong hop le de dat hang online',
                 ], 403);
+            }
+
+            $accountName = trim((string) ($userRow['tennguoidung'] ?? ''));
+            $accountEmail = trim((string) ($userRow['emailnguoidung'] ?? ''));
+            $accountPhone = app_digits_only((string) ($userRow['sodienthoainguoidung'] ?? ''));
+
+            if ($accountName !== '') {
+                $customerName = $accountName;
+            }
+            if ($accountEmail !== '' && $customerEmail === '') {
+                $customerEmail = $accountEmail;
+            }
+            if ($accountPhone !== '' && $customerPhone === '') {
+                $customerPhone = $accountPhone;
             }
         }
 
@@ -1305,43 +1324,52 @@ function app_handle_user_api(mysqli $conn, string $api): bool
 
         $customerId = 0;
         if (app_table_exists($conn, 'khachhang')) {
-            $findCustomerSql = "
-                SELECT id
-                FROM khachhang
-                WHERE (emailkhachhang IS NOT NULL AND LOWER(emailkhachhang) = LOWER(?))
-                   OR (sodienthoaikhachhang IS NOT NULL AND sodienthoaikhachhang = ?)
-                LIMIT 1
-            ";
-
-            $findStmt = $conn->prepare($findCustomerSql);
-            if ($findStmt) {
-                $findStmt->bind_param('ss', $customerEmail, $customerPhone);
-                $findStmt->execute();
-                $findResult = $findStmt->get_result();
-                $findRow = $findResult ? $findResult->fetch_assoc() : null;
-                if ($findResult) {
-                    $findResult->free();
+            if ($accountUserId > 0) {
+                $identityEmail = $accountEmail !== '' ? $accountEmail : $customerEmail;
+                $identityPhone = $accountPhone;
+                $customerId = app_find_or_create_customer_for_identity($conn, $accountUserId, $identityEmail, $identityPhone);
+                if ($customerId > 0) {
+                    app_sync_customer_identity($conn, $customerId, $customerName, $identityEmail, $identityPhone);
                 }
-                $findStmt->close();
-                if (is_array($findRow)) {
-                    $customerId = (int) ($findRow['id'] ?? 0);
-                }
-            }
-
-            if ($customerId <= 0) {
-                $insertCustomerSql = "
-                    INSERT INTO khachhang
-                        (tenkhachhang, sodienthoaikhachhang, emailkhachhang, tongchitieukhachhang, loaikhachhang)
-                    VALUES
-                        (?, ?, ?, 0, 'thuong')
+            } else {
+                $findCustomerSql = "
+                    SELECT id
+                    FROM khachhang
+                    WHERE (emailkhachhang IS NOT NULL AND LOWER(emailkhachhang) = LOWER(?))
+                       OR (sodienthoaikhachhang IS NOT NULL AND sodienthoaikhachhang = ?)
+                    LIMIT 1
                 ";
 
-                $insertCustomerStmt = $conn->prepare($insertCustomerSql);
-                if ($insertCustomerStmt) {
-                    $insertCustomerStmt->bind_param('sss', $customerName, $customerPhone, $customerEmail);
-                    $insertCustomerStmt->execute();
-                    $customerId = (int) $insertCustomerStmt->insert_id;
-                    $insertCustomerStmt->close();
+                $findStmt = $conn->prepare($findCustomerSql);
+                if ($findStmt) {
+                    $findStmt->bind_param('ss', $customerEmail, $customerPhone);
+                    $findStmt->execute();
+                    $findResult = $findStmt->get_result();
+                    $findRow = $findResult ? $findResult->fetch_assoc() : null;
+                    if ($findResult) {
+                        $findResult->free();
+                    }
+                    $findStmt->close();
+                    if (is_array($findRow)) {
+                        $customerId = (int) ($findRow['id'] ?? 0);
+                    }
+                }
+
+                if ($customerId <= 0) {
+                    $insertCustomerSql = "
+                        INSERT INTO khachhang
+                            (tenkhachhang, sodienthoaikhachhang, emailkhachhang, tongchitieukhachhang, loaikhachhang)
+                        VALUES
+                            (?, ?, ?, 0, 'thuong')
+                    ";
+
+                    $insertCustomerStmt = $conn->prepare($insertCustomerSql);
+                    if ($insertCustomerStmt) {
+                        $insertCustomerStmt->bind_param('sss', $customerName, $customerPhone, $customerEmail);
+                        $insertCustomerStmt->execute();
+                        $customerId = (int) $insertCustomerStmt->insert_id;
+                        $insertCustomerStmt->close();
+                    }
                 }
             }
         }
@@ -1828,9 +1856,10 @@ function app_find_customer_id_for_identity(mysqli $conn, int $userId, string $us
 
     $email = trim($userEmail);
     $phone = app_digits_only($userPhone);
+    $accountName = '';
 
-    if ($email === '' && $userId > 0 && app_table_exists($conn, 'nguoidung')) {
-        $userSql = 'SELECT emailnguoidung FROM nguoidung WHERE id = ? LIMIT 1';
+    if ($userId > 0 && app_table_exists($conn, 'nguoidung')) {
+        $userSql = 'SELECT tennguoidung, emailnguoidung FROM nguoidung WHERE id = ? LIMIT 1';
         $userStmt = $conn->prepare($userSql);
         if ($userStmt) {
             $userStmt->bind_param('i', $userId);
@@ -1842,12 +1871,15 @@ function app_find_customer_id_for_identity(mysqli $conn, int $userId, string $us
             }
             $userStmt->close();
             if (is_array($userRow)) {
-                $email = trim((string) ($userRow['emailnguoidung'] ?? ''));
+                $accountName = trim((string) ($userRow['tennguoidung'] ?? ''));
+                if ($email === '') {
+                    $email = trim((string) ($userRow['emailnguoidung'] ?? ''));
+                }
             }
         }
     }
 
-    if ($email === '' && $phone === '') {
+    if ($email === '' && $phone === '' && $accountName === '') {
         return 0;
     }
 
@@ -1855,14 +1887,15 @@ function app_find_customer_id_for_identity(mysqli $conn, int $userId, string $us
         SELECT id
         FROM khachhang
         WHERE ((emailkhachhang IS NOT NULL AND LOWER(emailkhachhang) = LOWER(?))
-            OR (REPLACE(REPLACE(REPLACE(COALESCE(sodienthoaikhachhang, ''), ' ', ''), '.', ''), '-', '') = ?))
+            OR (REPLACE(REPLACE(REPLACE(COALESCE(sodienthoaikhachhang, ''), ' ', ''), '.', ''), '-', '') = ?)
+            OR (? <> '' AND LOWER(COALESCE(tenkhachhang, '')) = LOWER(?)))
         LIMIT 1
     ";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         return 0;
     }
-    $stmt->bind_param('ss', $email, $phone);
+    $stmt->bind_param('ssss', $email, $phone, $accountName, $accountName);
     $stmt->execute();
     $result = $stmt->get_result();
     $row = $result ? $result->fetch_assoc() : null;
@@ -1930,6 +1963,71 @@ function app_find_or_create_customer_for_identity(mysqli $conn, int $userId, str
     }
 
     return $newId;
+}
+
+function app_sync_customer_identity(mysqli $conn, int $customerId, string $name, string $email, string $phone): bool
+{
+    if ($customerId <= 0 || !app_table_exists($conn, 'khachhang')) {
+        return false;
+    }
+
+    $cleanName = trim($name);
+    $cleanEmail = trim($email);
+    $cleanPhone = app_digits_only($phone);
+
+    $updateSql = "
+        UPDATE khachhang
+        SET tenkhachhang = CASE
+                WHEN ? <> '' AND COALESCE(NULLIF(TRIM(tenkhachhang), ''), '') = '' THEN ?
+                ELSE tenkhachhang
+            END,
+            emailkhachhang = CASE
+                WHEN ? <> '' AND COALESCE(NULLIF(TRIM(emailkhachhang), ''), '') = '' THEN ?
+                ELSE emailkhachhang
+            END,
+            sodienthoaikhachhang = CASE
+                WHEN ? <> '' AND COALESCE(NULLIF(TRIM(sodienthoaikhachhang), ''), '') = '' THEN ?
+                ELSE sodienthoaikhachhang
+            END
+        WHERE id = ?
+        LIMIT 1
+    ";
+
+    $stmt = $conn->prepare($updateSql);
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('ssssssi', $cleanName, $cleanName, $cleanEmail, $cleanEmail, $cleanPhone, $cleanPhone, $customerId);
+    $ok = $stmt->execute();
+    $stmt->close();
+
+    return (bool) $ok;
+}
+
+function app_increment_customer_spending(mysqli $conn, int $customerId, float $amount): bool
+{
+    if ($customerId <= 0 || $amount <= 0 || !app_table_exists($conn, 'khachhang')) {
+        return false;
+    }
+
+    $updateSql = "
+        UPDATE khachhang
+        SET tongchitieukhachhang = COALESCE(tongchitieukhachhang, 0) + ?
+        WHERE id = ?
+        LIMIT 1
+    ";
+
+    $stmt = $conn->prepare($updateSql);
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('di', $amount, $customerId);
+    $ok = $stmt->execute();
+    $stmt->close();
+
+    return (bool) $ok;
 }
 
 function app_find_online_order_for_review(mysqli $conn, string $orderCode, string $userEmail, string $userPhone): ?array
@@ -2314,7 +2412,7 @@ function app_social_upsert_user(mysqli $conn, string $provider, array $profile):
     }
 
     $emailLower = app_lower($email);
-    $findSql = "SELECT id, tennguoidung, emailnguoidung, vaitronguoidung, ngaytaonguoidung FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? LIMIT 1";
+    $findSql = "SELECT id, tennguoidung, emailnguoidung, vaitronguoidung, ngaytaonguoidung, anhdaidiennguoidung FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? LIMIT 1";
     $findStmt = $conn->prepare($findSql);
     if (!$findStmt) {
         return ['ok' => false, 'message' => 'Khong the tim tai khoan'];
@@ -2335,7 +2433,16 @@ function app_social_upsert_user(mysqli $conn, string $provider, array $profile):
             'emailnguoidung' => (string) ($existing['emailnguoidung'] ?? $email),
             'vaitronguoidung' => app_normalize_role((string) ($existing['vaitronguoidung'] ?? 'user')),
             'ngaytaonguoidung' => (string) ($existing['ngaytaonguoidung'] ?? ''),
+            'anhdaidiennguoidung' => (string) ($existing['anhdaidiennguoidung'] ?? ''),
         ];
+
+        if (app_table_exists($conn, 'khachhang')) {
+            $customerId = app_find_or_create_customer_for_identity($conn, (int) $user['id'], (string) $user['emailnguoidung'], '');
+            if ($customerId > 0) {
+                app_sync_customer_identity($conn, $customerId, (string) $user['tennguoidung'], (string) $user['emailnguoidung'], '');
+            }
+        }
+
         return ['ok' => true, 'user' => $user];
     }
 
@@ -2363,6 +2470,13 @@ function app_social_upsert_user(mysqli $conn, string $provider, array $profile):
         'ngaytaonguoidung' => '',
     ];
 
+    if (app_table_exists($conn, 'khachhang')) {
+        $customerId = app_find_or_create_customer_for_identity($conn, $newId, $email, '');
+        if ($customerId > 0) {
+            app_sync_customer_identity($conn, $customerId, $username, $email, '');
+        }
+    }
+
     return ['ok' => true, 'user' => $user];
 }
 
@@ -2375,7 +2489,7 @@ function app_social_render_bridge(?array $user, string $returnUrl, string $error
 
     header('Content-Type: text/html; charset=UTF-8');
     echo '<!doctype html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đang hoàn tất đăng nhập...</title></head><body>';
-    echo '<script>(function(){var user=' . $userJson . ';var returnUrl=' . $returnJson . ';var error=' . $errorJson . ';if(user&&user.id){var sessionPayload={id:Number(user.id||0),role:"user",fullName:user.tennguoidung||"Khach hang",email:user.emailnguoidung||"",identifier:user.emailnguoidung||user.tennguoidung||"",createdAt:new Date().toISOString()};try{sessionStorage.setItem("authUser",JSON.stringify(sessionPayload));sessionStorage.setItem("customerPortalAuth","1");}catch(e){};try{localStorage.setItem("userSession",JSON.stringify(sessionPayload));localStorage.setItem("authUser",JSON.stringify(sessionPayload));localStorage.setItem("customerPortalAuth","1");}catch(e){};try{localStorage.setItem("isLoggedIn","true");}catch(e){};}if(error){try{localStorage.setItem("pendingAuthPromptV2",JSON.stringify({error:error,createdAt:new Date().toISOString()}));}catch(e){}}window.location.replace(returnUrl);})();</script>';
+    echo '<script>(function(){var user=' . $userJson . ';var returnUrl=' . $returnJson . ';var error=' . $errorJson . ';if(user&&user.id){var avatarPath=String(user.anhdaidiennguoidung||"").trim();var avatarUrl=avatarPath!==""?String((window.location.origin||"")+"/phuocthanh/PHPCHINH/"+avatarPath).replace(/([^:]\/)\/+?/g,"$1"):"";var sessionPayload={id:Number(user.id||0),role:"user",fullName:user.tennguoidung||"Khach hang",email:user.emailnguoidung||"",identifier:user.emailnguoidung||user.tennguoidung||"",avatar:avatarUrl,avatar_path:avatarPath,createdAt:new Date().toISOString()};try{sessionStorage.setItem("authUser",JSON.stringify(sessionPayload));sessionStorage.setItem("customerPortalAuth","1");}catch(e){};try{localStorage.setItem("userSession",JSON.stringify(sessionPayload));localStorage.setItem("authUser",JSON.stringify(sessionPayload));localStorage.setItem("customerPortalAuth","1");}catch(e){};try{var oldProfileRaw=localStorage.getItem("userProfile");var oldProfile=oldProfileRaw?JSON.parse(oldProfileRaw):{};var nextProfile=Object.assign({},(oldProfile&&typeof oldProfile==="object")?oldProfile:{},{name:sessionPayload.fullName,email:sessionPayload.email,role:"user"});if(avatarUrl){nextProfile.avatar=avatarUrl;}localStorage.setItem("userProfile",JSON.stringify(nextProfile));}catch(e){};try{localStorage.setItem("isLoggedIn","true");}catch(e){};}if(error){try{localStorage.setItem("pendingAuthPromptV2",JSON.stringify({error:error,createdAt:new Date().toISOString()}));}catch(e){}}window.location.replace(returnUrl);})();</script>';
     echo '</body></html>';
     exit;
 }

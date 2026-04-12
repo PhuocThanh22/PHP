@@ -52,17 +52,155 @@
 </section>
 
 <script>
-    // Render favorites page
-    const renderFavoritesPage = () => {
+    const getUserAppBasePath = () => {
+        const path = String(window.location.pathname || '');
+        const marker = '/Giao';
+        const markerIndex = path.lastIndexOf(marker);
+        return markerIndex >= 0 ? path.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
+    };
+
+    const normalizeAssetUrl = (value) => {
+        const raw = String(value || '').trim().replace(/\\/g, '/');
+        if (!raw) return '';
+        if (/^(https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+
+        let cleaned = raw
+            .replace(/Giao Diện\/user\/anhdata\//gi, 'anhdata/')
+            .replace(/Giao%20Di%E1%BB%87n\/user\/anhdata\//gi, 'anhdata/')
+            .replace(/Giao Diện\/admin\/anhdata\//gi, 'anhdata/')
+            .replace(/Giao%20Di%E1%BB%87n\/admin\/anhdata\//gi, 'anhdata/');
+
+        const appBase = getUserAppBasePath();
+
+        if (cleaned.startsWith('/')) {
+            if (cleaned.includes('/anhdata/')) return `${window.location.origin}${cleaned}`;
+            return `${window.location.origin}${appBase}${cleaned}`;
+        }
+
+        const marker = 'anhdata/';
+        const start = cleaned.toLowerCase().indexOf(marker);
+        if (start >= 0) {
+            cleaned = cleaned.slice(start).replace(/^\/+/, '');
+            return `${window.location.origin}${appBase}/${cleaned}`;
+        }
+
+        return `${window.location.origin}${appBase}/${cleaned.replace(/^\/+/, '')}`;
+    };
+
+    const escapeHtml = (value) => String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const escapeJsSingleQuote = (value) => String(value || '').replace(/'/g, "\\'");
+
+    const normalizeLookupKey = (value) => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .replace(/\s+/g, ' ');
+
+    const buildProductLookup = async () => {
+        const lookup = new Map();
+        const productRows = [];
+        let fetched = false;
+        const candidates = ['home_api.php?api=get_products', '../user/home_api.php?api=get_products', '../../index.php?api=get_products'];
+
+        for (const candidate of candidates) {
+            try {
+                const connector = candidate.includes('?') ? '&' : '?';
+                const response = await fetch(`${candidate}${connector}_t=${Date.now()}`, { cache: 'no-store' });
+                if (!response.ok) continue;
+                const payload = await response.json();
+                if (!payload || payload.ok !== true || !Array.isArray(payload.data)) continue;
+                fetched = true;
+
+                payload.data.forEach((item) => {
+                    const nameRaw = String(item?.tensanpham || item?.name || '').trim();
+                    const name = normalizeLookupKey(nameRaw);
+                    if (!name) return;
+
+                    const row = {
+                        name: nameRaw,
+                        image: normalizeAssetUrl(item?.hinhanhsanpham || item?.image || ''),
+                        price: String(item?.giasanpham || item?.price || '').trim()
+                    };
+
+                    if (!lookup.has(name)) {
+                        lookup.set(name, row);
+                    }
+                    productRows.push(row);
+                });
+
+                if (lookup.size > 0) {
+                    return { lookup, productRows, fetched };
+                }
+            } catch (error) {
+                // thử candidate tiếp theo
+            }
+        }
+
+        return { lookup, productRows, fetched };
+    };
+
+    const findBestProductMatch = (productName, lookupData) => {
+        const key = normalizeLookupKey(productName);
+        if (!key) return null;
+
+        const direct = lookupData.lookup.get(key);
+        if (direct) return direct;
+
+        const rows = Array.isArray(lookupData.productRows) ? lookupData.productRows : [];
+        const compactKey = key.replace(/\s+/g, '');
+
+        for (const row of rows) {
+            const rowKey = normalizeLookupKey(row.name);
+            if (!rowKey) continue;
+            const compactRowKey = rowKey.replace(/\s+/g, '');
+
+            if (rowKey.includes(key) || key.includes(rowKey) || compactRowKey === compactKey || compactRowKey.includes(compactKey) || compactKey.includes(compactRowKey)) {
+                return row;
+            }
+        }
+
+        return null;
+    };
+
+    const enrichWishlist = async (wishlist) => {
+        const lookupData = await buildProductLookup();
+
+        if (lookupData.fetched && lookupData.lookup.size === 0) {
+            return [];
+        }
+
+        return wishlist.map((product) => {
+            const fromDb = findBestProductMatch(product?.name || '', lookupData);
+            if (lookupData.fetched && !fromDb) {
+                return null;
+            }
+            const resolvedImage = fromDb?.image || normalizeAssetUrl(product?.image || '');
+            const resolvedPrice = fromDb?.price || String(product?.price || '').trim();
+
+            return {
+                ...product,
+                image: resolvedImage,
+                price: resolvedPrice || product?.price || ''
+            };
+        }).filter(Boolean);
+    };
+
+    const renderFavoritesPage = async () => {
         const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
         const contentArea = document.getElementById('favoriteContentArea');
         const countElement = document.getElementById('wishlistCount');
 
-        // Update count
         countElement.textContent = `${wishlist.length} sản phẩm`;
 
         if (wishlist.length === 0) {
-            // Empty state
             contentArea.innerHTML = `
                 <div style="text-align: center; padding: 80px 20px;">
                     <div style="margin-bottom: 30px;">
@@ -80,41 +218,45 @@
                 </div>
             `;
         } else {
-            // Grid of products
+            const enrichedWishlist = await enrichWishlist(wishlist);
+            localStorage.setItem('wishlist', JSON.stringify(enrichedWishlist));
+
             contentArea.innerHTML = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px;">
-                    ${wishlist.map((product, index) => `
+                    ${enrichedWishlist.map((product) => {
+                        const safeName = escapeHtml(product.name);
+                        const safeNameJs = escapeJsSingleQuote(product.name);
+                        const safePrice = escapeHtml(product.price || 'Liên hệ');
+                        const safePriceJs = escapeJsSingleQuote(product.price || 'Liên hệ');
+                        const safeImage = escapeHtml(product.image || 'https://via.placeholder.com/400x300?text=No+Image');
+                        const safeImageJs = escapeJsSingleQuote(product.image || '');
+
+                        return `
                         <div class="wishlist-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 1px solid #f0f0f0; display: flex; flex-direction: column;" onmouseover="this.style.boxShadow='0 12px 24px rgba(0,0,0,0.15)'; this.style.transform='translateY(-8px)';" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)';">
-                            <!-- Product Image Container -->
                             <div style="position: relative; overflow: hidden; height: 280px; background: #f8f9fa;">
-                                <img src="${product.image}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-                                
-                                <!-- Remove Button -->
-                                <button onclick="removeFromWishlist('${product.name.replace(/'/g, "\\'")}')" style="position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; background: #fff; color: #111; border: 1px solid #e5e5e5; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); transition: all 0.3s ease; font-size: 20px;" onmouseover="this.style.background='#f4f4f4'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#fff'; this.style.transform='scale(1)';" title="Bỏ yêu thích">
+                                <img src="${safeImage}" alt="${safeName}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image';">
+
+                                <button onclick="removeFromWishlist('${safeNameJs}')" style="position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; background: #fff; color: #111; border: 1px solid #e5e5e5; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); transition: all 0.3s ease; font-size: 20px;" onmouseover="this.style.background='#f4f4f4'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#fff'; this.style.transform='scale(1)';" title="Bỏ yêu thích">
                                     <i data-feather="x" style="width: 20px; height: 20px;"></i>
                                 </button>
-
                             </div>
 
-                            <!-- Product Info -->
                             <div style="padding: 20px; flex-grow: 1; display: flex; flex-direction: column;">
-                                <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 10px 0; color: #333; line-height: 1.4;">${product.name}</h3>
-                                
-                                <!-- Price -->
+                                <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 10px 0; color: #333; line-height: 1.4;">${safeName}</h3>
                                 <div style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                    <p style="color: #000; font-size: 22px; font-weight: 800; margin: 0;">${product.price}</p>
-                                    <button class="quick-cart-btn" onclick="addToCartFromFavorites('${product.name.replace(/'/g, "\\'")}', '${product.price}', '${product.image.replace(/'/g, "\\'")}')" style="width: 52px; height: 52px; min-width: 52px; background: #000; color: #fff; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: none; transition: all 0.3s ease;" onmouseover="this.style.background='#222'; this.style.transform='scale(1.08)'; this.style.boxShadow='0 8px 18px rgba(0,0,0,0.35)'" onmouseout="this.style.background='#000'; this.style.transform='scale(1)'; this.style.boxShadow='none';" title="Thêm vào giỏ">
+                                    <p style="color: #000; font-size: 22px; font-weight: 800; margin: 0;">${safePrice}</p>
+                                    <button class="quick-cart-btn" onclick="addToCartFromFavorites('${safeNameJs}', '${safePriceJs}', '${safeImageJs}')" style="width: 52px; height: 52px; min-width: 52px; background: #000; color: #fff; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: none; transition: all 0.3s ease;" onmouseover="this.style.background='#222'; this.style.transform='scale(1.08)'; this.style.boxShadow='0 8px 18px rgba(0,0,0,0.35)'" onmouseout="this.style.background='#000'; this.style.transform='scale(1)'; this.style.boxShadow='none';" title="Thêm vào giỏ">
                                         <i data-feather="shopping-cart" style="width: 22px; height: 22px;"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
             `;
         }
 
-        // Initialize feather icons
         if (typeof feather !== 'undefined') {
             feather.replace();
         }
@@ -154,7 +296,7 @@
             cart.push({
                 name: productName,
                 price: productPrice,
-                image: productImage,
+                image: normalizeAssetUrl(productImage),
                 quantity: 1
             });
         }

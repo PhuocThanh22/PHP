@@ -6,7 +6,7 @@
     <title>Thú Cưng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="admin-style.css?v=20260412-3">
     <style>
         #petTableBody tr {
             cursor: pointer;
@@ -43,6 +43,28 @@
             justify-content: center;
             font-size: 30px;
             font-weight: 700;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pet-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .pet-avatar.has-image {
+            background: #f8fafc;
+            color: transparent;
+        }
+
+        .pet-avatar.has-image img {
+            display: block;
+        }
+
+        .pet-avatar.has-image .pet-avatar-fallback {
+            display: none;
         }
 
         .pet-detail-meta {
@@ -66,6 +88,19 @@
             padding: 0 16px 16px;
         }
 
+        .module-card.is-clickable {
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .module-card.is-clickable:hover {
+            transform: translateY(-2px);
+        }
+
+        .module-card.is-active {
+            box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.24), 0 10px 18px rgba(2, 6, 23, 0.08);
+        }
+
         @media (max-width: 768px) {
             .pet-detail-grid {
                 grid-template-columns: 1fr;
@@ -86,17 +121,17 @@
     </div>
 
     <div class="module-grid mb-3">
-        <div class="module-card">
+        <div class="module-card is-clickable is-active" data-mode="all">
             <div class="module-title"><i class="bi bi-heart"></i><span>Tổng Hồ Sơ Thú Cưng</span></div>
             <div class="module-value" id="petTotal">0</div>
             <div class="module-desc">Số hồ sơ thú cưng hiện có</div>
         </div>
-        <div class="module-card">
+        <div class="module-card is-clickable" data-mode="healthy">
             <div class="module-title"><i class="bi bi-shield-check"></i><span>Ổn Định Sức Khỏe</span></div>
             <div class="module-value" id="petHealthy">0</div>
             <div class="module-desc">Trạng thái có chữ khỏe hoặc tiêm</div>
         </div>
-        <div class="module-card">
+        <div class="module-card is-clickable" data-mode="follow_up">
             <div class="module-title"><i class="bi bi-clipboard2-pulse"></i><span>Cần Theo Dõi</span></div>
             <div class="module-value" id="petFollowUp">0</div>
             <div class="module-desc">Trường hợp còn lại cần chú ý</div>
@@ -104,7 +139,7 @@
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-heart-fill text-warning me-2"></i>Danh Sách Thú Cưng</h3></div>
+        <div class="section-header"><h3 id="petSectionTitle"><i class="bi bi-heart-fill text-warning me-2"></i>Danh Sách Thú Cưng</h3></div>
         <div class="data-table">
             <table>
                 <thead>
@@ -130,7 +165,10 @@
         </div>
         <div class="pet-view-body">
             <div class="pet-detail-grid">
-                <div class="pet-avatar" id="petDetailAvatar">TC</div>
+                <div class="pet-avatar" id="petDetailAvatar">
+                    <img id="petDetailAvatarImage" src="" alt="Ảnh thú cưng">
+                    <span class="pet-avatar-fallback" id="petDetailAvatarFallback">TC</span>
+                </div>
                 <div class="pet-detail-meta">
                     <div><b>Mã thú cưng:</b> <span id="petDetailId">-</span></div>
                     <div><b>Tên thú cưng:</b> <span id="petDetailName">-</span></div>
@@ -203,8 +241,10 @@
     let allPets = [];
     let petFilter = '';
     let petMode = 'update';
+    let currentPetListMode = 'all';
     let selectedPetId = '';
     let customerOptions = [];
+    const productImageById = new Map();
     const selectedPetIds = new Set();
     const ADMIN_CAN_MANAGE_PETS = false;
 
@@ -373,6 +413,140 @@
         return Array.from(new Set(candidates));
     }
 
+    function toAbsoluteAssetUrl(pathValue) {
+        const value = String(pathValue || '').trim();
+        if (!value) return '';
+
+        if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
+            return value;
+        }
+
+        if (value.startsWith('/')) {
+            try {
+                return new URL(value, window.location.origin).toString();
+            } catch (_) {
+                return '';
+            }
+        }
+
+        const normalized = value.replace(/^\.{1,2}\//, '').replace(/^\/+/, '');
+        if (/^(?:phuocthanh\/PHPCHINH\/|PHPCHINH\/)/i.test(normalized)) {
+            try {
+                return new URL('/' + normalized, window.location.origin).toString();
+            } catch (_) {
+                return '';
+            }
+        }
+
+        if (/^anhdata\//i.test(normalized)) {
+            try {
+                return new URL('/phuocthanh/PHPCHINH/' + normalized, window.location.origin).toString();
+            } catch (_) {
+                return '';
+            }
+        }
+
+        try {
+            return new URL(value, window.location.href).toString();
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function buildImageFallbackCandidates(rawValue) {
+        const raw = String(rawValue || '').trim();
+        if (!raw) return [];
+
+        const variants = [
+            raw,
+            raw.replace('/phuocthanh/PHPCHINH/', '/PHPCHINH/'),
+            raw.replace('/PHPCHINH/', '/phuocthanh/PHPCHINH/'),
+        ];
+
+        const resolved = [];
+        variants.forEach((value) => {
+            const normalized = String(value || '').trim().replace(/^\.{1,2}\//, '').replace(/^\/+/, '');
+            const candidates = [
+                toAbsoluteAssetUrl(value),
+                normalized ? `${window.location.origin}/${normalized}` : '',
+                normalized ? `${window.location.origin}/phuocthanh/PHPCHINH/${normalized.replace(/^phuocthanh\/PHPCHINH\//i, '').replace(/^PHPCHINH\//i, '')}` : '',
+                normalized ? `${window.location.origin}/PHPCHINH/${normalized.replace(/^phuocthanh\/PHPCHINH\//i, '').replace(/^PHPCHINH\//i, '')}` : '',
+            ].filter(Boolean);
+
+            candidates.forEach((candidate) => {
+                if (!resolved.includes(candidate)) {
+                    resolved.push(candidate);
+                }
+            });
+        });
+
+        return resolved;
+    }
+
+    function resolvePetImageCandidates(row) {
+        const source = row || {};
+        const resolvedCandidates = [];
+
+        const pushCandidates = (value) => {
+            buildImageFallbackCandidates(value).forEach((candidate) => {
+                if (!resolvedCandidates.includes(candidate)) {
+                    resolvedCandidates.push(candidate);
+                }
+            });
+        };
+
+        const petSource = String(source.nguon_thucung || (Number(source.chusohuu_id || 0) > 0 ? 'khach_hang' : 'cua_hang'));
+        const productId = Number(source.sanpham_id || 0);
+
+        if (petSource === 'cua_hang' && productId > 0) {
+            pushCandidates(productImageById.get(productId));
+        }
+
+        const directCandidates = [
+            source.hinhanhsanpham_lienket,
+            source.hinhanhsanpham_lienket_url,
+            source.hinhanhthucung,
+            source.anhthucung,
+            source.anh,
+            source.hinhanh,
+            source.hinhanh_url,
+            source.hinhanhthucung_url,
+            source.anh_url,
+            source.hinhanhsanpham,
+            source.hinhanhsanpham_url,
+        ];
+        directCandidates.forEach(pushCandidates);
+
+        if (petSource !== 'cua_hang' && productId > 0) {
+            pushCandidates(productImageById.get(productId));
+        }
+
+        return resolvedCandidates;
+    }
+
+    async function loadProductImageMap(forceReload = false) {
+        if (productImageById.size > 0 && !forceReload) return;
+
+        try {
+            const payload = await fetchPayload('get_products');
+            const products = Array.isArray(payload.data) ? payload.data : [];
+            productImageById.clear();
+
+            products.forEach((item) => {
+                const id = Number(item.id || 0);
+                if (id <= 0) return;
+                const raw = String(item.hinhanhsanpham || item.hinhanh || '').trim();
+                if (raw) {
+                    productImageById.set(id, raw);
+                }
+            });
+        } catch (_) {
+            if (forceReload) {
+                productImageById.clear();
+            }
+        }
+    }
+
     async function fetchPayload(apiName) {
         const candidates = getApiCandidates(apiName);
         const cacheBuster = `_t=${Date.now()}`;
@@ -448,6 +622,16 @@
         return owner ? String(owner.tenkhachhang || '') : '';
     }
 
+    function getPetOwnerLabel(row) {
+        const source = String(row.nguon_thucung || (Number(row.chusohuu_id || 0) > 0 ? 'khach_hang' : 'cua_hang'));
+        if (source === 'cua_hang') {
+            return 'Cửa hàng';
+        }
+        return row.tenchusohuu
+            ? String(row.tenchusohuu)
+            : (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định');
+    }
+
     function renderOwnerSelectOptions(selectedOwnerId = '') {
         const select = document.getElementById('editPetOwner');
         if (!select) return;
@@ -488,14 +672,61 @@
         document.getElementById('petFollowUp').textContent = followUp;
     }
 
-    function getFilteredPets() {
-        const key = String(petFilter || '').trim().toLowerCase();
-        if (!key) return allPets;
+    function getPetRowsByMode() {
+        if (currentPetListMode === 'healthy') {
+            return allPets.filter((item) => isHealthyLike(item.trangthaithucung));
+        }
+        if (currentPetListMode === 'follow_up') {
+            return allPets.filter((item) => !isHealthyLike(item.trangthaithucung));
+        }
+        return allPets;
+    }
 
-        return allPets.filter((item) => {
+    function updatePetModeCardsUI() {
+        document.querySelectorAll('.module-card[data-mode]').forEach((card) => {
+            const mode = String(card.getAttribute('data-mode') || 'all');
+            card.classList.toggle('is-active', mode === currentPetListMode);
+        });
+    }
+
+    function updatePetSectionTitle() {
+        const titleEl = document.getElementById('petSectionTitle');
+        if (!titleEl) return;
+
+        if (currentPetListMode === 'healthy') {
+            titleEl.innerHTML = '<i class="bi bi-shield-check text-warning me-2"></i>Thú Cưng Ổn Định Sức Khỏe';
+            return;
+        }
+        if (currentPetListMode === 'follow_up') {
+            titleEl.innerHTML = '<i class="bi bi-clipboard2-pulse text-warning me-2"></i>Thú Cưng Cần Theo Dõi';
+            return;
+        }
+        titleEl.innerHTML = '<i class="bi bi-heart-fill text-warning me-2"></i>Danh Sách Thú Cưng';
+    }
+
+    function setPetListMode(mode) {
+        const nextMode = String(mode || '').trim();
+        if (!['all', 'healthy', 'follow_up'].includes(nextMode)) return;
+
+        currentPetListMode = nextMode;
+        petFilter = '';
+        const searchInput = document.getElementById('petSearchInput');
+        if (searchInput) searchInput.value = '';
+
+        updatePetModeCardsUI();
+        updatePetSectionTitle();
+        renderPets();
+    }
+
+    function getFilteredPets() {
+        const byMode = getPetRowsByMode();
+        const key = String(petFilter || '').trim().toLowerCase();
+        if (!key) return byMode;
+
+        return byMode.filter((item) => {
             const idText = String(item.id || '').toLowerCase();
             const name = String(item.tenthucung || '').toLowerCase();
-            const owner = String(item.tenchusohuu || '').toLowerCase();
+            const owner = String(getPetOwnerLabel(item) || '').toLowerCase();
             const type = String(item.loaithucung || '').toLowerCase();
             const breed = String(item.giongthucung || '').toLowerCase();
             return idText.includes(key) || name.includes(key) || owner.includes(key) || type.includes(key) || breed.includes(key);
@@ -558,9 +789,7 @@
 
         tbody.innerHTML = rows.map((row) => {
             const healthy = isHealthyLike(row.trangthaithucung);
-            const ownerText = row.tenchusohuu
-                ? String(row.tenchusohuu)
-                : (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định');
+            const ownerText = getPetOwnerLabel(row);
             return `
                 <tr data-pet-id="${row.id}" class="${String(selectedPetId) === String(row.id) ? 'is-selected' : ''}" onclick="showPetDetail(${row.id})">
                     <td onclick="event.stopPropagation()"><input type="checkbox" ${selectedPetIds.has(String(row.id)) ? 'checked' : ''} onchange="togglePetSelection(${row.id}, this.checked)"></td>
@@ -584,6 +813,7 @@
 
         try {
             await loadCustomerOptions(forceReload);
+            await loadProductImageMap(forceReload);
             const payload = await fetchPayload('get_pets');
             allPets = Array.isArray(payload.data) ? payload.data : [];
             petStore.clear();
@@ -623,6 +853,8 @@
         if (!row) return false;
 
         const avatar = document.getElementById('petDetailAvatar');
+        const avatarImage = document.getElementById('petDetailAvatarImage');
+        const avatarFallback = document.getElementById('petDetailAvatarFallback');
         const id = document.getElementById('petDetailId');
         const name = document.getElementById('petDetailName');
         const type = document.getElementById('petDetailType');
@@ -630,15 +862,37 @@
         const owner = document.getElementById('petDetailOwner');
         const status = document.getElementById('petDetailStatus');
         const date = document.getElementById('petDetailDate');
-        if (!avatar || !id || !name || !type || !breed || !owner || !status || !date) return false;
+        if (!avatar || !avatarImage || !avatarFallback || !id || !name || !type || !breed || !owner || !status || !date) return false;
 
         const petName = String(row.tenthucung || '-');
-        avatar.textContent = petName.charAt(0).toUpperCase() || 'T';
+        avatarFallback.textContent = petName.charAt(0).toUpperCase() || 'T';
+        avatar.classList.remove('has-image');
+        avatarImage.src = '';
+
+        const imageCandidates = resolvePetImageCandidates(row);
+        if (imageCandidates.length > 0) {
+            let imageIndex = 0;
+            avatarImage.onerror = () => {
+                imageIndex += 1;
+                if (imageIndex < imageCandidates.length) {
+                    avatarImage.src = imageCandidates[imageIndex];
+                    return;
+                }
+
+                avatarImage.onerror = null;
+                avatar.classList.remove('has-image');
+                avatarImage.src = '';
+            };
+
+            avatarImage.src = imageCandidates[0];
+            avatar.classList.add('has-image');
+        }
+
         id.textContent = String(row.id || '-');
         name.textContent = petName;
         type.textContent = String(row.loaithucung || '-');
         breed.textContent = String(row.giongthucung || '-');
-        owner.textContent = String(row.tenchusohuu || (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định'));
+        owner.textContent = getPetOwnerLabel(row);
         status.textContent = String(row.trangthaithucung || 'Chưa cập nhật');
         date.textContent = toDateText(row.ngaydangkythucung);
         return true;
@@ -741,6 +995,11 @@
         petFilter = event.target.value || '';
         renderPets();
     });
+    document.querySelectorAll('.module-card[data-mode]').forEach((card) => {
+        card.addEventListener('click', () => {
+            setPetListMode(card.getAttribute('data-mode') || 'all');
+        });
+    });
 
     document.getElementById('closePetModal').addEventListener('click', closePetModal);
     document.getElementById('cancelPetModal').addEventListener('click', closePetModal);
@@ -842,6 +1101,8 @@
 
     document.documentElement.classList.add('hide-scrollbar');
     document.body.classList.add('hide-scrollbar');
+    updatePetModeCardsUI();
+    updatePetSectionTitle();
     loadPets();
 </script>
 </body>

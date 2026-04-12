@@ -58,6 +58,14 @@
 
     const defaultProductImage = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=320&h=320&fit=crop';
 
+    const normalizeLookupKey = (value) => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .replace(/\s+/g, ' ');
+
     const normalizeProductImageUrl = (value) => {
         const raw = String(value || '').trim().replace(/\\/g, '/');
         if (!raw) return defaultProductImage;
@@ -106,9 +114,100 @@
         }));
     };
 
+    let cachedProductLookup = null;
+
+    const fetchProductLookup = async () => {
+        if (cachedProductLookup) return cachedProductLookup;
+
+        const lookup = new Map();
+        const rows = [];
+        let fetched = false;
+        const candidates = ['home_api.php?api=get_products', '../user/home_api.php?api=get_products', '../../index.php?api=get_products'];
+
+        for (const candidate of candidates) {
+            try {
+                const connector = candidate.includes('?') ? '&' : '?';
+                const response = await fetch(`${candidate}${connector}_t=${Date.now()}`, { cache: 'no-store' });
+                if (!response.ok) continue;
+
+                const payload = await response.json();
+                if (!payload || payload.ok !== true || !Array.isArray(payload.data)) continue;
+                fetched = true;
+
+                payload.data.forEach((item) => {
+                    const nameRaw = String(item?.tensanpham || item?.name || '').trim();
+                    const key = normalizeLookupKey(nameRaw);
+                    if (!key) return;
+
+                    const row = {
+                        name: nameRaw,
+                        image: normalizeProductImageUrl(item?.hinhanhsanpham || item?.image || ''),
+                        price: String(item?.giasanpham || item?.price || '').trim(),
+                    };
+
+                    if (!lookup.has(key)) {
+                        lookup.set(key, row);
+                    }
+                    rows.push(row);
+                });
+
+                if (lookup.size > 0) {
+                    cachedProductLookup = { lookup, rows, fetched };
+                    return cachedProductLookup;
+                }
+            } catch (e) {
+                // thử candidate tiếp theo
+            }
+        }
+
+        cachedProductLookup = { lookup, rows, fetched };
+        return cachedProductLookup;
+    };
+
+    const findBestProductMatch = (name, lookupData) => {
+        const key = normalizeLookupKey(name);
+        if (!key) return null;
+
+        const direct = lookupData.lookup.get(key);
+        if (direct) return direct;
+
+        const compactKey = key.replace(/\s+/g, '');
+        for (const row of lookupData.rows || []) {
+            const rowKey = normalizeLookupKey(row.name);
+            if (!rowKey) continue;
+            const compactRowKey = rowKey.replace(/\s+/g, '');
+            if (rowKey.includes(key) || key.includes(rowKey) || compactRowKey === compactKey || compactRowKey.includes(compactKey) || compactKey.includes(compactRowKey)) {
+                return row;
+            }
+        }
+
+        return null;
+    };
+
+    const enrichCartItemsWithDatabase = async (items) => {
+        const lookupData = await fetchProductLookup();
+
+        if (lookupData.fetched && lookupData.lookup.size === 0) {
+            return [];
+        }
+
+        return items.map((item) => {
+            const match = findBestProductMatch(item?.name || item?.tensanpham || '', lookupData);
+            if (lookupData.fetched && !match) {
+                return null;
+            }
+            return {
+                ...item,
+                image: normalizeProductImageUrl(match?.image || item?.image || item?.hinhanh || item?.hinhanhsanpham || ''),
+                price: String(match?.price || item?.price || ''),
+            };
+        }).filter(Boolean);
+    };
+
     // Load and display cart
-    const loadCart = () => {
-        const cart = normalizeCartItems(JSON.parse(localStorage.getItem('cart')) || []);
+    const loadCart = async () => {
+        const rawCart = normalizeCartItems(JSON.parse(localStorage.getItem('cart')) || []);
+        const cart = await enrichCartItemsWithDatabase(rawCart);
         localStorage.setItem('cart', JSON.stringify(cart));
         const itemsContainer = document.getElementById('cartItemsContainer');
         const summaryContainer = document.getElementById('cartSummaryContainer');

@@ -6,7 +6,7 @@
     <title>Dịch Vụ</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="admin-style.css?v=20260403-2">
+    <link rel="stylesheet" href="admin-style.css?v=20260412-3">
     <style>
         #serviceEditModal .service-modal-body {
             align-items: start;
@@ -64,6 +64,60 @@
             font-size: 11px;
             line-height: 1.35;
         }
+
+        .module-card.is-clickable {
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .module-card.is-clickable:hover {
+            transform: translateY(-2px);
+        }
+
+        .module-card.is-active {
+            box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.24), 0 10px 18px rgba(2, 6, 23, 0.08);
+        }
+
+        .service-category-meta {
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+
+        .service-grid.is-category-list {
+            display: block;
+        }
+
+        .service-category-table {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .service-category-table table {
+            margin-bottom: 0;
+        }
+
+        .service-category-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .service-category-name {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .service-category-count {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .service-category-empty {
+            text-align: center;
+            color: #64748b;
+            padding: 18px 12px;
+        }
     </style>
 </head>
 <body>
@@ -76,14 +130,30 @@
                     <input id="serviceSearchInput" type="text" placeholder="Tìm theo tên hoặc mã dịch vụ..." aria-label="Tìm dịch vụ">
                 </div>
                 <div class="service-toolbar-actions">
-                    <button class="btn btn-success" type="button" onclick="openAddServiceModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
-                    <button class="btn btn-danger" type="button" onclick="deleteServiceBySearch()"><i class="bi bi-trash me-1"></i>Xóa</button>
+                    <button class="btn btn-success" type="button" id="toolbarAddBtn"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
+                    <button class="btn btn-danger" type="button" id="toolbarDeleteBtn"><i class="bi bi-trash me-1"></i>Xóa</button>
                 </div>
             </div>
         </div>
 
-        <div class="service-grid" id="serviceGrid">
-            <div class="service-card"><div class="service-title">Đang tải dữ liệu dịch vụ...</div></div>
+        <div class="module-grid mb-3">
+            <div class="module-card is-clickable is-active" data-mode="services">
+                <div class="module-title"><i class="bi bi-tools"></i><span>Tất Cả Dịch Vụ</span></div>
+                <div class="module-value" id="serviceTotalCount">0</div>
+                <div class="module-desc">Danh sách dịch vụ hiện có</div>
+            </div>
+            <div class="module-card is-clickable" data-mode="categories">
+                <div class="module-title"><i class="bi bi-tags"></i><span>Danh Mục</span></div>
+                <div class="module-value" id="serviceCategoryCount">0</div>
+                <div class="module-desc">Nhóm danh mục dịch vụ</div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <div class="section-header"><h3 id="serviceSectionTitle"><i class="bi bi-tools text-warning me-2"></i>Danh Sách Dịch Vụ</h3></div>
+            <div class="service-grid" id="serviceGrid">
+                <div class="service-card"><div class="service-title">Đang tải dữ liệu dịch vụ...</div></div>
+            </div>
         </div>
     </div>
 
@@ -99,22 +169,22 @@
                     <input type="hidden" id="editServiceId">
                     <input type="hidden" id="editServiceImagePath">
 
-                    <div class="service-form-group full image-side image-top">
-                        <label for="editServiceImage">Ảnh dịch vụ</label>
-                        <div class="upload-square-field">
-                            <input class="upload-square-input" id="editServiceImage" type="file" accept="image/*">
-                            <label for="editServiceImage" class="upload-square-box" aria-label="Tải ảnh dịch vụ">
-                                <i class="bi bi-plus-lg upload-square-plus"></i>
-                                <span class="upload-square-title">Tải ảnh</span>
-                                <small class="upload-square-types">Hỗ trợ: JPG, PNG, JPEG, BMP, WEBP</small>
-                            </label>
-                        </div>
+                    <div class="service-form-group full">
+                        <label for="editServiceImage">Link ảnh dịch vụ</label>
+                        <input class="service-form-control" id="editServiceImage" type="text" placeholder="Ví dụ: https://example.com/image.jpg hoặc anhdata/services/abc.jpg">
                         <small id="editServiceImageHint" class="text-muted"></small>
                     </div>
 
                     <div class="service-form-group full">
                         <label for="editServiceName">Tên dịch vụ</label>
                         <input class="service-form-control" id="editServiceName" type="text" required>
+                    </div>
+
+                    <div class="service-form-group full">
+                        <label for="editServiceCategory">Danh mục dịch vụ</label>
+                        <select class="service-form-control" id="editServiceCategory">
+                            <option value="">Chưa phân loại</option>
+                        </select>
                     </div>
 
                     <div class="service-form-group">
@@ -149,12 +219,39 @@
         </div>
     </div>
 
+    <div class="service-modal" id="serviceCategoryModal" aria-hidden="true">
+        <div class="service-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="serviceCategoryModalTitle">
+            <div class="service-modal-header">
+                <h3 class="service-modal-title" id="serviceCategoryModalTitle">Thêm danh mục dịch vụ</h3>
+                <button type="button" class="service-modal-close" id="closeServiceCategoryModal" aria-label="Đóng">&times;</button>
+            </div>
+
+            <form id="serviceCategoryForm">
+                <div class="service-modal-body">
+                    <div class="service-form-group full">
+                        <label for="newServiceCategoryName">Tên danh mục dịch vụ</label>
+                        <input class="service-form-control" id="newServiceCategoryName" type="text" maxlength="120" placeholder="Ví dụ: Chăm sóc lông" required>
+                    </div>
+                </div>
+
+                <div class="service-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="cancelServiceCategoryModal">Hủy</button>
+                    <button type="submit" class="btn btn-warning text-white" id="saveServiceCategoryBtn">Thêm danh mục</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const serviceStore = new Map();
         let allServices = [];
+        let allServiceCategories = [];
         let currentFilter = '';
+        let currentListMode = 'services';
         let editMode = 'update';
         const selectedServiceIds = new Set();
+        const selectedCategoryIds = new Set();
+        const SERVICE_RT_EVENT_KEY = 'app_services_realtime_event';
 
         function escapeHtml(value) {
             return String(value)
@@ -167,6 +264,29 @@
 
         function formatCurrencyVND(value) {
             return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
+        }
+
+        function publishServiceRealtimeChange(action = 'changed') {
+            const payload = {
+                module: 'services',
+                action: String(action || 'changed'),
+                at: Date.now(),
+            };
+
+            try {
+                localStorage.setItem(SERVICE_RT_EVENT_KEY, JSON.stringify(payload));
+            } catch (_) {
+                // Ignore storage failures.
+            }
+
+            const sessionApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+            if (sessionApi && typeof sessionApi.publish === 'function') {
+                try {
+                    sessionApi.publish('services_changed', payload);
+                } catch (_) {
+                    // Ignore cross-frame publish failures.
+                }
+            }
         }
 
         function getErrorMessage(error) {
@@ -373,6 +493,66 @@
             return text.length > 90 ? `${text.slice(0, 87)}...` : text;
         }
 
+        function updateServiceSummary() {
+            const totalEl = document.getElementById('serviceTotalCount');
+            const categoryEl = document.getElementById('serviceCategoryCount');
+            if (totalEl) totalEl.textContent = String(allServices.length);
+            if (categoryEl) categoryEl.textContent = String(allServiceCategories.length);
+        }
+
+        function updateModeCardsUI() {
+            document.querySelectorAll('.module-card[data-mode]').forEach((card) => {
+                const mode = String(card.getAttribute('data-mode') || 'services');
+                card.classList.toggle('is-active', mode === currentListMode);
+            });
+        }
+
+        function updateServiceSectionTitle() {
+            const titleEl = document.getElementById('serviceSectionTitle');
+            if (!titleEl) return;
+
+            if (currentListMode === 'categories') {
+                titleEl.innerHTML = '<i class="bi bi-tags text-warning me-2"></i>Danh Mục Dịch Vụ';
+                return;
+            }
+
+            titleEl.innerHTML = '<i class="bi bi-tools text-warning me-2"></i>Danh Sách Dịch Vụ';
+        }
+
+        function updateToolbarByMode() {
+            const addBtn = document.getElementById('toolbarAddBtn');
+            const delBtn = document.getElementById('toolbarDeleteBtn');
+            const searchInput = document.getElementById('serviceSearchInput');
+            if (!addBtn || !delBtn || !searchInput) return;
+
+            if (currentListMode === 'categories') {
+                addBtn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Thêm danh mục';
+                delBtn.innerHTML = '<i class="bi bi-trash me-1"></i>Xóa danh mục';
+                searchInput.placeholder = 'Tìm theo tên danh mục dịch vụ...';
+                searchInput.setAttribute('aria-label', 'Tìm danh mục dịch vụ');
+                return;
+            }
+
+            addBtn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Thêm';
+            delBtn.innerHTML = '<i class="bi bi-trash me-1"></i>Xóa';
+            searchInput.placeholder = 'Tìm theo tên hoặc mã dịch vụ...';
+            searchInput.setAttribute('aria-label', 'Tìm dịch vụ');
+        }
+
+        function renderServiceCategoryOptions(selectedValue = '') {
+            const select = document.getElementById('editServiceCategory');
+            if (!select) return;
+
+            const selected = String(selectedValue || '');
+            const options = ['<option value="">Chưa phân loại</option>'];
+            allServiceCategories.forEach((item) => {
+                const id = String(item.id || '');
+                const selectedAttr = id === selected ? ' selected' : '';
+                options.push(`<option value="${escapeHtml(id)}"${selectedAttr}>${escapeHtml(item.tendanhmucdichvu || 'Danh mục')}</option>`);
+            });
+            select.innerHTML = options.join('');
+        }
+
         function syncServiceSelectAllState() {
             const selectAll = document.getElementById('serviceSelectAll');
             if (!selectAll) return;
@@ -415,6 +595,7 @@
         function renderServices(rows) {
             const grid = document.getElementById('serviceGrid');
             if (!grid) return;
+            grid.classList.remove('is-category-list');
 
             if (!rows.length) {
                 grid.innerHTML = '<div class="service-card"><div class="service-title">Không tìm thấy dịch vụ phù hợp.</div></div>';
@@ -447,6 +628,7 @@
                             <div><i class="bi bi-hash"></i> Mã dịch vụ: ${row.id}</div>
                             <div><i class="bi bi-cash-stack"></i> Giá: <span class="js-service-price">${formatCurrencyVND(row.giadichvu)}</span></div>
                             <div><i class="bi bi-clock"></i> Thời gian: <span class="js-service-duration">${row.thoigiandichvu}</span> phút</div>
+                            <div><i class="bi bi-tags"></i> Danh mục: ${escapeHtml(row.tendanhmucdichvu || 'Chưa phân loại')}</div>
                             <div><i class="bi bi-calendar3"></i> Ngày tạo: ${createdAt}</div>
                             <div><i class="bi bi-card-text"></i> Thông tin: <span class="js-service-info">${escapeHtml(summarizeServiceInfo(row.thongtin))}</span></div>
                         </div>
@@ -461,9 +643,142 @@
             syncServiceSelectAllState();
         }
 
+        function getFilteredCategories(list, keyword) {
+            const key = String(keyword || '').trim().toLowerCase();
+            if (!key) return list;
+            return list.filter((row) => String(row.tendanhmucdichvu || '').toLowerCase().includes(key));
+        }
+
+        function renderServiceCategories(rows) {
+            const grid = document.getElementById('serviceGrid');
+            if (!grid) return;
+            grid.classList.add('is-category-list');
+
+            if (!rows.length) {
+                grid.innerHTML = `
+                    <div class="service-category-table data-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:44px;"><input type="checkbox" id="serviceCategorySelectAll" aria-label="Chọn tất cả danh mục dịch vụ" disabled></th>
+                                    <th>Tên Danh Mục</th>
+                                    <th style="width:180px;">Số Dịch Vụ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="3" class="service-category-empty">Chưa có danh mục dịch vụ.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                return;
+            }
+
+            const bodyRows = rows.map((row) => {
+                const checked = selectedCategoryIds.has(String(row.id)) ? 'checked' : '';
+                return `
+                    <tr data-service-category-id="${row.id}">
+                        <td>
+                            <input
+                                type="checkbox"
+                                aria-label="Chọn danh mục ${escapeHtml(row.tendanhmucdichvu || 'Danh mục')}"
+                                ${checked}
+                                onchange="toggleServiceCategorySelection(${row.id}, this.checked)"
+                            >
+                        </td>
+                        <td>
+                            <span class="service-category-name">${escapeHtml(row.tendanhmucdichvu || 'Danh mục')}</span>
+                        </td>
+                        <td>
+                            <span class="service-category-count">${Number(row.so_dich_vu || 0)}</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            grid.innerHTML = `
+                <div class="service-category-table data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:44px;"><input type="checkbox" id="serviceCategorySelectAll" aria-label="Chọn tất cả danh mục dịch vụ" onchange="toggleAllServiceCategories(this.checked)"></th>
+                                <th>Tên Danh Mục</th>
+                                <th style="width:180px;">Số Dịch Vụ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${bodyRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            syncCategorySelectAllState();
+        }
+
         function renderByCurrentFilter() {
+            if (currentListMode === 'categories') {
+                renderServiceCategories(getFilteredCategories(allServiceCategories, currentFilter));
+                return;
+            }
+
             const filtered = getFilteredServices(allServices, currentFilter);
             renderServices(filtered);
+        }
+
+        function setListMode(mode) {
+            const nextMode = String(mode || '').trim();
+            if (!['services', 'categories'].includes(nextMode)) return;
+            currentListMode = nextMode;
+            currentFilter = '';
+            const searchInput = document.getElementById('serviceSearchInput');
+            if (searchInput) searchInput.value = '';
+
+            updateModeCardsUI();
+            updateServiceSectionTitle();
+            updateToolbarByMode();
+            renderByCurrentFilter();
+        }
+
+        function toggleServiceCategorySelection(categoryId, checked) {
+            const id = String(categoryId);
+            if (checked) {
+                selectedCategoryIds.add(id);
+            } else {
+                selectedCategoryIds.delete(id);
+            }
+            syncCategorySelectAllState();
+        }
+
+        function syncCategorySelectAllState() {
+            const selectAll = document.getElementById('serviceCategorySelectAll');
+            if (!selectAll) return;
+
+            const filtered = getFilteredCategories(allServiceCategories, currentFilter);
+            if (!filtered.length) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+                return;
+            }
+
+            const selectedCount = filtered.filter((item) => selectedCategoryIds.has(String(item.id))).length;
+            selectAll.checked = selectedCount === filtered.length;
+            selectAll.indeterminate = selectedCount > 0 && selectedCount < filtered.length;
+        }
+
+        function toggleAllServiceCategories(checked) {
+            const filtered = getFilteredCategories(allServiceCategories, currentFilter);
+            filtered.forEach((item) => {
+                const id = String(item.id);
+                if (checked) {
+                    selectedCategoryIds.add(id);
+                } else {
+                    selectedCategoryIds.delete(id);
+                }
+            });
+            renderByCurrentFilter();
         }
 
         function getServiceApiCandidates() {
@@ -564,6 +879,41 @@
             throw lastError;
         }
 
+        async function mutateServiceCategory(action, payload = {}) {
+            const candidates = getServiceApiCandidates();
+            let lastError = new Error('Khong the xu ly danh muc dich vu');
+
+            for (const candidate of candidates) {
+                const separator = candidate.includes('?') ? '&' : '?';
+                const url = `${candidate}${separator}_t=${Date.now()}`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ entity: 'service_categories', action, ...payload }),
+                    });
+
+                    if (!response.ok) {
+                        lastError = await parseFailedResponse(response, 'HTTP ' + response.status);
+                        continue;
+                    }
+
+                    const data = await response.json();
+                    if (!data.ok) {
+                        lastError = new Error(data.message || 'API ok=false');
+                        continue;
+                    }
+
+                    return data;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            throw lastError;
+        }
+
         async function loadServices(forceReload = false) {
             const grid = document.getElementById('serviceGrid');
             if (!grid) return;
@@ -577,13 +927,18 @@
                 const payload = await fetchServicesPayload();
 
                 const rows = Array.isArray(payload.data) ? payload.data : [];
-                if (!rows.length) {
-                    grid.innerHTML = '<div class="service-card"><div class="service-title">Chưa có dữ liệu dịch vụ.</div></div>';
-                    return;
-                }
+                allServiceCategories = Array.isArray(payload.categories)
+                    ? payload.categories.map((row) => ({
+                        id: Number(row.id || 0),
+                        tendanhmucdichvu: String(row.tendanhmucdichvu || ''),
+                        so_dich_vu: Number(row.so_dich_vu || 0),
+                    })).filter((row) => row.id > 0)
+                    : [];
 
                 allServices = rows.map((row) => ({ ...row }));
                 allServices.forEach((row) => serviceStore.set(String(row.id), row));
+                updateServiceSummary();
+                renderServiceCategoryOptions('');
                 renderByCurrentFilter();
 
                 grid.dataset.loaded = '1';
@@ -601,10 +956,11 @@
             document.getElementById('editServiceName').value = '';
             document.getElementById('editServicePrice').value = 0;
             document.getElementById('editServiceDuration').value = 30;
+            renderServiceCategoryOptions('');
             document.getElementById('editServiceStatus').value = 'hoatdong';
             document.getElementById('editServiceInfo').value = '';
             document.getElementById('editServiceImage').value = '';
-            setServiceImageHint('Chọn ảnh dịch vụ từ máy tính (tối đa 5MB).');
+            setServiceImageHint('Nhập link ảnh để lưu trực tiếp vào cột hình ảnh dịch vụ trong database.');
             openServiceModal();
         }
 
@@ -631,6 +987,7 @@
                 }
 
                 renderByCurrentFilter();
+                if (deletedCount > 0) publishServiceRealtimeChange('delete_service');
                 showNotice(`Đã xóa ${deletedCount} dịch vụ đã chọn.`, 'success');
             } catch (error) {
                 showNotice('Xóa dịch vụ thất bại: ' + getErrorMessage(error), 'error');
@@ -651,11 +1008,12 @@
             document.getElementById('editServiceName').value = service.tendichvu || '';
             document.getElementById('editServicePrice').value = Number(service.giadichvu || 0);
             document.getElementById('editServiceDuration').value = Number(service.thoigiandichvu || 0);
+            renderServiceCategoryOptions(String(service.danhmucdichvu_id || ''));
             document.getElementById('editServiceStatus').value = service.trangthaidichvu === 'hoatdong' ? 'hoatdong' : 'khonghoatdong';
             document.getElementById('editServiceInfo').value = String(service.thongtin || '');
-            document.getElementById('editServiceImage').value = '';
             const currentImage = String(service.hinhanhdichvu || '').trim();
-            setServiceImageHint(currentImage ? 'Để trống nếu giữ ảnh hiện tại, hoặc chọn ảnh mới để thay thế.' : 'Dịch vụ chưa có ảnh, hãy chọn ảnh từ máy tính.');
+            document.getElementById('editServiceImage').value = currentImage;
+            setServiceImageHint(currentImage ? 'Bạn có thể sửa link ảnh trực tiếp. Để giữ nguyên thì để nguyên giá trị hiện tại.' : 'Dịch vụ chưa có ảnh, hãy nhập link ảnh.');
 
             openServiceModal();
         }
@@ -669,6 +1027,25 @@
 
         function closeServiceModal() {
             const modal = document.getElementById('serviceEditModal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function openServiceCategoryModal() {
+            const modal = document.getElementById('serviceCategoryModal');
+            const nameInput = document.getElementById('newServiceCategoryName');
+            if (!modal || !nameInput) return;
+
+            nameInput.value = '';
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+
+            window.setTimeout(() => nameInput.focus(), 0);
+        }
+
+        function closeServiceCategoryModal() {
+            const modal = document.getElementById('serviceCategoryModal');
             if (!modal) return;
             modal.classList.remove('show');
             modal.setAttribute('aria-hidden', 'true');
@@ -714,6 +1091,35 @@
             if (event.target.id === 'serviceEditModal') closeServiceModal();
         });
 
+        document.getElementById('closeServiceCategoryModal').addEventListener('click', closeServiceCategoryModal);
+        document.getElementById('cancelServiceCategoryModal').addEventListener('click', closeServiceCategoryModal);
+
+        document.getElementById('serviceCategoryModal').addEventListener('click', (event) => {
+            if (event.target.id === 'serviceCategoryModal') closeServiceCategoryModal();
+        });
+
+        document.getElementById('serviceCategoryForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const nameInput = document.getElementById('newServiceCategoryName');
+            const name = String(nameInput?.value || '').trim();
+            if (!name) {
+                showNotice('Vui lòng nhập tên danh mục dịch vụ.', 'warning');
+                return;
+            }
+
+            try {
+                await mutateServiceCategory('create', { tendanhmucdichvu: name });
+                closeServiceCategoryModal();
+                await loadServices(true);
+                setListMode('categories');
+                publishServiceRealtimeChange('create_service_category');
+                showNotice('Thêm danh mục dịch vụ thành công.', 'success');
+            } catch (error) {
+                showNotice('Thêm danh mục dịch vụ thất bại: ' + getErrorMessage(error), 'error');
+            }
+        });
+
         document.getElementById('serviceEditForm').addEventListener('submit', async (event) => {
             event.preventDefault();
 
@@ -721,24 +1127,23 @@
             const name = document.getElementById('editServiceName').value.trim();
             const price = Number(document.getElementById('editServicePrice').value || 0);
             const duration = Number(document.getElementById('editServiceDuration').value || 0);
+            const serviceCategoryId = Number(document.getElementById('editServiceCategory').value || 0);
             const status = document.getElementById('editServiceStatus').value;
             const info = document.getElementById('editServiceInfo').value.trim();
-            const imageFile = document.getElementById('editServiceImage').files?.[0] || null;
+            const imageLink = String(document.getElementById('editServiceImage').value || '').trim();
             const currentImagePath = String(document.getElementById('editServiceImagePath').value || '').trim();
 
             if (!name) return;
 
             try {
-                let uploadedImagePath = currentImagePath;
-                if (imageFile) {
-                    uploadedImagePath = await uploadImageFile(imageFile, 'services');
-                }
+                const uploadedImagePath = imageLink || currentImagePath;
 
                 if (editMode === 'create') {
                     const res = await mutateService('create', {
                         tendichvu: name,
                         giadichvu: price,
                         thoigiandichvu: duration,
+                        danhmucdichvu_id: serviceCategoryId,
                         trangthaidichvu: status,
                         thongtin: info,
                         hinhanhdichvu: uploadedImagePath,
@@ -748,6 +1153,7 @@
                     allServices.unshift(created);
                     serviceStore.set(String(created.id), created);
                     renderByCurrentFilter();
+                    publishServiceRealtimeChange('create_service');
                     showNotice(`Thêm dịch vụ "${created.tendichvu || name}" thành công.`, 'success');
                 } else {
                     const id = String(rawId);
@@ -756,6 +1162,7 @@
                         tendichvu: name,
                         giadichvu: price,
                         thoigiandichvu: duration,
+                        danhmucdichvu_id: serviceCategoryId,
                         trangthaidichvu: status,
                         thongtin: info,
                         hinhanhdichvu: uploadedImagePath,
@@ -765,6 +1172,7 @@
                     serviceStore.set(id, updated);
                     allServices = allServices.map((item) => String(item.id) === id ? updated : item);
                     applyServiceToCard(updated);
+                    publishServiceRealtimeChange('update_service');
                     showNotice(`Cập nhật dịch vụ "${updated.tendichvu || name}" thành công.`, 'success');
                 }
 
@@ -779,10 +1187,54 @@
             renderByCurrentFilter();
         });
 
-        document.getElementById('editServiceImage').addEventListener('change', (event) => {
-            const file = event.target.files?.[0] || null;
-            if (file) {
-                setServiceImageHint(`Đã chọn: ${file.name}`);
+        document.querySelectorAll('.module-card[data-mode]').forEach((card) => {
+            card.addEventListener('click', () => {
+                setListMode(card.getAttribute('data-mode') || 'services');
+            });
+        });
+
+        document.getElementById('toolbarAddBtn').addEventListener('click', async () => {
+            if (currentListMode === 'categories') {
+                openServiceCategoryModal();
+                return;
+            }
+
+            openAddServiceModal();
+        });
+
+        document.getElementById('toolbarDeleteBtn').addEventListener('click', async () => {
+            if (currentListMode === 'categories') {
+                const ids = Array.from(selectedCategoryIds);
+                if (!ids.length) {
+                    showNotice('Vui lòng chọn ít nhất 1 danh mục dịch vụ cần xóa.', 'warning');
+                    return;
+                }
+
+                const ok = confirm(`Bạn có chắc muốn xóa ${ids.length} danh mục dịch vụ đã chọn?`);
+                if (!ok) return;
+
+                try {
+                    for (const id of ids) {
+                        await mutateServiceCategory('delete', { id: Number(id) });
+                        selectedCategoryIds.delete(String(id));
+                    }
+                    await loadServices(true);
+                    setListMode('categories');
+                    publishServiceRealtimeChange('delete_service_category');
+                    showNotice(`Đã xóa ${ids.length} danh mục dịch vụ.`, 'success');
+                } catch (error) {
+                    showNotice('Xóa danh mục dịch vụ thất bại: ' + getErrorMessage(error), 'error');
+                }
+                return;
+            }
+
+            deleteServiceBySearch();
+        });
+
+        document.getElementById('editServiceImage').addEventListener('input', (event) => {
+            const value = String(event.target.value || '').trim();
+            if (value) {
+                setServiceImageHint('Link ảnh sẽ được lưu trực tiếp vào database.');
             }
         });
 
@@ -792,12 +1244,17 @@
                     closeNotice();
                     return;
                 }
+                closeServiceCategoryModal();
                 closeServiceModal();
             }
         });
 
         document.documentElement.classList.add('hide-scrollbar');
         document.body.classList.add('hide-scrollbar');
+
+        updateModeCardsUI();
+        updateServiceSectionTitle();
+        updateToolbarByMode();
 
         loadServices();
     </script>

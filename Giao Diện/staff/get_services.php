@@ -339,8 +339,14 @@ function app_sync_revenue_table(mysqli $conn): bool
                 "
                 INSERT INTO doanhthu (nguondoanhthu, nguon_id, tennguon, soluongdoanhthu, sotiendoanhthu, thamchieu, ngaytaodoanhthu)
                 SELECT
-                    'sanpham' AS nguondoanhthu,
-                    ct.sanpham_id AS nguon_id,
+                    CASE
+                        WHEN UPPER(COALESCE(ct.masanpham, '')) LIKE 'DV%' THEN 'dichvu'
+                        ELSE 'sanpham'
+                    END AS nguondoanhthu,
+                    CASE
+                        WHEN UPPER(COALESCE(ct.masanpham, '')) LIKE 'DV%' THEN NULL
+                        ELSE ct.sanpham_id
+                    END AS nguon_id,
                     COALESCE(NULLIF(TRIM(ct.tensanpham), ''), NULLIF(TRIM(sp.tensanpham), ''), 'San pham') AS tennguon,
                     COALESCE(ct.soluong, 1) AS soluongdoanhthu,
                     COALESCE(ct.thanhtien, COALESCE(ct.soluong, 1) * COALESCE(ct.dongia, 0)) AS sotiendoanhthu,
@@ -413,6 +419,94 @@ function app_sync_revenue_table(mysqli $conn): bool
     }
 
     return true;
+}
+
+function app_prepare_pos_service_items(mysqli $conn, array $items): array
+{
+    $normalized = [];
+    if (count($items) === 0) {
+        return [$normalized, ''];
+    }
+
+    if (!app_table_exists($conn, 'dichvu')) {
+        return [[], 'Khong tim thay bang dichvu'];
+    }
+
+    $byIdStmt = $conn->prepare('SELECT id, tendichvu, giadichvu FROM dichvu WHERE id = ? LIMIT 1');
+    $byNameStmt = $conn->prepare('SELECT id, tendichvu, giadichvu FROM dichvu WHERE LOWER(tendichvu) = LOWER(?) LIMIT 1');
+    if (!$byIdStmt || !$byNameStmt) {
+        if ($byIdStmt) {
+            $byIdStmt->close();
+        }
+        if ($byNameStmt) {
+            $byNameStmt->close();
+        }
+        return [[], 'Khong the truy van dich vu'];
+    }
+
+    foreach ($items as $raw) {
+        if (!is_array($raw)) {
+            continue;
+        }
+
+        $qty = (int) ($raw['qty'] ?? $raw['quantity'] ?? $raw['soluong'] ?? 1);
+        if ($qty <= 0) {
+            continue;
+        }
+
+        $serviceId = (int) ($raw['service_id'] ?? $raw['dichvu_id'] ?? $raw['id'] ?? 0);
+        $serviceName = trim((string) ($raw['name'] ?? $raw['service_name'] ?? $raw['tendichvu'] ?? ''));
+        $inputPrice = (float) ($raw['price'] ?? $raw['dongia'] ?? 0);
+
+        $row = null;
+        if ($serviceId > 0) {
+            $byIdStmt->bind_param('i', $serviceId);
+            $byIdStmt->execute();
+            $result = $byIdStmt->get_result();
+            $row = $result ? $result->fetch_assoc() : null;
+            if ($result) {
+                $result->free();
+            }
+        } elseif ($serviceName !== '') {
+            $byNameStmt->bind_param('s', $serviceName);
+            $byNameStmt->execute();
+            $result = $byNameStmt->get_result();
+            $row = $result ? $result->fetch_assoc() : null;
+            if ($result) {
+                $result->free();
+            }
+        }
+
+        if (!is_array($row)) {
+            $label = $serviceName !== '' ? $serviceName : ('ID ' . $serviceId);
+            $byIdStmt->close();
+            $byNameStmt->close();
+            return [[], 'Dich vu khong ton tai: ' . $label];
+        }
+
+        $resolvedId = (int) ($row['id'] ?? 0);
+        $resolvedName = trim((string) ($row['tendichvu'] ?? 'Dich vu'));
+        $resolvedPrice = $inputPrice > 0 ? $inputPrice : (float) ($row['giadichvu'] ?? 0);
+        if ($resolvedPrice <= 0) {
+            $byIdStmt->close();
+            $byNameStmt->close();
+            return [[], 'Gia dich vu khong hop le: ' . $resolvedName];
+        }
+
+        $normalized[] = [
+            'item_type' => 'service',
+            'service_id' => $resolvedId,
+            'product_id' => 0,
+            'quantity' => $qty,
+            'price' => $resolvedPrice,
+            'name' => $resolvedName,
+            'code' => 'DV' . $resolvedId,
+        ];
+    }
+
+    $byIdStmt->close();
+    $byNameStmt->close();
+    return [$normalized, ''];
 }
 
 function app_handle_staff_api(mysqli $conn, string $api): bool
@@ -699,7 +793,32 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         $staffName = trim((string) ($input['staff_name'] ?? 'Nhan vien'));
         $note = trim((string) ($input['note'] ?? ''));
         $paymentMethod = app_normalize_payment_method((string) ($input['payment_method'] ?? 'tien_mat'));
-        $items = app_prepare_order_items(is_array($input['items'] ?? null) ? $input['items'] : []);
+        $rawItems = is_array($input['items'] ?? null) ? $input['items'] : [];
+        $rawProductItems = [];
+        $rawServiceItems = [];
+        foreach ($rawItems as $rawItem) {
+            if (!is_array($rawItem)) {
+                continue;
+            }
+            $rawType = app_lower(trim((string) ($rawItem['item_type'] ?? $rawItem['type'] ?? 'product')));
+            if ($rawType === 'service' || $rawType === 'dichvu') {
+                $rawServiceItems[] = $rawItem;
+            } else {
+                $rawProductItems[] = $rawItem;
+            }
+        }
+
+        $productItems = app_prepare_order_items($rawProductItems);
+        [$serviceItems, $serviceError] = app_prepare_pos_service_items($conn, $rawServiceItems);
+        if ($serviceError !== '') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => $serviceError,
+            ], 400);
+        }
+
+        $items = array_merge($productItems, $serviceItems);
 
         if (count($items) === 0) {
             $conn->close();
@@ -716,10 +835,14 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
 
         $conn->begin_transaction();
         try {
-            [$stockOk, $stockMessage] = app_apply_stock_deduction($conn, $items);
-            if (!$stockOk) {
-                throw new RuntimeException($stockMessage !== '' ? $stockMessage : 'Khong the cap nhat ton kho');
+            if (count($productItems) > 0) {
+                [$stockOk, $stockMessage] = app_apply_stock_deduction($conn, $productItems);
+                if (!$stockOk) {
+                    throw new RuntimeException($stockMessage !== '' ? $stockMessage : 'Khong the cap nhat ton kho');
+                }
             }
+
+            $items = array_merge($productItems, $serviceItems);
 
             $total = 0.0;
             foreach ($items as $item) {
@@ -757,7 +880,8 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             }
 
             foreach ($items as $item) {
-                $productId = (int) ($item['product_id'] ?? 0);
+                $isServiceItem = (string) ($item['item_type'] ?? '') === 'service';
+                $productId = $isServiceItem ? 0 : (int) ($item['product_id'] ?? 0);
                 $qty = (int) ($item['quantity'] ?? 0);
                 $price = (float) ($item['price'] ?? 0);
                 $lineTotal = $price * $qty;
@@ -1563,6 +1687,8 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
     if ($api === 'get_services') {
         app_seed_dichvu_image_column($conn);
         app_ensure_dichvu_info_column($conn);
+        app_ensure_service_category_table($conn);
+        app_ensure_dichvu_category_column($conn);
 
         $sql = "
             SELECT
@@ -1570,11 +1696,14 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 d.tendichvu,
                 d.giadichvu,
                 d.thoigiandichvu,
+                d.danhmucdichvu_id,
+                COALESCE(dm.tendanhmucdichvu, '') AS tendanhmucdichvu,
                 d.trangthaidichvu,
                 d.ngaytaodichvu,
                 COALESCE(d.thongtin, '') AS thongtin,
                 COALESCE(NULLIF(TRIM(d.hinhanhdichvu), ''), '') AS hinhanh
             FROM dichvu d
+            LEFT JOIN danhmucdichvu dm ON dm.id = d.danhmucdichvu_id
             ORDER BY d.id ASC
             LIMIT 100
         ";
@@ -1596,11 +1725,25 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'tendichvu' => (string) $row['tendichvu'],
                 'giadichvu' => (float) $row['giadichvu'],
                 'thoigiandichvu' => (int) $row['thoigiandichvu'],
+                'danhmucdichvu_id' => (int) ($row['danhmucdichvu_id'] ?? 0),
+                'tendanhmucdichvu' => (string) ($row['tendanhmucdichvu'] ?? ''),
                 'trangthaidichvu' => (string) $row['trangthaidichvu'],
                 'ngaytaodichvu' => (string) $row['ngaytaodichvu'],
                 'thongtin' => (string) ($row['thongtin'] ?? ''),
                 'hinhanh' => app_to_public_image_url((string) ($row['hinhanh'] ?? '')),
             ];
+        }
+
+        $categories = [];
+        $categoryResult = $conn->query('SELECT id, tendanhmucdichvu FROM danhmucdichvu ORDER BY tendanhmucdichvu ASC LIMIT 500');
+        if ($categoryResult) {
+            while ($row = $categoryResult->fetch_assoc()) {
+                $categories[] = [
+                    'id' => (int) ($row['id'] ?? 0),
+                    'tendanhmucdichvu' => (string) ($row['tendanhmucdichvu'] ?? ''),
+                ];
+            }
+            $categoryResult->free();
         }
 
         $result->free();
@@ -1609,6 +1752,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         app_json_response([
             'ok' => true,
             'count' => count($data),
+            'categories' => $categories,
             'data' => $data,
         ]);
     }
@@ -1804,7 +1948,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 ) AS anhdaidiennguoidung,
                 COUNT(t.id) AS so_thu_cung
             FROM khachhang k
-            LEFT JOIN thucung t ON t.chusohuu_id = k.id
+            LEFT JOIN thucung t ON t.chusohuu_id = k.id AND COALESCE(t.nguon_thucung, 'khach_hang') = 'khach_hang'
             GROUP BY
                 k.id,
                 k.tenkhachhang,
@@ -1908,11 +2052,16 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 t.giongthucung,
                 t.chusohuu_id,
                 k.tenkhachhang AS tenchusohuu,
+                COALESCE(NULLIF(TRIM(t.nguon_thucung), ''), CASE WHEN COALESCE(t.chusohuu_id, 0) > 0 THEN 'khach_hang' ELSE 'cua_hang' END) AS nguon_thucung,
+                t.sanpham_id,
+                COALESCE(sp.tensanpham, '') AS tensanpham_lienket,
+                COALESCE(sp.hinhanhsanpham, '') AS hinhanhsanpham_lienket,
                 t.trangthaithucung,
                 t.thongtin,
                 t.ngaydangkythucung
             FROM thucung t
             LEFT JOIN khachhang k ON k.id = t.chusohuu_id
+            LEFT JOIN sanpham sp ON sp.id = t.sanpham_id
             ORDER BY t.id DESC
             LIMIT 300
         ";
@@ -1929,6 +2078,8 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
 
         $data = [];
         $healthyCount = 0;
+        $storeOwnedCount = 0;
+        $customerOwnedCount = 0;
 
         while ($row = $result->fetch_assoc()) {
             $status = (string) $row['trangthaithucung'];
@@ -1941,6 +2092,13 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 $healthyCount++;
             }
 
+            $source = (string) ($row['nguon_thucung'] ?? 'khach_hang');
+            if ($source === 'cua_hang') {
+                $storeOwnedCount++;
+            } else {
+                $customerOwnedCount++;
+            }
+
             $data[] = [
                 'id' => (int) $row['id'],
                 'tenthucung' => (string) $row['tenthucung'],
@@ -1948,6 +2106,10 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'giongthucung' => (string) $row['giongthucung'],
                 'chusohuu_id' => (int) $row['chusohuu_id'],
                 'tenchusohuu' => (string) ($row['tenchusohuu'] ?? ''),
+                'nguon_thucung' => $source,
+                'sanpham_id' => (int) ($row['sanpham_id'] ?? 0),
+                'tensanpham_lienket' => (string) ($row['tensanpham_lienket'] ?? ''),
+                'hinhanhsanpham_lienket' => (string) ($row['hinhanhsanpham_lienket'] ?? ''),
                 'trangthaithucung' => $status,
                 'thongtin' => (string) ($row['thongtin'] ?? ''),
                 'ngaydangkythucung' => (string) $row['ngaydangkythucung'],
@@ -1964,6 +2126,8 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'total' => count($data),
                 'healthy_like' => $healthyCount,
                 'need_follow_up' => count($data) - $healthyCount,
+                'customer_owned' => $customerOwnedCount,
+                'store_owned' => $storeOwnedCount,
             ],
             'data' => $data,
         ]);

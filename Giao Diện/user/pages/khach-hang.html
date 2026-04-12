@@ -1080,6 +1080,7 @@
         const currentProfile = store.get(KEYS.profile, {});
         const authName = String(authUser.fullName || authUser.tennguoidung || authUser.name || authUser.displayName || '').trim();
         const authEmail = String(authUser.email || authUser.emailnguoidung || authUser.identifier || '').trim();
+        const authAvatar = String(authUser.avatar || authUser.avatar_url || authUser.anhdaidiennguoidung_url || authUser.anhdaidiennguoidung || '').trim();
 
         const nextProfile = {
           ...(currentProfile && typeof currentProfile === 'object' ? currentProfile : {}),
@@ -1088,6 +1089,7 @@
 
         if (authName !== '') nextProfile.name = authName;
         if (authEmail !== '') nextProfile.email = authEmail;
+        if (authAvatar !== '') nextProfile.avatar = authAvatar;
 
         store.set(KEYS.profile, nextProfile);
       };
@@ -1667,10 +1669,7 @@
 
         const defaultPaymentMethods = [];
 
-        const defaultVouchers = [
-          { id: idGen('v'), code: 'PET10', title: 'Giảm 10%', desc: 'Giảm 10% tối đa 80.000₫', minOrder: 300000, expiry: '30/04/2026', status: 'available' },
-          { id: idGen('v'), code: 'FREESHIP', title: 'Miễn phí vận chuyển', desc: 'Áp dụng đơn từ 199.000₫', minOrder: 199000, expiry: '15/05/2026', status: 'available' }
-        ];
+        const defaultVouchers = [];
 
         const defaultAuth = {
           password: '123456',

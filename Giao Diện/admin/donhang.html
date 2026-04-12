@@ -6,7 +6,7 @@
     <title>Đơn Hàng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="admin-style.css?v=20260412-3">
     <style>
         .status-pill {
             padding: 4px 10px;
@@ -87,6 +87,19 @@
         @media (max-width: 768px) {
             .order-detail-grid { grid-template-columns: 1fr; }
         }
+
+        .module-card.is-clickable {
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .module-card.is-clickable:hover {
+            transform: translateY(-2px);
+        }
+
+        .module-card.is-active {
+            box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.24), 0 10px 18px rgba(2, 6, 23, 0.08);
+        }
     </style>
 </head>
 <body>
@@ -95,13 +108,13 @@
         <h2>Quản Lý Đơn Hàng</h2>
     </div>
     <div class="module-grid">
-        <div class="module-card"><div class="module-title"><i class="bi bi-receipt-cutoff"></i><span>Tổng Đơn</span></div><div class="module-value" id="sumAll">0</div><div class="module-desc">Tất cả đơn hàng</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-globe2"></i><span>Đơn Online</span></div><div class="module-value" id="sumOnline">0</div><div class="module-desc">Đặt trên website</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-shop"></i><span>Tại Cửa Hàng</span></div><div class="module-value" id="sumStore">0</div><div class="module-desc">Đơn bán tại quầy</div></div>
+        <div class="module-card is-clickable is-active" data-mode="all"><div class="module-title"><i class="bi bi-receipt-cutoff"></i><span>Tổng Đơn</span></div><div class="module-value" id="sumAll">0</div><div class="module-desc">Tất cả đơn hàng</div></div>
+        <div class="module-card is-clickable" data-mode="online"><div class="module-title"><i class="bi bi-globe2"></i><span>Đơn Online</span></div><div class="module-value" id="sumOnline">0</div><div class="module-desc">Đặt trên website</div></div>
+        <div class="module-card is-clickable" data-mode="store"><div class="module-title"><i class="bi bi-shop"></i><span>Tại Cửa Hàng</span></div><div class="module-value" id="sumStore">0</div><div class="module-desc">Đơn bán tại quầy</div></div>
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-card-checklist text-success me-2"></i>Tất Cả Đơn Hàng</h3></div>
+        <div class="section-header"><h3 id="ordersSectionTitle"><i class="bi bi-card-checklist text-success me-2"></i>Tất Cả Đơn Hàng</h3></div>
         <div class="quick-stats">
             <div class="quick-stat-item"><span class="number" id="statTotal">0</span><span class="label">Tổng số đơn</span></div>
             <div class="quick-stat-item"><span class="number" id="statRevenue">0 đ</span><span class="label">Tổng doanh thu danh sách</span></div>
@@ -160,6 +173,7 @@
 (function () {
     let allRows = [];
     let currentDetail = null;
+    let currentOrderListMode = 'all';
 
     const statusText = document.getElementById('statusText');
     const ordersBody = document.getElementById('ordersBody');
@@ -392,6 +406,69 @@
         }).join('');
     }
 
+    function getRowsByOrderMode() {
+        if (currentOrderListMode === 'online') {
+            return allRows.filter((row) => row.source === 'online');
+        }
+        if (currentOrderListMode === 'store') {
+            return allRows.filter((row) => row.source === 'store');
+        }
+        return allRows;
+    }
+
+    function updateOrderModeCardsUI() {
+        document.querySelectorAll('.module-card[data-mode]').forEach((card) => {
+            const mode = String(card.getAttribute('data-mode') || 'all');
+            card.classList.toggle('is-active', mode === currentOrderListMode);
+        });
+    }
+
+    function updateOrdersSectionTitle() {
+        const titleEl = document.getElementById('ordersSectionTitle');
+        if (!titleEl) return;
+
+        if (currentOrderListMode === 'online') {
+            titleEl.innerHTML = '<i class="bi bi-globe2 text-success me-2"></i>Danh Sách Đơn Online';
+            return;
+        }
+        if (currentOrderListMode === 'store') {
+            titleEl.innerHTML = '<i class="bi bi-shop text-success me-2"></i>Danh Sách Đơn Tại Cửa Hàng';
+            return;
+        }
+        titleEl.innerHTML = '<i class="bi bi-card-checklist text-success me-2"></i>Tất Cả Đơn Hàng';
+    }
+
+    function renderOrdersByCurrentMode() {
+        const rows = getRowsByOrderMode();
+        renderRows(rows);
+
+        const total = rows.length;
+        const pendingOnline = rows.filter((row) => row.source === 'online' && String(row.trangthai) === 'cho_duyet').length;
+        const totalRevenue = rows.reduce((sum, row) => sum + Number(row.tongtien || 0), 0);
+
+        statTotal.textContent = String(total);
+        statRevenue.textContent = toMoney(totalRevenue);
+        statPending.textContent = String(pendingOnline);
+
+        if (currentOrderListMode === 'online') {
+            statusText.textContent = `Đang hiển thị ${total} đơn online.`;
+        } else if (currentOrderListMode === 'store') {
+            statusText.textContent = `Đang hiển thị ${total} đơn tại cửa hàng.`;
+        } else {
+            statusText.textContent = `Đã tải ${total} đơn hàng (online + tại cửa hàng).`;
+        }
+    }
+
+    function setOrderListMode(mode) {
+        const nextMode = String(mode || '').trim();
+        if (!['all', 'online', 'store'].includes(nextMode)) return;
+
+        currentOrderListMode = nextMode;
+        updateOrderModeCardsUI();
+        updateOrdersSectionTitle();
+        renderOrdersByCurrentMode();
+    }
+
     async function load() {
         statusText.textContent = 'Đang tải dữ liệu đơn hàng...';
         try {
@@ -422,23 +499,14 @@
                 return tb - ta;
             });
 
-            renderRows(allRows);
-
             const total = allRows.length;
             const onlineCount = allRows.filter((row) => row.source === 'online').length;
             const storeCount = total - onlineCount;
-            const pendingOnline = allRows.filter((row) => row.source === 'online' && String(row.trangthai) === 'cho_duyet').length;
-            const totalRevenue = allRows.reduce((sum, row) => sum + Number(row.tongtien || 0), 0);
 
             sumAll.textContent = String(total);
             sumOnline.textContent = String(onlineCount);
             sumStore.textContent = String(storeCount);
-
-            statTotal.textContent = String(total);
-            statRevenue.textContent = toMoney(totalRevenue);
-            statPending.textContent = String(pendingOnline);
-
-            statusText.textContent = 'Đã tải ' + total + ' đơn hàng (online + tại cửa hàng).';
+            renderOrdersByCurrentMode();
         } catch (err) {
             ordersBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-3">Lỗi tải dữ liệu: ' + String(err.message || err) + '</td></tr>';
             statusText.textContent = 'Không thể tải dữ liệu đơn hàng.';
@@ -480,6 +548,14 @@
     closeOrderDetailBtn.addEventListener('click', closeOrderDetail);
     closeOrderDetailFooterBtn.addEventListener('click', closeOrderDetail);
     orderDetailBackdrop.addEventListener('click', closeOrderDetail);
+    document.querySelectorAll('.module-card[data-mode]').forEach((card) => {
+        card.addEventListener('click', () => {
+            setOrderListMode(card.getAttribute('data-mode') || 'all');
+        });
+    });
+
+    updateOrderModeCardsUI();
+    updateOrdersSectionTitle();
 
     load();
 })();

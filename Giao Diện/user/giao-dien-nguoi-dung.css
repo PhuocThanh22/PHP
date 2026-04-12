@@ -1199,8 +1199,11 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 
 #categoriesContainer .category-item {
     position: relative;
-    flex: 0 0 auto !important;
-    min-width: 0 !important;
+    flex: 0 0 240px !important;
+    width: 240px !important;
+    min-width: 240px !important;
+    max-width: 240px;
+    align-self: stretch;
 }
 
 .category-card {
@@ -1212,6 +1215,10 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     position: relative;
     z-index: 1;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    aspect-ratio: 1 / 1;
+    height: 100%;
 }
 
 .category-card:hover {
@@ -1220,7 +1227,8 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 }
 
 .category-image {
-    height: 216px;
+    height: auto;
+    min-height: 0;
     overflow: hidden;
     background-color: var(--light-gray);
 }
@@ -1238,10 +1246,12 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 
 .category-content {
     background-color: #ffffff;
-    padding: 20px 16px;
+    padding: 12px 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
+    min-height: 74px;
 }
 
 .category-view-btn {
@@ -3045,7 +3055,14 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     }
     
     .category-image {
-        height: 160px;
+        height: auto;
+    }
+
+    #categoriesContainer .category-item {
+        flex: 0 0 200px !important;
+        width: 200px !important;
+        min-width: 200px !important;
+        max-width: 200px;
     }
     
     .category-content {
@@ -3165,7 +3182,14 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     }
     
     .category-image {
-        height: 140px;
+        height: auto;
+    }
+
+    #categoriesContainer .category-item {
+        flex: 0 0 170px !important;
+        width: 170px !important;
+        min-width: 170px !important;
+        max-width: 170px;
     }
     
     .product-image {

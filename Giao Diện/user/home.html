@@ -32,24 +32,11 @@
         (function () {
             const BUILD_VERSION = '2026-04-05-auth-guard-v4';
             const BUILD_KEY = 'userHomeBuildVersion';
-            const RELOAD_KEY = 'userHomeBuildReloading';
 
             try {
                 const seenBuild = localStorage.getItem(BUILD_KEY);
-                const isReloading = sessionStorage.getItem(RELOAD_KEY) === '1';
-
-                if (seenBuild !== BUILD_VERSION && !isReloading) {
+                if (seenBuild !== BUILD_VERSION) {
                     localStorage.setItem(BUILD_KEY, BUILD_VERSION);
-                    sessionStorage.setItem(RELOAD_KEY, '1');
-
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('_build', BUILD_VERSION);
-                    window.location.replace(url.toString());
-                    return;
-                }
-
-                if (isReloading) {
-                    sessionStorage.removeItem(RELOAD_KEY);
                 }
             } catch (e) {
                 // Ignore storage errors and continue rendering.
@@ -59,6 +46,11 @@
 
     <!-- Override scroll-to-top color (work with cache/paths) -->
     <style>
+        body.app-popup-open {
+            overflow: hidden !important;
+            touch-action: none;
+        }
+
         html, body {
             margin: 0;
             padding: 0;
@@ -156,6 +148,13 @@
             box-shadow: inset 0 0 0 1px rgba(31, 143, 77, 0.28);
         }
 
+        .mini-cart-wrapper.disable-dropdown .mini-cart-dropdown {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
         #headerUserIcon.user-icon-wrap {
             position: relative;
         }
@@ -229,13 +228,9 @@
                             <li><a href="home.html" class="nav-link active" data-nav-key="home" data-page="home">Trang Chủ</a></li>
                             <li><a href="#" style="cursor: pointer;" class="nav-link" data-page="shop" data-nav-key="shop">Cửa Hàng</a></li>
                             <li class="dropdown">
-                                <a href="javascript:void(0);" class="nav-link dropdown-toggle" data-nav-key="services">Dịch vụ</a>
-                                <ul class="dropdown-menu">
-                                    <li><a href="#" style="cursor: pointer;" data-page="services" data-service-category="spa">Spa - Cắt tạo kiểu</a></li>
-                                    <li><a href="#" style="cursor: pointer;" data-page="services" data-service-category="hotel">Khách sạn - Lưu trú</a></li>
-                                    <li><a href="#" style="cursor: pointer;" data-page="services" data-service-category="bath-dry">Tắm &amp; Sấy</a></li>
-                                    <li><a href="#" style="cursor: pointer;" data-page="services" data-service-category="ear-cleaning">Vệ sinh tai</a></li>
-                                    <li><a href="#" style="cursor: pointer;" data-page="services" data-service-category="nail-trimming">Cắt móng</a></li>
+                                <a href="#" style="cursor: pointer;" class="nav-link dropdown-toggle" data-nav-key="services" data-page="services" data-service-category="all">Dịch vụ</a>
+                                <ul class="dropdown-menu" id="servicesDropdownMenu">
+                                    <li><a href="#" style="cursor: pointer;" data-page="services" data-service-category="all">Tất cả dịch vụ</a></li>
                                 </ul>
                             </li>
                             <li><a href="#" style="cursor: pointer;" class="nav-link" data-page="contact" data-nav-key="contact">Liên Hệ</a></li>
@@ -516,11 +511,6 @@
 
             <div class="featured-showcase-filters" id="featuredFilters" role="tablist" aria-label="Lọc sản phẩm nổi bật">
                 <button type="button" class="featured-filter-pill is-active">Tất cả</button>
-                <button type="button" class="featured-filter-pill">Dinh dưỡng</button>
-                <button type="button" class="featured-filter-pill">Da &amp; lông</button>
-                <button type="button" class="featured-filter-pill">Tăng cân</button>
-                <button type="button" class="featured-filter-pill">Kén ăn</button>
-                <button type="button" class="featured-filter-pill">Giống lớn</button>
             </div>
 
             <div class="featured-showcase-carousel">
@@ -529,63 +519,10 @@
                 </button>
 
                 <div class="featured-showcase-track" id="featuredShowcaseTrack" aria-label="Danh sách sản phẩm nổi bật">
-                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Bánh thưởng vị gà cho chó', 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=680&h=460&fit=crop', '149.000₫', '4.8', '182', 'Bánh thưởng mềm, dễ tiêu hóa, phù hợp cho chó kén ăn hoặc cần bổ sung năng lượng nhanh.')">
-                    <div class="featured-showcase-image-wrap">
-                        <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=680&h=460&fit=crop" alt="Bánh thưởng vị gà cho chó" class="featured-showcase-image">
-                    </div>
+                <article class="featured-showcase-card">
                     <div class="featured-showcase-body">
-                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
-                        <h3 class="featured-showcase-name">Bánh thưởng vị gà cho chó</h3>
-                        <p class="featured-showcase-copy">Mùi thơm tự nhiên, kết cấu mềm vừa phải giúp bé dễ nhai và hào hứng hơn trong giờ thưởng.</p>
-                        <p class="featured-showcase-meta">Giá từ 149.000₫</p>
-                    </div>
-                </article>
-
-                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Pate tươi cho mèo trưởng thành', 'https://images.unsplash.com/photo-1611003228941-98852ba62227?w=680&h=460&fit=crop', '189.000₫', '4.9', '244', 'Pate giàu đạm, bổ sung vitamin giúp mèo ăn ngon miệng, giảm rụng lông và hỗ trợ tiêu hóa.')">
-                    <div class="featured-showcase-image-wrap">
-                        <img src="https://images.unsplash.com/photo-1611003228941-98852ba62227?w=680&h=460&fit=crop" alt="Pate tươi cho mèo trưởng thành" class="featured-showcase-image">
-                    </div>
-                    <div class="featured-showcase-body">
-                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
-                        <h3 class="featured-showcase-name">Pate tươi cho mèo trưởng thành</h3>
-                        <p class="featured-showcase-copy">Giàu omega 3 và khoáng chất thiết yếu, giúp da khỏe, lông mượt và giảm biếng ăn.</p>
-                        <p class="featured-showcase-meta">Giá từ 189.000₫</p>
-                    </div>
-                </article>
-
-                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Hạt mềm dinh dưỡng cho chó nhỏ', 'https://images.unsplash.com/photo-1601758177266-bc599de87707?w=680&h=460&fit=crop', '229.000₫', '4.7', '167', 'Hạt mềm vị thịt thật, phù hợp chó nhỏ hoặc chó lớn tuổi, hỗ trợ tiêu hóa tốt hơn.')">
-                    <div class="featured-showcase-image-wrap">
-                        <img src="https://images.unsplash.com/photo-1601758177266-bc599de87707?w=680&h=460&fit=crop" alt="Hạt mềm dinh dưỡng cho chó nhỏ" class="featured-showcase-image">
-                    </div>
-                    <div class="featured-showcase-body">
-                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
-                        <h3 class="featured-showcase-name">Hạt mềm dinh dưỡng cho chó nhỏ</h3>
-                        <p class="featured-showcase-copy">Công thức cân bằng đạm - xơ, hỗ trợ hấp thu tốt và duy trì mức năng lượng ổn định cả ngày.</p>
-                        <p class="featured-showcase-meta">Giá từ 229.000₫</p>
-                    </div>
-                </article>
-
-                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Snack nha khoa vị bò', 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=680&h=460&fit=crop', '119.000₫', '4.8', '210', 'Thanh snack giúp giảm mảng bám, thơm miệng và bổ sung khoáng chất cho răng chắc khỏe.')">
-                    <div class="featured-showcase-image-wrap">
-                        <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=680&h=460&fit=crop" alt="Snack nha khoa vị bò" class="featured-showcase-image">
-                    </div>
-                    <div class="featured-showcase-body">
-                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
-                        <h3 class="featured-showcase-name">Snack nha khoa vị bò</h3>
-                        <p class="featured-showcase-copy">Vừa là món thưởng ngon, vừa hỗ trợ làm sạch răng nhờ kết cấu dai nhẹ, phù hợp dùng hằng ngày.</p>
-                        <p class="featured-showcase-meta">Giá từ 119.000₫</p>
-                    </div>
-                </article>
-
-                <article class="featured-showcase-card" role="button" tabindex="0" onclick="openQuickView('Súp thưởng bổ sung nước cho mèo', 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=680&h=460&fit=crop', '99.000₫', '4.9', '301', 'Súp thưởng thơm ngon giúp mèo uống nước tốt hơn, hỗ trợ đường tiết niệu khỏe mạnh.')">
-                    <div class="featured-showcase-image-wrap">
-                        <img src="https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=680&h=460&fit=crop" alt="Súp thưởng bổ sung nước cho mèo" class="featured-showcase-image">
-                    </div>
-                    <div class="featured-showcase-body">
-                        <p class="featured-stars" aria-label="5 sao">★★★★★</p>
-                        <h3 class="featured-showcase-name">Súp thưởng bổ sung nước cho mèo</h3>
-                        <p class="featured-showcase-copy">Kết cấu mịn, vị dễ ăn, lý tưởng cho mèo kén ăn hoặc cần tăng hấp thu nước mỗi ngày.</p>
-                        <p class="featured-showcase-meta">Giá từ 99.000₫</p>
+                        <h3 class="featured-showcase-name">Chưa có sản phẩm</h3>
+                        <p class="featured-showcase-copy">Dữ liệu sẽ hiển thị khi có sản phẩm trong CSDL.</p>
                     </div>
                 </article>
                 </div>
@@ -605,156 +542,10 @@
         <div class="container-fluid px-5">
             <h2 class="section-title text-center mb-5 no-underline">Dịch vụ nổi bật</h2>
             <div class="row g-3">
-                <div class="col-lg-3 col-md-6">
-                    <article class="service-highlight-card">
-                        <div class="service-highlight-image">
-                            <img src="https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=560&h=420&fit=crop" alt="Spa - Cắt tạo kiểu">
-                            <button class="service-favorite-btn" aria-label="Thêm Spa - Cắt tạo kiểu vào yêu thích" onclick="addToWishlist('Spa - Cắt tạo kiểu', 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=560&h=420&fit=crop', 'Từ 299.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
-                        <div class="service-highlight-content">
-                            <h3 class="service-highlight-title">Spa - Cắt tạo kiểu</h3>
-                            <p class="service-highlight-price">Từ 299.000₫</p>
-                            <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Spa - Cắt tạo kiểu', 'Từ 299.000₫')">Đặt lịch</button>
-                                <button class="service-detail-btn" onclick="loadServiceCategory('spa')">Chi tiết</button>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                    <article class="service-highlight-card">
-                        <div class="service-highlight-image">
-                            <img src="https://images.unsplash.com/photo-1560743641-3914f2c45636?w=560&h=420&fit=crop" alt="Khách sạn - Lưu trú">
-                            <button class="service-favorite-btn" aria-label="Thêm Khách sạn - Lưu trú vào yêu thích" onclick="addToWishlist('Khách sạn - Lưu trú', 'https://images.unsplash.com/photo-1560743641-3914f2c45636?w=560&h=420&fit=crop', 'Từ 390.000₫/đêm', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
-                        <div class="service-highlight-content">
-                            <h3 class="service-highlight-title">Khách sạn - Lưu trú</h3>
-                            <p class="service-highlight-price">Từ 390.000₫/đêm</p>
-                            <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Khách sạn - Lưu trú', 'Từ 390.000₫/đêm')">Đặt lịch</button>
-                                <button class="service-detail-btn" onclick="loadServiceCategory('hotel')">Chi tiết</button>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                    <article class="service-highlight-card">
-                        <div class="service-highlight-image">
-                            <img src="https://images.unsplash.com/photo-1517849845537-4d257902454a?w=560&h=420&fit=crop" alt="Tắm &amp; Sấy">
-                            <button class="service-favorite-btn" aria-label="Thêm dịch vụ Tắm và Sấy vào yêu thích" onclick="addToWishlist('Tắm & Sấy', 'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=560&h=420&fit=crop', 'Từ 199.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
-                        <div class="service-highlight-content">
-                            <h3 class="service-highlight-title">Tắm &amp; Sấy</h3>
-                            <p class="service-highlight-price">Từ 199.000₫</p>
-                            <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Tắm & Sấy', 'Từ 199.000₫')">Đặt lịch</button>
-                                <button class="service-detail-btn" onclick="loadServiceCategory('bath-dry')">Chi tiết</button>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                    <article class="service-highlight-card">
-                        <div class="service-highlight-image">
-                            <img src="https://images.unsplash.com/photo-1558788353-f76d92427f16?w=560&h=420&fit=crop" alt="Vệ sinh tai">
-                            <button class="service-favorite-btn" aria-label="Thêm dịch vụ Vệ sinh tai vào yêu thích" onclick="addToWishlist('Vệ sinh tai', 'https://images.unsplash.com/photo-1558788353-f76d92427f16?w=560&h=420&fit=crop', 'Từ 99.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
-                        <div class="service-highlight-content">
-                            <h3 class="service-highlight-title">Vệ sinh tai</h3>
-                            <p class="service-highlight-price">Từ 99.000₫</p>
-                            <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Vệ sinh tai', 'Từ 99.000₫')">Đặt lịch</button>
-                                <button class="service-detail-btn" onclick="loadServiceCategory('ear-cleaning')">Chi tiết</button>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                    <article class="service-highlight-card">
-                        <div class="service-highlight-image">
-                            <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=560&h=420&fit=crop" alt="Cắt móng">
-                            <button class="service-favorite-btn" aria-label="Thêm dịch vụ Cắt móng vào yêu thích" onclick="addToWishlist('Cắt móng', 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=560&h=420&fit=crop', 'Từ 89.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
-                        <div class="service-highlight-content">
-                            <h3 class="service-highlight-title">Cắt móng</h3>
-                            <p class="service-highlight-price">Từ 89.000₫</p>
-                            <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Cắt móng', 'Từ 89.000₫')">Đặt lịch</button>
-                                <button class="service-detail-btn" onclick="loadServiceCategory('nail-trimming')">Chi tiết</button>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                    <article class="service-highlight-card">
-                        <div class="service-highlight-image">
-                            <img src="https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=560&h=420&fit=crop" alt="Đón trả tận nơi">
-                            <button class="service-favorite-btn" aria-label="Thêm dịch vụ Đón trả tận nơi vào yêu thích" onclick="addToWishlist('Đón trả tận nơi', 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=560&h=420&fit=crop', 'Từ 79.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
-                        <div class="service-highlight-content">
-                            <h3 class="service-highlight-title">Đón trả tận nơi</h3>
-                            <p class="service-highlight-price">Từ 79.000₫</p>
-                            <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Đón trả tận nơi', 'Từ 79.000₫')">Đặt lịch</button>
-                                <button class="service-detail-btn" onclick="routeToPage('contact')">Chi tiết</button>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                    <article class="service-highlight-card">
-                        <div class="service-highlight-image">
-                            <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=560&h=420&fit=crop" alt="Khám sức khỏe định kỳ">
-                            <button class="service-favorite-btn" aria-label="Thêm dịch vụ Khám sức khỏe định kỳ vào yêu thích" onclick="addToWishlist('Khám sức khỏe định kỳ', 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=560&h=420&fit=crop', 'Từ 249.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
-                        <div class="service-highlight-content">
-                            <h3 class="service-highlight-title">Khám sức khỏe định kỳ</h3>
-                            <p class="service-highlight-price">Từ 249.000₫</p>
-                            <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Khám sức khỏe định kỳ', 'Từ 249.000₫')">Đặt lịch</button>
-                                <button class="service-detail-btn" onclick="routeToPage('contact')">Chi tiết</button>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="col-lg-3 col-md-6">
-                    <article class="service-highlight-card">
-                        <div class="service-highlight-image">
-                            <img src="https://images.unsplash.com/photo-1581888227599-779811939961?w=560&h=420&fit=crop" alt="Huấn luyện cơ bản">
-                            <button class="service-favorite-btn" aria-label="Thêm dịch vụ Huấn luyện cơ bản vào yêu thích" onclick="addToWishlist('Huấn luyện cơ bản', 'https://images.unsplash.com/photo-1581888227599-779811939961?w=560&h=420&fit=crop', 'Từ 350.000₫', this)">
-                                <i data-feather="heart"></i>
-                            </button>
-                        </div>
-                        <div class="service-highlight-content">
-                            <h3 class="service-highlight-title">Huấn luyện cơ bản</h3>
-                            <p class="service-highlight-price">Từ 350.000₫</p>
-                            <div class="service-highlight-actions">
-                                <button class="service-book-btn" onclick="openHomeFeaturedBooking('Huấn luyện cơ bản', 'Từ 350.000₫')">Đặt lịch</button>
-                                <button class="service-detail-btn" onclick="routeToPage('contact')">Chi tiết</button>
-                            </div>
-                        </div>
-                    </article>
+                <div class="col-12">
+                    <div style="background:#fff;border:1px dashed #d0d7de;border-radius:14px;padding:24px;text-align:center;color:#64748b;">
+                        Chưa có dữ liệu dịch vụ trong CSDL.
+                    </div>
                 </div>
             </div>
         </div>
@@ -852,9 +643,99 @@
             'services-nail-trimming': 'nail-trimming'
         };
 
+        const serviceCategoryOptions = new Set(['all', ...Object.values(LEGACY_SERVICE_PAGE_MAP)]);
+
+        const slugifyServiceCategory = (value) => {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        };
+
         const normalizeServiceCategory = (category) => {
-            const validCategories = ['spa', 'hotel', 'bath-dry', 'ear-cleaning', 'nail-trimming'];
-            return validCategories.includes(category) ? category : 'spa';
+            const key = String(category || '').trim();
+            if (!key) return 'all';
+            return serviceCategoryOptions.has(key) ? key : 'all';
+        };
+
+        const getServiceApiCandidates = () => {
+            const list = [];
+            const pathname = decodeURIComponent(window.location.pathname || '');
+            const marker = '/Giao Diện/';
+            const markerIndex = pathname.indexOf(marker);
+            const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '';
+
+            if (projectBase) {
+                list.push(`${projectBase}/index.php?api=get_services`);
+            }
+
+            list.push('../../index.php?api=get_services');
+            list.push('../staff/get_services.php?api=get_services');
+            list.push('/PHPCHINH/index.php?api=get_services');
+            list.push('/phuocthanh/PHPCHINH/index.php?api=get_services');
+            list.push('/index.php?api=get_services');
+
+            return Array.from(new Set(list));
+        };
+
+        const renderDynamicServiceDropdown = (categories) => {
+            const menu = document.getElementById('servicesDropdownMenu');
+            if (!menu) return;
+
+            const rows = [{ id: 0, tendanhmucdichvu: 'Tất cả dịch vụ', key: 'all' }];
+            categories.forEach((item) => {
+                const name = String(item?.tendanhmucdichvu || '').trim();
+                if (!name) return;
+                const key = `category-${Number(item.id || 0)}`;
+                rows.push({ id: Number(item.id || 0), tendanhmucdichvu: name, key });
+            });
+
+            rows.forEach((item) => serviceCategoryOptions.add(item.key));
+
+            menu.innerHTML = rows.map((item) => {
+                return `<li><a href="#" style="cursor: pointer;" data-page="services" data-service-category="${item.key}">${item.tendanhmucdichvu}</a></li>`;
+            }).join('');
+
+            registerShellNavigation();
+        };
+
+        const loadServiceDropdownCategories = async () => {
+            const candidates = getServiceApiCandidates();
+            for (const url of candidates) {
+                try {
+                    const response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' }, cache: 'no-store' });
+                    if (!response.ok) continue;
+                    const payload = await response.json();
+                    if (!payload || payload.ok !== true) continue;
+
+                    const categories = Array.isArray(payload.categories)
+                        ? payload.categories
+                        : [];
+
+                    if (categories.length > 0) {
+                        renderDynamicServiceDropdown(categories);
+                        return;
+                    }
+
+                    const rows = Array.isArray(payload.data) ? payload.data : [];
+                    const map = new Map();
+                    rows.forEach((row) => {
+                        const categoryName = String(row?.tendanhmucdichvu || '').trim();
+                        const categoryId = Number(row?.danhmucdichvu_id || 0);
+                        if (!categoryName || categoryId <= 0) return;
+                        if (!map.has(categoryId)) {
+                            map.set(categoryId, { id: categoryId, tendanhmucdichvu: categoryName });
+                        }
+                    });
+
+                    renderDynamicServiceDropdown(Array.from(map.values()));
+                    return;
+                } catch (error) {
+                    // try next candidate
+                }
+            }
         };
 
         const loadServiceCategory = (category) => {
@@ -905,7 +786,8 @@
         window.loadServiceCategory = loadServiceCategory;
         window.routeToPage = routeToPage;
         window.registerShellNavigation = registerShellNavigation;
-        window.currentServiceCategory = window.currentServiceCategory || 'spa';
+        window.currentServiceCategory = window.currentServiceCategory || 'all';
+        loadServiceDropdownCategories();
                 const PAGE_FILE_MAP = {
                     shop: 'cua-hang.html',
                     services: 'dich-vu.html',
@@ -1191,6 +1073,29 @@
         };
 
         registerNewsDetailTriggers();
+
+        const ensureInitialHomeVisibility = () => {
+            const current = String(window.currentPage || 'home').trim();
+            if (current && current !== 'home') return;
+
+            const heroContent = document.getElementById('hero-content');
+            const heroVideo = document.getElementById('hero-video-full-wrap');
+            const homeContent = document.getElementById('home-content');
+            const content = document.getElementById('content');
+
+            if (heroContent) heroContent.style.display = 'flex';
+            if (heroVideo) heroVideo.style.display = 'block';
+            if (homeContent) homeContent.style.display = 'block';
+            if (content && !content.dataset.keepOnHome) {
+                content.innerHTML = '';
+            }
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', ensureInitialHomeVisibility);
+        } else {
+            ensureInitialHomeVisibility();
+        }
 
         // Cách sử dụng: loadNewsArticle(1) - sẽ load bài viết thứ 1
     </script>
@@ -1486,13 +1391,18 @@
         // ================================
 
         const pageLoadAnimation = () => {
-            // Fade in body khi trang load xong
-            document.body.style.opacity = '0';
-            
+            // Fail-safe: never hide the full page before load.
+            if (!document.body) return;
+            document.body.style.opacity = '1';
+
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                return;
+            }
+
             window.addEventListener('load', () => {
-                document.body.style.transition = 'opacity 0.5s ease-out';
+                document.body.style.transition = 'opacity 0.25s ease-out';
                 document.body.style.opacity = '1';
-            });
+            }, { once: true });
         };
 
         // ================================
@@ -1748,6 +1658,8 @@
             if (pageName === 'cart' || pageName === 'checkout') {
                 document.getElementById('headerCartIcon')?.classList.add('active-icon');
             }
+
+            updateMiniCartDropdownState(pageName);
         };
 
         // Reset về trang chính
@@ -1799,11 +1711,19 @@
             document.getElementById('modalProductReviews').textContent = '(' + productReviews + ' reviews)';
             document.getElementById('modalProductDescription').textContent = productDescription;
             document.getElementById('quantityInput').value = 1;
-            document.getElementById('quickViewModal').classList.add('active');
+            const modal = document.getElementById('quickViewModal');
+            const wasOpen = modal.classList.contains('active');
+            modal.classList.add('active');
+            if (!wasOpen) {
+                lockBackgroundScroll();
+            }
         };
 
         const closeQuickView = () => {
-            document.getElementById('quickViewModal').classList.remove('active');
+            const modal = document.getElementById('quickViewModal');
+            if (!modal || !modal.classList.contains('active')) return;
+            modal.classList.remove('active');
+            unlockBackgroundScroll();
         };
 
         const ensureUserNoticePopup = () => {
@@ -1840,6 +1760,9 @@
 
             const overlay = document.getElementById('userNoticePopup');
             const close = () => {
+                if (overlay.style.display !== 'none') {
+                    unlockBackgroundScroll();
+                }
                 overlay.style.display = 'none';
             };
 
@@ -1861,7 +1784,11 @@
 
             titleEl.textContent = String(title || 'Thông báo');
             messageEl.textContent = String(message || '');
+            const wasOpen = overlay.style.display === 'flex';
             overlay.style.display = 'flex';
+            if (!wasOpen) {
+                lockBackgroundScroll();
+            }
         };
 
         const installAlertOverride = () => {
@@ -1875,6 +1802,21 @@
         };
 
         installAlertOverride();
+
+        const popupScrollState = { count: 0 };
+        const lockBackgroundScroll = () => {
+            popupScrollState.count += 1;
+            document.body.classList.add('app-popup-open');
+        };
+        const unlockBackgroundScroll = () => {
+            popupScrollState.count = Math.max(0, popupScrollState.count - 1);
+            if (popupScrollState.count === 0) {
+                document.body.classList.remove('app-popup-open');
+            }
+        };
+
+        window.__lockBackgroundScroll = lockBackgroundScroll;
+        window.__unlockBackgroundScroll = unlockBackgroundScroll;
 
         // Quantity controls
         const decreaseQuantity = () => {
@@ -1892,6 +1834,7 @@
             const modal = document.getElementById('quickViewModal');
             if (event.target === modal) {
                 modal.classList.remove('active');
+                unlockBackgroundScroll();
             }
         };
 
@@ -1919,7 +1862,7 @@
             // Add product to wishlist
             wishlist.push({
                 name: productName,
-                image: productImage,
+                image: normalizeUserAssetUrl(productImage),
                 price: productPrice
             });
             
@@ -1963,7 +1906,7 @@
                 cart.push({
                     name: productName,
                     price: productPrice,
-                    image: productImage,
+                    image: normalizeUserAssetUrl(productImage),
                     quantity: 1
                 });
             }
@@ -2000,7 +1943,7 @@
                 cart.push({
                     name: productName,
                     price: productPrice,
-                    image: productImage,
+                    image: normalizeUserAssetUrl(productImage),
                     quantity: quantity
                 });
             }
@@ -2014,6 +1957,41 @@
         const parseVnPrice = (priceText) => {
             const numericText = String(priceText || '').replace(/[^0-9]/g, '');
             return Number(numericText || 0);
+        };
+
+        const getUserAppBasePath = () => {
+            const path = String(window.location.pathname || '');
+            const marker = '/Giao';
+            const markerIndex = path.lastIndexOf(marker);
+            return markerIndex >= 0 ? path.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
+        };
+
+        const normalizeUserAssetUrl = (value) => {
+            const raw = String(value || '').trim().replace(/\\/g, '/');
+            if (!raw) return '';
+            if (/^(https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+
+            let cleaned = raw
+                .replace(/Giao Diện\/user\/anhdata\//gi, 'anhdata/')
+                .replace(/Giao%20Di%E1%BB%87n\/user\/anhdata\//gi, 'anhdata/')
+                .replace(/Giao Diện\/admin\/anhdata\//gi, 'anhdata/')
+                .replace(/Giao%20Di%E1%BB%87n\/admin\/anhdata\//gi, 'anhdata/');
+
+            const appBase = getUserAppBasePath();
+
+            if (cleaned.startsWith('/')) {
+                if (cleaned.includes('/anhdata/')) return `${window.location.origin}${cleaned}`;
+                return `${window.location.origin}${appBase}${cleaned}`;
+            }
+
+            const marker = 'anhdata/';
+            const start = cleaned.toLowerCase().indexOf(marker);
+            if (start >= 0) {
+                cleaned = cleaned.slice(start).replace(/^\/+/, '');
+                return `${window.location.origin}${appBase}/${cleaned}`;
+            }
+
+            return `${window.location.origin}${appBase}/${cleaned.replace(/^\/+/, '')}`;
         };
 
         const formatVnPrice = (value) => {
@@ -2049,7 +2027,7 @@
 
             itemsContainer.innerHTML = cart.map((item, index) => `
                 <div class="mini-cart-item">
-                    <img src="${item.image}" alt="${item.name}" class="mini-cart-item-image">
+                    <img src="${normalizeUserAssetUrl(item.image)}" alt="${item.name}" class="mini-cart-item-image" onerror="this.src='https://via.placeholder.com/64x64?text=No+Image';">
                     <div>
                         <p class="mini-cart-item-name">${item.name}</p>
                         <p class="mini-cart-item-meta">${item.quantity} x ${formatVnPrice(parseVnPrice(item.price))}</p>
@@ -2083,6 +2061,14 @@
             }
 
             renderMiniCart();
+        };
+
+        const updateMiniCartDropdownState = (pageName) => {
+            const wrapper = document.getElementById('miniCartWrapper');
+            if (!wrapper) return;
+
+            const hiddenOnPages = new Set(['favorites', 'cart', 'checkout']);
+            wrapper.classList.toggle('disable-dropdown', hiddenOnPages.has(pageName));
         };
 
         // Load cart count on page load
@@ -2209,20 +2195,30 @@
     </button>
 
     <script>
-        /**
-         * Dữ liệu sản phẩm mẫu
-         */
-        const allProducts = [
-            { id: 1, name: 'Thức ăn cho chó Royal Canin', price: '450,000 đ', image: 'https://images.unsplash.com/photo-1568152949623-82d550a2a4fa?w=300&h=300&fit=crop', category: 'Thức ăn' },
-            { id: 2, name: 'Thức ăn cho mèo Whiskas', price: '120,000 đ', image: 'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=300&h=300&fit=crop', category: 'Thức ăn' },
-            { id: 3, name: 'Bát ăn cho chó inox', price: '85,000 đ', image: 'https://images.unsplash.com/photo-1585664811087-47f65abbad64?w=300&h=300&fit=crop', category: 'Phụ kiện' },
-            { id: 4, name: 'Giường nằm cho chó', price: '350,000 đ', image: 'https://images.unsplash.com/photo-1544568100-847a948585b0?w=300&h=300&fit=crop', category: 'Nội thất' },
-            { id: 5, name: 'Đồ chơi cho mèo có quả bóng', price: '75,000 đ', image: 'https://images.unsplash.com/photo-1535241749838-299277b6305f?w=300&h=300&fit=crop', category: 'Phụ kiện' },
-            { id: 6, name: 'Nước uống cho chó', price: '95,000 đ', image: 'https://images.unsplash.com/photo-1587136372921-97158c993e77?w=300&h=300&fit=crop', category: 'Thức ăn' },
-            { id: 7, name: 'Cây cồn cho mèo', price: '280,000 đ', image: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=300&h=300&fit=crop', category: 'Nội thất' },
-            { id: 8, name: 'Xích cho chó safety', price: '150,000 đ', image: 'https://images.unsplash.com/photo-1560656567-9a1a61c3ca80?w=300&h=300&fit=crop', category: 'Phụ kiện' },
-            { id: 9, name: 'Thức ăn tươi cho chó', price: '200,000 đ', image: 'https://images.unsplash.com/photo-1585110396000-c9ffd4d4b35c?w=300&h=300&fit=crop', category: 'Thức ăn' }
-        ];
+        // Nguon du lieu tim kiem tren trang chu chi lay tu API/DB.
+        let allProducts = [];
+
+        const syncLocalCollectionsWithProducts = (products) => {
+            const validNames = new Set((Array.isArray(products) ? products : []).map((item) => String(item?.name || '').trim()).filter(Boolean));
+
+            const safeParseArray = (raw) => {
+                try {
+                    const parsed = JSON.parse(raw || '[]');
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (error) {
+                    return [];
+                }
+            };
+
+            const wishlist = safeParseArray(localStorage.getItem('wishlist'));
+            const cart = safeParseArray(localStorage.getItem('cart'));
+
+            const nextWishlist = wishlist.filter((item) => validNames.has(String(item?.name || '').trim()));
+            const nextCart = cart.filter((item) => validNames.has(String(item?.name || '').trim()));
+
+            localStorage.setItem('wishlist', JSON.stringify(nextWishlist));
+            localStorage.setItem('cart', JSON.stringify(nextCart));
+        };
 
         /**
          * Hàm normalize text - loại bỏ dấu tiếng Việt
@@ -2330,7 +2326,11 @@
                 resultsGrid.innerHTML = '';
                 noResults.style.display = 'block';
                 resultCount.textContent = 'Không tìm thấy kết quả';
+                const wasOpen = modal.style.display === 'block';
                 modal.style.display = 'block';
+                if (!wasOpen) {
+                    lockBackgroundScroll();
+                }
                 return;
             }
 
@@ -2363,7 +2363,11 @@
 
             noResults.style.display = 'none';
             resultCount.textContent = `Tìm thấy ${results.length} sản phẩm`;
+            const wasOpen = modal.style.display === 'block';
             modal.style.display = 'block';
+            if (!wasOpen) {
+                lockBackgroundScroll();
+            }
 
             // Reinitialize Feather Icons
             if (typeof feather !== 'undefined') {
@@ -2378,7 +2382,10 @@
          * Đóng modal kết quả tìm kiếm
          */
         const closeSearchModal = () => {
-            document.getElementById('searchResultsModal').style.display = 'none';
+            const modal = document.getElementById('searchResultsModal');
+            if (!modal || modal.style.display === 'none') return;
+            modal.style.display = 'none';
+            unlockBackgroundScroll();
         };
 
         /**
@@ -2466,6 +2473,8 @@
         let categoryRows = [];
         let categoryAutoTimer = null;
         let categoryAutoDirection = 1;
+        let categoryRealtimeTimer = null;
+        let lastCategorySignature = '';
 
         const getCategoryRail = () => {
             const container = document.getElementById('categoriesContainer');
@@ -2570,6 +2579,30 @@
             startCategoryAutoScroll();
         };
 
+        const buildCategorySignature = (categories) => {
+            if (!Array.isArray(categories) || categories.length === 0) return 'empty';
+
+            const rows = categories.map((row) => {
+                const name = String(row?.tendanhmuc || '').trim();
+                const image = String(row?.hinhanh || '').trim();
+                const count = Number(row?.soluongsanpham || 0);
+                return `${name}|${image}|${count}`;
+            }).sort((a, b) => a.localeCompare(b, 'vi'));
+
+            return rows.join('||');
+        };
+
+        const applyHomeCategoriesIfChanged = (categories, force = false) => {
+            const signature = buildCategorySignature(categories);
+            if (!force && signature === lastCategorySignature) {
+                return false;
+            }
+
+            lastCategorySignature = signature;
+            renderHomeCategories(categories);
+            return true;
+        };
+
         const getHomeApiCandidates = (apiName) => {
             const safeApi = encodeURIComponent(String(apiName || '').trim());
             const candidates = [];
@@ -2583,7 +2616,9 @@
             return Array.from(new Set(candidates));
         };
 
-        const fetchHomeCategories = async () => {
+        const fetchHomeCategories = async (options = {}) => {
+            const silent = Boolean(options?.silent);
+            const force = Boolean(options?.force);
             const candidates = getHomeApiCandidates('get_home_categories');
             const cacheBuster = `_t=${Date.now()}`;
 
@@ -2601,12 +2636,29 @@
                         continue;
                     }
 
-                    renderHomeCategories(payload.data);
-                    return;
+                    applyHomeCategoriesIfChanged(payload.data, force);
+                    return true;
                 } catch (error) {
                     // thử candidate tiếp theo
                 }
             }
+
+            if (!silent) {
+                applyHomeCategoriesIfChanged([], force);
+            }
+
+            return false;
+        };
+
+        const startCategoryRealtimeUpdates = () => {
+            if (categoryRealtimeTimer) {
+                clearInterval(categoryRealtimeTimer);
+            }
+
+            categoryRealtimeTimer = setInterval(() => {
+                if (document.hidden) return;
+                fetchHomeCategories({ silent: true, force: false });
+            }, 5000);
         };
 
         const startCategoryAutoScroll = () => {
@@ -2667,6 +2719,7 @@
                 stopCategoryAutoScroll();
             } else {
                 startCategoryAutoScroll();
+                fetchHomeCategories({ silent: true, force: false });
             }
         });
 
@@ -2679,7 +2732,8 @@
             }, 120);
         });
 
-        fetchHomeCategories();
+        fetchHomeCategories({ silent: false, force: true });
+        startCategoryRealtimeUpdates();
         startCategoryAutoScroll();
 
         let featuredProductsSource = [];
@@ -2939,6 +2993,15 @@
                     featuredProductsSource = payload.data
                         .filter((item) => String(item?.trangthaisanpham || '').toLowerCase() !== 'ngunghoatdong');
 
+                    allProducts = featuredProductsSource.map((item) => ({
+                        id: item?.id || '',
+                        name: String(item?.tensanpham || '').trim(),
+                        price: formatFeaturedPrice(item?.giasanpham || 0),
+                        image: normalizeFeaturedImageUrl(item?.hinhanhsanpham || ''),
+                        category: String(item?.tendanhmuc || 'Chưa phân loại').trim() || 'Chưa phân loại'
+                    })).filter((item) => item.name !== '');
+                    syncLocalCollectionsWithProducts(allProducts);
+
                     if (featuredProductsSource.length === 0) continue;
 
                     const categories = getFeaturedCategories(featuredProductsSource);
@@ -3172,6 +3235,7 @@
             const close = () => {
                 modal.style.display = 'none';
                 document.body.classList.remove('booking-popup-open');
+                unlockBackgroundScroll();
             };
 
             modal.__closePopup = close;
@@ -3216,8 +3280,12 @@
             }));
 
             frame.src = `pages/dat-lich-dich-vu.html?popup=1&_=${Date.now()}`;
+            const wasOpen = modal.style.display === 'flex';
             modal.style.display = 'flex';
             document.body.classList.add('booking-popup-open');
+            if (!wasOpen) {
+                lockBackgroundScroll();
+            }
         };
 
         window.openHomeFeaturedBooking = (serviceName, servicePrice) => {
@@ -3406,12 +3474,21 @@
     };
 
     const saveCustomerSession = (payload) => {
+          const avatarValue = String(
+            payload.avatar ||
+            payload.avatar_url ||
+            payload.anhdaidiennguoidung_url ||
+            payload.anhdaidiennguoidung ||
+            ''
+            ).trim();
       const basePayload = {
                 id: Number(payload.id || 0),
         role: 'user',
                 fullName: payload.fullName || payload.tennguoidung || payload.name || payload.email || payload.emailnguoidung || 'Khach hang',
                 email: payload.email || payload.emailnguoidung || '',
                 identifier: payload.identifier || payload.email || payload.emailnguoidung || payload.fullName || payload.tennguoidung || '',
+            avatar: avatarValue,
+            avatar_path: String(payload.avatar_path || payload.anhdaidiennguoidung || '').trim(),
         createdAt: new Date().toISOString()
       };
 
@@ -3436,10 +3513,16 @@
                     email: String(basePayload.email || basePayload.identifier || ''),
                     role: 'user'
                 };
+                if (basePayload.avatar !== '') {
+                    nextProfile.avatar = basePayload.avatar;
+                }
                 localStorage.setItem('userProfile', JSON.stringify(nextProfile));
             } catch (e) {}
 
       localStorage.setItem(AUTH_STORAGE_KEYS.isLoggedIn, 'true');
+    try {
+            window.dispatchEvent(new CustomEvent('customerSessionUpdated'));
+        } catch (e) {}
       return basePayload;
     };
 
@@ -3561,8 +3644,14 @@
       document.body.appendChild(shell);
 
             const setAuthModalVisibility = (isVisible) => {
+                const wasVisible = shell.style.display === 'flex';
                 shell.style.display = isVisible ? 'flex' : 'none';
                 document.body.classList.toggle('auth-modal-open', isVisible);
+                if (isVisible && !wasVisible) {
+                    lockBackgroundScroll();
+                } else if (!isVisible && wasVisible) {
+                    unlockBackgroundScroll();
+                }
             };
 
             shell.setAuthModalVisibility = setAuthModalVisibility;
@@ -3764,7 +3853,9 @@
                     id: user.id || 0,
                     fullName: user.tennguoidung || user.name || username,
                     email: user.emailnguoidung || user.email || email,
-                    identifier: user.identifier || user.emailnguoidung || user.email || username
+                    identifier: user.identifier || user.emailnguoidung || user.email || username,
+                    avatar: user.avatar_url || user.anhdaidiennguoidung_url || user.avatar || user.anhdaidiennguoidung || '',
+                    avatar_path: user.avatar || user.anhdaidiennguoidung || ''
                 });
       };
     };
@@ -5430,8 +5521,9 @@
 <style>
     .voucher-hunt-bubble {
         position: fixed;
-        left: 20px;
-        bottom: 92px;
+        right: 22px;
+        left: auto;
+        bottom: 162px;
         z-index: 2400;
         border: 0;
         width: 58px;
@@ -5615,7 +5707,7 @@
 
     @media (max-width: 920px) {
         .voucher-hunt-grid { grid-template-columns: 1fr; }
-        .voucher-hunt-bubble { left: 14px; bottom: 84px; }
+        .voucher-hunt-bubble { right: 12px; left: auto; bottom: 148px; }
     }
 </style>
 <script>
@@ -6226,19 +6318,36 @@
         pickVoucher(Number(button.dataset.voucherId || 0));
     });
 
-    bubble.addEventListener('click', async () => {
+    const openVoucherModal = async () => {
         backdrop.classList.add('show');
+        bubble.style.visibility = 'hidden';
+        if (typeof window.__lockBackgroundScroll === 'function') {
+            window.__lockBackgroundScroll();
+        }
         playTone(680, 0.07, 'triangle', 0.03);
         await loadVoucherHunt();
+    };
+
+    const closeVoucherModal = () => {
+        if (!backdrop.classList.contains('show')) return;
+        backdrop.classList.remove('show');
+        bubble.style.visibility = '';
+        if (typeof window.__unlockBackgroundScroll === 'function') {
+            window.__unlockBackgroundScroll();
+        }
+    };
+
+    bubble.addEventListener('click', async () => {
+        await openVoucherModal();
     });
 
     closeBtn.addEventListener('click', () => {
-        backdrop.classList.remove('show');
+        closeVoucherModal();
     });
 
     backdrop.addEventListener('click', (event) => {
         if (event.target === backdrop) {
-            backdrop.classList.remove('show');
+            closeVoucherModal();
         }
     });
 

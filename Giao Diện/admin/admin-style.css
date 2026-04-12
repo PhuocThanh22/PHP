@@ -1396,6 +1396,57 @@ body.home-no-scroll .page-wrap {
     font-weight: 600;
 }
 
+/* Unified button colors */
+:root {
+    --btn-blue: #1e88ff;
+    --btn-blue-hover: #0f6fd6;
+    --btn-red: #ff3b30;
+    --btn-red-hover: #e4281e;
+    --btn-green: #22c55e;
+    --btn-green-hover: #16a34a;
+}
+
+.btn.btn-primary,
+.btn.btn-success,
+.btn.btn-warning {
+    background-color: var(--btn-blue) !important;
+    border-color: var(--btn-blue) !important;
+    color: #fff !important;
+}
+
+.btn.btn-primary:hover,
+.btn.btn-success:hover,
+.btn.btn-warning:hover {
+    background-color: var(--btn-blue-hover) !important;
+    border-color: var(--btn-blue-hover) !important;
+}
+
+.btn.btn-danger {
+    background-color: var(--btn-red) !important;
+    border-color: var(--btn-red) !important;
+    color: #fff !important;
+}
+
+.btn.btn-danger:hover {
+    background-color: var(--btn-red-hover) !important;
+    border-color: var(--btn-red-hover) !important;
+}
+
+.btn[id^="edit"][id$="FromDetailBtn"],
+.btn[data-action="edit"],
+.btn.btn-edit {
+    background-color: var(--btn-green) !important;
+    border-color: var(--btn-green) !important;
+    color: #fff !important;
+}
+
+.btn[id^="edit"][id$="FromDetailBtn"]:hover,
+.btn[data-action="edit"]:hover,
+.btn.btn-edit:hover {
+    background-color: var(--btn-green-hover) !important;
+    border-color: var(--btn-green-hover) !important;
+}
+
 @media (max-width: 992px) {
     .sidebar {
         width: 96px;

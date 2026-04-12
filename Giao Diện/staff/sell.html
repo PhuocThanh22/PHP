@@ -154,6 +154,90 @@
 			font-weight: 600;
 		}
 
+		.customer-checkout-box {
+			margin-top: 10px;
+			padding: 10px;
+			border: 1px solid #e2e8f0;
+			border-radius: 10px;
+			background: #f8fafc;
+		}
+
+		.customer-checkout-box .form-label {
+			font-size: 13px;
+			margin-bottom: 4px;
+		}
+
+		.customer-checkout-status {
+			margin-top: 6px;
+			font-size: 12px;
+			color: #64748b;
+		}
+
+		.customer-checkout-status.is-found {
+			color: #15803d;
+			font-weight: 600;
+		}
+
+		.customer-checkout-status.is-missing {
+			color: #b45309;
+			font-weight: 600;
+		}
+
+		.catalog-tabs {
+			display: inline-flex;
+			gap: 8px;
+			margin-bottom: 10px;
+		}
+
+		.catalog-tab-btn {
+			border: 1px solid #cbd5e1;
+			background: #f8fafc;
+			color: #334155;
+			border-radius: 999px;
+			padding: 7px 14px;
+			font-size: 14px;
+			font-weight: 600;
+		}
+
+		.catalog-tab-btn.is-active {
+			background: #2563eb;
+			border-color: #2563eb;
+			color: #fff;
+		}
+
+		.cart-qty-wrap {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.cart-qty-btn {
+			width: 28px;
+			height: 28px;
+			padding: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			line-height: 1;
+			font-size: 14px;
+		}
+
+		.cart-qty-value {
+			min-width: 14px;
+			text-align: center;
+		}
+
+		.cart-remove-icon-btn {
+			width: 30px;
+			height: 30px;
+			padding: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 14px;
+			line-height: 1;
+		}
+
 		@media (max-width: 576px) {
 			.transfer-popup-title {
 				font-size: 22px;
@@ -200,14 +284,25 @@
 		<div class="section-header"><h3><i class="bi bi-cart-plus text-warning me-2"></i>Tạo Đơn Bán</h3></div>
 		<div class="sell-grid">
 			<div class="sell-panel">
-				<h4>Danh Sách Sản Phẩm</h4>
+				<h4>Danh Sách Bán Hàng</h4>
+				<div class="catalog-tabs" role="tablist" aria-label="Danh sách bán hàng">
+					<button type="button" class="catalog-tab-btn is-active" id="catalogTabProducts" data-tab="products" role="tab" aria-selected="true">Sản phẩm</button>
+					<button type="button" class="catalog-tab-btn" id="catalogTabServices" data-tab="services" role="tab" aria-selected="false">Dịch vụ</button>
+				</div>
 				<div class="sell-toolbar">
 					<input id="productSearchInput" type="text" placeholder="Tìm theo tên hoặc mã sản phẩm..." aria-label="Tìm sản phẩm">
 				</div>
-				<div class="data-table">
+				<div class="data-table" id="productCatalogPanel">
 					<table>
 						<thead><tr><th>Sản Phẩm</th><th>Tồn</th><th>Giá</th><th></th></tr></thead>
 						<tbody id="productTableBody"></tbody>
+					</table>
+				</div>
+
+				<div class="data-table" id="serviceCatalogPanel" hidden>
+					<table>
+						<thead><tr><th>Dịch vụ</th><th>Thời gian</th><th>Giá</th><th></th></tr></thead>
+						<tbody id="serviceTableBody"></tbody>
 					</table>
 				</div>
 			</div>
@@ -224,6 +319,22 @@
 				<div class="mt-2">
 					<div class="sell-summary-line"><span>Tạm tính</span><b id="cartSubTotal">0 đ</b></div>
 					<div class="sell-summary-line total"><span>Tổng tiền</span><span id="cartTotalAmount">0 đ</span></div>
+				</div>
+
+				<div class="mt-2">
+					<div class="customer-checkout-box">
+						<div class="row g-2">
+							<div class="col-12">
+								<label for="customerPhoneInput" class="form-label">Số điện thoại khách hàng</label>
+								<input id="customerPhoneInput" type="tel" class="form-control" placeholder="Nhập SĐT để kiểm tra khách hàng">
+							</div>
+							<div class="col-12">
+								<label for="customerNameInput" class="form-label">Tên khách hàng</label>
+								<input id="customerNameInput" type="text" class="form-control" placeholder="Tự điền nếu đã có, hoặc nhập tên khách mới">
+							</div>
+						</div>
+						<div id="customerCheckoutStatus" class="customer-checkout-status">Nhập SĐT trước để kiểm tra khách hàng đã lưu.</div>
+					</div>
 				</div>
 
 				<div class="mt-2">
@@ -246,15 +357,19 @@
 
 <script>
 	let allProducts = [];
+	let allServices = [];
+	let allCustomers = [];
 	let productFilter = '';
+	let currentCatalogTab = 'products';
 	const cartStore = new Map();
-	let hasAutoSeededCart = false;
 	const transferConfig = {
 		bankCode: 'MB',
 		accountNumber: '0123456789',
 		accountName: 'PET SHOP',
 	};
 	let isAwaitingTransferConfirmation = false;
+	let customerLookupTimer = null;
+	let matchedCustomerByPhone = null;
 	const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
 	let realtimeLoadTimer = null;
 
@@ -332,6 +447,36 @@
 		checkoutBtn.textContent = 'Thanh toán';
 	}
 
+	function setCatalogTab(tab) {
+		const nextTab = String(tab || 'products');
+		if (!['products', 'services'].includes(nextTab)) return;
+
+		currentCatalogTab = nextTab;
+		const productPanel = document.getElementById('productCatalogPanel');
+		const servicePanel = document.getElementById('serviceCatalogPanel');
+		const searchInput = document.getElementById('productSearchInput');
+
+		if (productPanel) productPanel.hidden = nextTab !== 'products';
+		if (servicePanel) servicePanel.hidden = nextTab !== 'services';
+
+		document.querySelectorAll('.catalog-tab-btn[data-tab]').forEach((btn) => {
+			const tabName = String(btn.getAttribute('data-tab') || 'products');
+			const active = tabName === nextTab;
+			btn.classList.toggle('is-active', active);
+			btn.setAttribute('aria-selected', active ? 'true' : 'false');
+		});
+
+		if (searchInput) {
+			if (nextTab === 'services') {
+				searchInput.placeholder = 'Tìm theo tên dịch vụ...';
+				searchInput.setAttribute('aria-label', 'Tìm dịch vụ');
+			} else {
+				searchInput.placeholder = 'Tìm theo tên hoặc mã sản phẩm...';
+				searchInput.setAttribute('aria-label', 'Tìm sản phẩm');
+			}
+		}
+	}
+
 	function getProductApiCandidates() {
 		const candidates = [];
 		const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
@@ -352,6 +497,131 @@
 		candidates.push('/PHPCHINH/index.php?api=checkout_pos_order');
 		candidates.push('/index.php?api=checkout_pos_order');
 		return Array.from(new Set(candidates));
+	}
+
+	function getCustomerApiCandidates() {
+		const candidates = [];
+		const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+		candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_customers`);
+		candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=get_customers`);
+		candidates.push(new URL('../../index.php?api=get_customers', window.location.href).toString());
+		candidates.push('/PHPCHINH/index.php?api=get_customers');
+		candidates.push('/index.php?api=get_customers');
+		return Array.from(new Set(candidates));
+	}
+
+	function normalizePhone(value) {
+		return String(value || '').replace(/\D+/g, '');
+	}
+
+	function setCustomerStatus(message, statusClass = '') {
+		const statusEl = document.getElementById('customerCheckoutStatus');
+		if (!statusEl) return;
+		statusEl.classList.remove('is-found', 'is-missing');
+		if (statusClass) {
+			statusEl.classList.add(statusClass);
+		}
+		statusEl.textContent = String(message || '');
+	}
+
+	function applyMatchedCustomer(customer) {
+		const nameInput = document.getElementById('customerNameInput');
+		if (!nameInput) return;
+
+		if (customer) {
+			nameInput.value = String(customer.tenkhachhang || '');
+			nameInput.readOnly = true;
+			setCustomerStatus('Đã tìm thấy khách hàng trong hệ thống. Có thể thanh toán ngay.', 'is-found');
+			return;
+		}
+
+		nameInput.readOnly = false;
+		if (!nameInput.value.trim()) {
+			setCustomerStatus('Chưa có khách hàng theo SĐT này. Vui lòng nhập tên để tạo mới.', 'is-missing');
+		} else {
+			setCustomerStatus('SĐT chưa có trong hệ thống. Khách hàng mới sẽ được lưu khi thanh toán.', 'is-missing');
+		}
+	}
+
+	function findCustomerByPhone(phoneInputValue) {
+		const normalized = normalizePhone(phoneInputValue);
+		if (!normalized) return null;
+
+		return allCustomers.find((item) => normalizePhone(item.sodienthoaikhachhang) === normalized) || null;
+	}
+
+	function updateCustomerByPhoneLookup() {
+		const phoneInput = document.getElementById('customerPhoneInput');
+		const nameInput = document.getElementById('customerNameInput');
+		if (!phoneInput || !nameInput) return;
+
+		const normalizedPhone = normalizePhone(phoneInput.value);
+		if (!normalizedPhone) {
+			matchedCustomerByPhone = null;
+			nameInput.readOnly = false;
+			setCustomerStatus('Nhập SĐT trước để kiểm tra khách hàng đã lưu.');
+			return;
+		}
+
+		matchedCustomerByPhone = findCustomerByPhone(normalizedPhone);
+		applyMatchedCustomer(matchedCustomerByPhone);
+	}
+
+	async function loadCustomers() {
+		const candidates = getCustomerApiCandidates();
+		let lastError = new Error('Không lấy được dữ liệu khách hàng');
+
+		for (const candidate of candidates) {
+			const separator = candidate.includes('?') ? '&' : '?';
+			const url = `${candidate}${separator}_t=${Date.now()}`;
+			try {
+				const response = await fetch(url, { cache: 'no-store' });
+				if (!response.ok) {
+					lastError = new Error('HTTP ' + response.status);
+					continue;
+				}
+
+				const payload = await response.json();
+				if (!payload.ok) {
+					lastError = new Error(payload.message || 'API lỗi');
+					continue;
+				}
+
+				allCustomers = Array.isArray(payload.data) ? payload.data : [];
+				updateCustomerByPhoneLookup();
+				return;
+			} catch (error) {
+				lastError = error;
+			}
+		}
+
+		allCustomers = [];
+		setCustomerStatus('Không tải được danh sách khách hàng. Vẫn có thể nhập tên/SĐT để tạo mới khi thanh toán.', 'is-missing');
+		console.warn(lastError);
+	}
+
+	function getCheckoutCustomerInfo() {
+		const phoneInput = document.getElementById('customerPhoneInput');
+		const nameInput = document.getElementById('customerNameInput');
+		const phoneRaw = phoneInput ? String(phoneInput.value || '').trim() : '';
+		const phone = normalizePhone(phoneRaw);
+		const manualName = nameInput ? String(nameInput.value || '').trim() : '';
+		const matched = findCustomerByPhone(phone);
+		const finalName = matched ? String(matched.tenkhachhang || '').trim() : manualName;
+
+		if (!phone) {
+			throw new Error('Vui lòng nhập số điện thoại khách hàng trước khi thanh toán.');
+		}
+
+		if (!finalName) {
+			throw new Error('SĐT chưa có trong hệ thống. Vui lòng nhập tên khách hàng mới.');
+		}
+
+		return {
+			name: finalName,
+			phone,
+			matched,
+		};
 	}
 
 	async function fetchProductsPayload() {
@@ -420,6 +690,41 @@
 		});
 	}
 
+	function renderServices() {
+		const tbody = document.getElementById('serviceTableBody');
+		if (!tbody) return;
+
+		const key = String(productFilter || '').trim().toLowerCase();
+		const rows = !key
+			? allServices
+			: allServices.filter((item) => {
+				const name = String(item.tendichvu || '').toLowerCase();
+				return name.includes(key);
+			});
+
+		if (!rows.length) {
+			tbody.innerHTML = '<tr><td colspan="4">Không tìm thấy dịch vụ.</td></tr>';
+			return;
+		}
+
+		tbody.innerHTML = rows.map((item) => {
+			return `
+				<tr>
+					<td>${escapeHtml(item.tendichvu || '-')}</td>
+					<td>${escapeHtml(String(item.thoigiandichvu || 0))} phút</td>
+					<td>${escapeHtml(formatVnd(item.giadichvu))}</td>
+					<td><button class="btn btn-sm btn-primary add-service-btn" data-id="${item.id}">Thêm</button></td>
+				</tr>
+			`;
+		}).join('');
+
+		tbody.querySelectorAll('.add-service-btn').forEach((btn) => {
+			btn.addEventListener('click', () => {
+				addServiceToCart(btn.dataset.id);
+			});
+		});
+	}
+
 	function renderCart() {
 		const tbody = document.getElementById('cartTableBody');
 		if (!tbody) return;
@@ -437,18 +742,19 @@
 		tbody.innerHTML = items.map((item) => {
 			const lineTotal = Number(item.giasanpham || 0) * Number(item.qty || 0);
 			total += lineTotal;
+			const cartKey = String(item.cart_key || item.id);
 			return `
 				<tr>
 					<td>${escapeHtml(item.tensanpham)}</td>
 					<td>
-						<div class="d-flex align-items-center gap-1">
-							<button class="btn btn-sm btn-outline-secondary cart-minus-btn" data-id="${item.id}">-</button>
-							<span>${item.qty}</span>
-							<button class="btn btn-sm btn-outline-secondary cart-plus-btn" data-id="${item.id}">+</button>
+						<div class="cart-qty-wrap">
+							<button class="btn btn-outline-secondary cart-qty-btn cart-minus-btn" data-key="${escapeHtml(cartKey)}">-</button>
+							<span class="cart-qty-value">${item.qty}</span>
+							<button class="btn btn-outline-secondary cart-qty-btn cart-plus-btn" data-key="${escapeHtml(cartKey)}">+</button>
 						</div>
 					</td>
 					<td>${escapeHtml(formatVnd(lineTotal))}</td>
-					<td><button class="btn btn-sm btn-outline-danger cart-remove-btn" data-id="${item.id}">Xóa</button></td>
+					<td><button class="btn btn-outline-danger cart-remove-btn cart-remove-icon-btn" data-key="${escapeHtml(cartKey)}" aria-label="Xóa sản phẩm"><i class="bi bi-x-lg"></i></button></td>
 				</tr>
 			`;
 		}).join('');
@@ -459,17 +765,17 @@
 
 		tbody.querySelectorAll('.cart-plus-btn').forEach((btn) => {
 			btn.addEventListener('click', () => {
-				updateCartQty(btn.dataset.id, 1);
+				updateCartQty(btn.dataset.key, 1);
 			});
 		});
 		tbody.querySelectorAll('.cart-minus-btn').forEach((btn) => {
 			btn.addEventListener('click', () => {
-				updateCartQty(btn.dataset.id, -1);
+				updateCartQty(btn.dataset.key, -1);
 			});
 		});
 		tbody.querySelectorAll('.cart-remove-btn').forEach((btn) => {
 			btn.addEventListener('click', () => {
-				cartStore.delete(String(btn.dataset.id));
+				cartStore.delete(String(btn.dataset.key));
 				renderCart();
 			});
 		});
@@ -486,7 +792,10 @@
 		const existing = cartStore.get(key);
 		if (!existing) {
 			cartStore.set(key, {
+				cart_key: key,
 				id: product.id,
+				item_type: 'product',
+				service_id: 0,
 				tensanpham: product.tensanpham,
 				masanpham: product.masanpham,
 				giasanpham: Number(product.giasanpham || 0),
@@ -494,6 +803,32 @@
 				qty: 1,
 			});
 		} else if (existing.qty < stock) {
+			existing.qty += 1;
+			cartStore.set(key, existing);
+		}
+
+		renderCart();
+	}
+
+	function addServiceToCart(serviceId) {
+		const service = allServices.find((item) => String(item.id) === String(serviceId));
+		if (!service) return;
+
+		const key = `service-${String(service.id)}`;
+		const existing = cartStore.get(key);
+		if (!existing) {
+			cartStore.set(key, {
+				cart_key: key,
+				id: service.id,
+				item_type: 'service',
+				service_id: Number(service.id || 0),
+				tensanpham: service.tendichvu,
+				masanpham: `DV${String(service.id || '')}`,
+				giasanpham: Number(service.giadichvu || 0),
+				soluongsanpham: Number.MAX_SAFE_INTEGER,
+				qty: 1,
+			});
+		} else {
 			existing.qty += 1;
 			cartStore.set(key, existing);
 		}
@@ -509,7 +844,7 @@
 		const next = Number(item.qty || 0) + Number(delta || 0);
 		if (next <= 0) {
 			cartStore.delete(key);
-		} else if (next <= Number(item.soluongsanpham || 0)) {
+		} else if (item.item_type === 'service' || next <= Number(item.soluongsanpham || 0)) {
 			item.qty = next;
 			cartStore.set(key, item);
 		}
@@ -517,46 +852,16 @@
 		renderCart();
 	}
 
-	function seedCartWithTwoOrders() {
-		if (hasAutoSeededCart || cartStore.size > 0) return;
-
-		const fallbackItems = [
-			{ id: 'seed-1', tensanpham: 'Thức ăn hạt cho chó', masanpham: 'SP-MAU-01', giasanpham: 120000, soluongsanpham: 50 },
-			{ id: 'seed-2', tensanpham: 'Sữa tắm thú cưng', masanpham: 'SP-MAU-02', giasanpham: 90000, soluongsanpham: 40 },
-		];
-
-		const sourceItems = Array.isArray(allProducts) && allProducts.length
-			? allProducts.slice(0, 2).map((item, idx) => ({
-				id: item.id ?? `seed-${idx + 1}`,
-				tensanpham: item.tensanpham || `Sản phẩm mẫu ${idx + 1}`,
-				masanpham: item.masanpham || `SP-MAU-0${idx + 1}`,
-				giasanpham: Number(item.giasanpham || 0) || (idx === 0 ? 120000 : 90000),
-				soluongsanpham: Math.max(1, Number(item.soluongsanpham || 1)),
-			}))
-			: fallbackItems;
-
-		sourceItems.forEach((item) => {
-			cartStore.set(String(item.id), {
-				id: item.id,
-				tensanpham: item.tensanpham,
-				masanpham: item.masanpham,
-				giasanpham: Number(item.giasanpham || 0),
-				soluongsanpham: Math.max(1, Number(item.soluongsanpham || 1)),
-				qty: 1,
-			});
-		});
-
-		hasAutoSeededCart = true;
-		renderCart();
-	}
-
-	async function submitCheckoutPayload(method) {
+	async function submitCheckoutPayload(method, customerInfo) {
 		const payload = {
-			customer_name: 'Khách lẻ',
+			customer_name: String(customerInfo?.name || 'Khách lẻ'),
+			customer_phone: String(customerInfo?.phone || ''),
 			staff_name: 'Nhân viên',
 			payment_method: method,
 			items: Array.from(cartStore.values()).map((item) => ({
 				id: Number(item.id || 0),
+				item_type: String(item.item_type || 'product'),
+				service_id: Number(item.service_id || 0),
 				name: String(item.tensanpham || ''),
 				code: String(item.masanpham || ''),
 				price: Number(item.giasanpham || 0),
@@ -591,6 +896,14 @@
 	async function finalizeCheckout(method, options = {}) {
 		const shouldSpeak = Boolean(options.speakSuccess);
 		const shouldShowSuccessAlert = !shouldSpeak;
+		let customerInfo;
+		try {
+			customerInfo = getCheckoutCustomerInfo();
+		} catch (error) {
+			alert(String(error.message || error));
+			throw error;
+		}
+
 		const checkoutBtn = document.getElementById('checkoutBtn');
 		if (checkoutBtn) {
 			checkoutBtn.disabled = true;
@@ -600,7 +913,7 @@
 		let total = getCartTotal();
 		let createdInvoice = null;
 		try {
-			const created = await submitCheckoutPayload(method);
+			const created = await submitCheckoutPayload(method, customerInfo);
 			createdInvoice = (created && created.data) ? created.data : null;
 			if (createdInvoice && typeof createdInvoice === 'object') {
 				total = Number(createdInvoice.tongtien || total);
@@ -623,6 +936,10 @@
 		}
 		if (shouldShowSuccessAlert) {
 			alert('Thanh toán thành công. Tổng tiền: ' + formatVnd(total));
+		}
+
+		if (customerInfo && !customerInfo.matched) {
+			await loadCustomers();
 		}
 
 		if (checkoutBtn) {
@@ -669,6 +986,12 @@
 		const method = String(document.getElementById('paymentMethodSelect').value || 'tien_mat');
 
 		if (method === 'chuyen_khoan') {
+			try {
+				getCheckoutCustomerInfo();
+			} catch (error) {
+				alert(String(error.message || error));
+				return;
+			}
 			updateTransferBox();
 			openTransferPopup();
 			return;
@@ -685,16 +1008,77 @@
 			const payload = await fetchProductsPayload();
 			allProducts = Array.isArray(payload.data) ? payload.data : [];
 			renderProducts();
-			seedCartWithTwoOrders();
 		} catch (error) {
 			if (tbody) tbody.innerHTML = `<tr><td colspan="4">Lỗi tải dữ liệu: ${escapeHtml(error.message || 'Không xác định')}</td></tr>`;
-			seedCartWithTwoOrders();
 		}
+	}
+
+	async function loadServices() {
+		const tbody = document.getElementById('serviceTableBody');
+		if (tbody) tbody.innerHTML = '<tr><td colspan="4">Đang tải dữ liệu dịch vụ...</td></tr>';
+
+		const candidates = [];
+		const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+		candidates.push(`${protocol}//127.0.0.1/PHPCHINH/index.php?api=get_services`);
+		candidates.push(`${protocol}//localhost/PHPCHINH/index.php?api=get_services`);
+		candidates.push(new URL('../../index.php?api=get_services', window.location.href).toString());
+		candidates.push('/PHPCHINH/index.php?api=get_services');
+		candidates.push('/index.php?api=get_services');
+
+		let lastError = new Error('Không lấy được dữ liệu dịch vụ');
+		for (const candidate of Array.from(new Set(candidates))) {
+			const separator = candidate.includes('?') ? '&' : '?';
+			const url = `${candidate}${separator}_t=${Date.now()}`;
+			try {
+				const response = await fetch(url, { cache: 'no-store' });
+				if (!response.ok) {
+					lastError = new Error('HTTP ' + response.status);
+					continue;
+				}
+				const payload = await response.json();
+				if (!payload.ok) {
+					lastError = new Error(payload.message || 'API lỗi');
+					continue;
+				}
+				allServices = Array.isArray(payload.data) ? payload.data : [];
+				renderServices();
+				return;
+			} catch (error) {
+				lastError = error;
+			}
+		}
+
+		if (tbody) tbody.innerHTML = `<tr><td colspan="4">Lỗi tải dữ liệu: ${escapeHtml(lastError.message || 'Không xác định')}</td></tr>`;
 	}
 
 	document.getElementById('productSearchInput').addEventListener('input', (event) => {
 		productFilter = event.target.value || '';
-		renderProducts();
+		if (currentCatalogTab === 'services') {
+			renderServices();
+		} else {
+			renderProducts();
+		}
+	});
+	document.querySelectorAll('.catalog-tab-btn[data-tab]').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			setCatalogTab(btn.getAttribute('data-tab') || 'products');
+			if (currentCatalogTab === 'services') {
+				renderServices();
+			} else {
+				renderProducts();
+			}
+		});
+	});
+	document.getElementById('customerPhoneInput').addEventListener('input', () => {
+		if (customerLookupTimer) window.clearTimeout(customerLookupTimer);
+		customerLookupTimer = window.setTimeout(() => {
+			updateCustomerByPhoneLookup();
+		}, 180);
+	});
+	document.getElementById('customerNameInput').addEventListener('input', () => {
+		if (!matchedCustomerByPhone) {
+			applyMatchedCustomer(null);
+		}
 	});
 	document.getElementById('paymentMethodSelect').addEventListener('change', updateTransferBox);
 	document.getElementById('clearCartBtn').addEventListener('click', () => {
@@ -713,7 +1097,10 @@
 	document.getElementById('checkoutBtn').addEventListener('click', checkoutCart);
 
 	bindRealtimeUpdates();
+	setCatalogTab('products');
+	loadCustomers();
 	loadProducts();
+	loadServices();
 	renderCart();
 </script>
 </body>

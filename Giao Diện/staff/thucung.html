@@ -76,14 +76,11 @@
 <body>
 <div class="page-wrap">
     <div class="top-header d-flex justify-content-between align-items-center">
-        <h2>Quản Lý Thú Cưng</h2>
+        <h2>Danh Sách Thú Cưng</h2>
         <div class="service-toolbar">
             <div class="service-search">
                 <i class="bi bi-search"></i>
                 <input id="petSearchInput" type="text" placeholder="Tìm theo tên thú cưng, chủ, loại, giống..." aria-label="Tìm thú cưng">
-            </div>
-            <div class="service-toolbar-actions">
-                <button class="btn btn-success" type="button" onclick="openAddPetModal()"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
             </div>
         </div>
     </div>
@@ -131,7 +128,9 @@
                     <div><b>Tên thú cưng:</b> <span id="petDetailName">-</span></div>
                     <div><b>Loại:</b> <span id="petDetailType">-</span></div>
                     <div><b>Giống:</b> <span id="petDetailBreed">-</span></div>
+                    <div><b>Nguồn:</b> <span id="petDetailSource">-</span></div>
                     <div><b>Chủ sở hữu:</b> <span id="petDetailOwner">-</span></div>
+                    <div><b>Sản phẩm liên kết:</b> <span id="petDetailProduct">-</span></div>
                     <div><b>Trạng thái:</b> <span id="petDetailStatus">-</span></div>
                     <div><b>Ngày đăng ký:</b> <span id="petDetailDate">-</span></div>
                 </div>
@@ -170,10 +169,23 @@
                 </div>
 
                 <div class="service-form-group">
+                    <label for="editPetSource">Nguồn thú cưng</label>
+                    <select class="service-form-control" id="editPetSource" required>
+                        <option value="khach_hang">Khách hàng gửi chăm sóc</option>
+                        <option value="cua_hang">Thú cưng của cửa hàng (để bán)</option>
+                    </select>
+                </div>
+
+                <div class="service-form-group" id="petOwnerGroup">
                     <label for="editPetOwner">Tên chủ sở hữu</label>
                     <select class="service-form-control" id="editPetOwner" required>
                         <option value="">Chọn chủ sở hữu</option>
                     </select>
+                </div>
+
+                <div class="service-form-group" id="petProductGroup">
+                    <label for="editPetProductId">ID sản phẩm liên kết (nếu có)</label>
+                    <input class="service-form-control" id="editPetProductId" type="number" min="0" step="1" placeholder="Ví dụ: 101">
                 </div>
 
                 <div class="service-form-group">
@@ -440,6 +452,43 @@
         return owner ? String(owner.tenkhachhang || '') : '';
     }
 
+    function sourceText(source) {
+        return source === 'cua_hang' ? 'Cửa hàng' : 'Khách hàng';
+    }
+
+    function getPetOwnerLabel(row) {
+        const source = String(row.nguon_thucung || (Number(row.chusohuu_id || 0) > 0 ? 'khach_hang' : 'cua_hang'));
+        if (source === 'cua_hang') {
+            return 'Cửa hàng';
+        }
+        return row.tenchusohuu
+            ? String(row.tenchusohuu)
+            : (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định');
+    }
+
+    function refreshPetSourceFields() {
+        const sourceSelect = document.getElementById('editPetSource');
+        const ownerGroup = document.getElementById('petOwnerGroup');
+        const ownerSelect = document.getElementById('editPetOwner');
+        const productGroup = document.getElementById('petProductGroup');
+        const productInput = document.getElementById('editPetProductId');
+        if (!sourceSelect || !ownerGroup || !ownerSelect || !productGroup || !productInput) return;
+
+        const source = String(sourceSelect.value || 'khach_hang');
+        const isCustomer = source === 'khach_hang';
+
+        ownerGroup.style.display = isCustomer ? '' : 'none';
+        ownerSelect.required = isCustomer;
+        if (!isCustomer) {
+            ownerSelect.value = '';
+        }
+
+        productGroup.style.display = isCustomer ? 'none' : '';
+        if (isCustomer) {
+            productInput.value = '';
+        }
+    }
+
     function renderOwnerSelectOptions(selectedOwnerId = '') {
         const select = document.getElementById('editPetOwner');
         if (!select) return;
@@ -487,10 +536,12 @@
         return allPets.filter((item) => {
             const idText = String(item.id || '').toLowerCase();
             const name = String(item.tenthucung || '').toLowerCase();
-            const owner = String(item.tenchusohuu || '').toLowerCase();
+            const owner = String(getPetOwnerLabel(item) || '').toLowerCase();
             const type = String(item.loaithucung || '').toLowerCase();
             const breed = String(item.giongthucung || '').toLowerCase();
-            return idText.includes(key) || name.includes(key) || owner.includes(key) || type.includes(key) || breed.includes(key);
+            const source = String(sourceText(item.nguon_thucung)).toLowerCase();
+            const linkedProduct = String(item.tensanpham_lienket || '').toLowerCase();
+            return idText.includes(key) || name.includes(key) || owner.includes(key) || type.includes(key) || breed.includes(key) || source.includes(key) || linkedProduct.includes(key);
         });
     }
 
@@ -510,9 +561,7 @@
 
         tbody.innerHTML = rows.map((row) => {
             const healthy = isHealthyLike(row.trangthaithucung);
-            const ownerText = row.tenchusohuu
-                ? String(row.tenchusohuu)
-                : (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định');
+            const ownerText = getPetOwnerLabel(row);
             return `
                 <tr data-pet-id="${row.id}" class="${String(selectedPetId) === String(row.id) ? 'is-selected' : ''}" onclick="showPetDetail(${row.id})">
                     <td>${escapeHtml(row.tenthucung || '-')}</td>
@@ -576,10 +625,12 @@
         const name = document.getElementById('petDetailName');
         const type = document.getElementById('petDetailType');
         const breed = document.getElementById('petDetailBreed');
+        const source = document.getElementById('petDetailSource');
         const owner = document.getElementById('petDetailOwner');
+        const product = document.getElementById('petDetailProduct');
         const status = document.getElementById('petDetailStatus');
         const date = document.getElementById('petDetailDate');
-        if (!avatar || !id || !name || !type || !breed || !owner || !status || !date) return false;
+        if (!avatar || !id || !name || !type || !breed || !source || !owner || !product || !status || !date) return false;
 
         const petName = String(row.tenthucung || '-');
         avatar.textContent = petName.charAt(0).toUpperCase() || 'T';
@@ -587,7 +638,9 @@
         name.textContent = petName;
         type.textContent = String(row.loaithucung || '-');
         breed.textContent = String(row.giongthucung || '-');
-        owner.textContent = String(row.tenchusohuu || (Number(row.chusohuu_id || 0) > 0 ? `Khách hàng ID ${row.chusohuu_id}` : 'Chưa xác định'));
+        source.textContent = sourceText(String(row.nguon_thucung || 'khach_hang'));
+        owner.textContent = getPetOwnerLabel(row);
+        product.textContent = String(row.tensanpham_lienket || (Number(row.sanpham_id || 0) > 0 ? `ID ${row.sanpham_id}` : '-'));
         status.textContent = String(row.trangthaithucung || 'Chưa cập nhật');
         date.textContent = toDateText(row.ngaydangkythucung);
         return true;
@@ -606,6 +659,9 @@
     }
 
     function openAddPetModal() {
+        showNotice('Staff không được thêm thú cưng trực tiếp ở màn này. Hãy thêm qua popup Khách Hàng.', 'warning');
+        return;
+
         petMode = 'create';
         document.getElementById('petModalTitle').textContent = 'Thêm thú cưng mới';
         document.getElementById('savePetBtn').textContent = 'Thêm mới';
@@ -613,9 +669,12 @@
         document.getElementById('editPetName').value = '';
         document.getElementById('editPetType').value = '';
         document.getElementById('editPetBreed').value = '';
+        document.getElementById('editPetSource').value = 'khach_hang';
         renderOwnerSelectOptions('');
+        document.getElementById('editPetProductId').value = '';
         document.getElementById('editPetStatus').value = 'Khỏe mạnh';
         document.getElementById('editPetDate').value = new Date().toISOString().slice(0, 10);
+        refreshPetSourceFields();
         openPetModal();
     }
 
@@ -630,9 +689,12 @@
         document.getElementById('editPetName').value = row.tenthucung || '';
         document.getElementById('editPetType').value = row.loaithucung || '';
         document.getElementById('editPetBreed').value = row.giongthucung || '';
+        document.getElementById('editPetSource').value = row.nguon_thucung || (Number(row.chusohuu_id || 0) > 0 ? 'khach_hang' : 'cua_hang');
         renderOwnerSelectOptions(String(row.chusohuu_id || ''));
+        document.getElementById('editPetProductId').value = Number(row.sanpham_id || 0) > 0 ? String(row.sanpham_id) : '';
         document.getElementById('editPetStatus').value = row.trangthaithucung || '';
         document.getElementById('editPetDate').value = String(row.ngaydangkythucung || '').slice(0, 10);
+        refreshPetSourceFields();
         openPetModal();
     }
 
@@ -694,6 +756,7 @@
     document.getElementById('petModal').addEventListener('click', (event) => {
         if (event.target.id === 'petModal') closePetModal();
     });
+    document.getElementById('editPetSource').addEventListener('change', refreshPetSourceFields);
 
     document.getElementById('petForm').addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -702,12 +765,19 @@
         const name = document.getElementById('editPetName').value.trim();
         const type = document.getElementById('editPetType').value.trim();
         const breed = document.getElementById('editPetBreed').value.trim();
+        const source = String(document.getElementById('editPetSource').value || 'khach_hang');
         const ownerId = Number(document.getElementById('editPetOwner').value || 0);
         const ownerName = getOwnerNameById(ownerId);
+        const productId = Number(document.getElementById('editPetProductId').value || 0);
         const status = document.getElementById('editPetStatus').value.trim();
         const regDate = document.getElementById('editPetDate').value;
 
-        if (!name || !type || !breed || !ownerId || !ownerName || !status || !regDate) {
+        if (!name || !type || !breed || !status || !regDate) {
+            showNotice('Vui lòng nhập đầy đủ thông tin bắt buộc.', 'warning');
+            return;
+        }
+
+        if (source === 'khach_hang' && (!ownerId || !ownerName)) {
             showNotice('Vui lòng chọn chủ sở hữu từ danh sách khách hàng.', 'warning');
             return;
         }
@@ -718,7 +788,9 @@
                     tenthucung: name,
                     loaithucung: type,
                     giongthucung: breed,
-                    chusohuu_id: ownerId,
+                    nguon_thucung: source,
+                    chusohuu_id: source === 'khach_hang' ? ownerId : 0,
+                    sanpham_id: source === 'cua_hang' ? productId : 0,
                     trangthaithucung: status,
                     ngaydangkythucung: regDate,
                 });
@@ -734,7 +806,9 @@
                     tenthucung: name,
                     loaithucung: type,
                     giongthucung: breed,
-                    chusohuu_id: ownerId,
+                    nguon_thucung: source,
+                    chusohuu_id: source === 'khach_hang' ? ownerId : 0,
+                    sanpham_id: source === 'cua_hang' ? productId : 0,
                     trangthaithucung: status,
                     ngaydangkythucung: regDate,
                 });
@@ -771,6 +845,7 @@
 
     document.documentElement.classList.add('hide-scrollbar');
     document.body.classList.add('hide-scrollbar');
+    refreshPetSourceFields();
     loadPets();
 </script>
 </body>

@@ -612,7 +612,7 @@ function app_map_online_to_order_status(string $onlineStatus): string
 {
     $status = trim(strtolower($onlineStatus));
     if ($status === 'da_duyet') {
-        return 'danggiaohang';
+        return 'hoanthanh';
     }
 
     if ($status === 'tu_choi') {
@@ -772,6 +772,62 @@ function app_ensure_dichvu_info_column(mysqli $conn): bool
     return (bool) $conn->query($alterSql);
 }
 
+function app_ensure_service_category_table(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'danhmucdichvu')) {
+        $sql = "
+            CREATE TABLE danhmucdichvu (
+                id INT NOT NULL AUTO_INCREMENT,
+                tendanhmucdichvu VARCHAR(120) NOT NULL,
+                ngaytao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_danhmucdichvu_name (tendanhmucdichvu)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ";
+
+        if (!$conn->query($sql)) {
+            return false;
+        }
+    }
+
+    if (!app_column_exists($conn, 'danhmucdichvu', 'ngaytao')) {
+        if (!$conn->query('ALTER TABLE danhmucdichvu ADD COLUMN ngaytao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function app_ensure_dichvu_category_column(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'dichvu')) {
+        return false;
+    }
+
+    $ok = true;
+
+    if (!app_column_exists($conn, 'dichvu', 'danhmucdichvu_id')) {
+        $ok = (bool) $conn->query('ALTER TABLE dichvu ADD COLUMN danhmucdichvu_id INT NULL AFTER thoigiandichvu') && $ok;
+    }
+
+    if (!$ok) {
+        return false;
+    }
+
+    $hasIndex = false;
+    $indexCheck = $conn->query("SHOW INDEX FROM dichvu WHERE Key_name = 'idx_dichvu_danhmucdichvu_id'");
+    if ($indexCheck) {
+        $hasIndex = $indexCheck->num_rows > 0;
+        $indexCheck->free();
+    }
+    if (!$hasIndex) {
+        $conn->query('CREATE INDEX idx_dichvu_danhmucdichvu_id ON dichvu(danhmucdichvu_id)');
+    }
+
+    return true;
+}
+
 function app_resolve_category_id(mysqli $conn, string $categoryName, int $fallback = 0): int
 {
     $name = trim($categoryName);
@@ -840,6 +896,48 @@ function app_ensure_pet_note_column(mysqli $conn): bool
     return (bool) $conn->query("ALTER TABLE thucung ADD COLUMN thongtin TEXT NULL AFTER trangthaithucung");
 }
 
+function app_ensure_pet_source_columns(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'thucung')) {
+        return false;
+    }
+
+    $ok = true;
+
+    if (!app_column_exists($conn, 'thucung', 'nguon_thucung')) {
+        $ok = (bool) $conn->query("ALTER TABLE thucung ADD COLUMN nguon_thucung ENUM('khach_hang','cua_hang') NOT NULL DEFAULT 'khach_hang' AFTER chusohuu_id") && $ok;
+    }
+
+    if (!app_column_exists($conn, 'thucung', 'sanpham_id')) {
+        $ok = (bool) $conn->query('ALTER TABLE thucung ADD COLUMN sanpham_id INT NULL AFTER nguon_thucung') && $ok;
+    }
+
+    $conn->query("UPDATE thucung SET nguon_thucung = 'khach_hang' WHERE COALESCE(chusohuu_id, 0) > 0");
+    $conn->query("UPDATE thucung SET nguon_thucung = 'cua_hang' WHERE COALESCE(chusohuu_id, 0) <= 0");
+
+    $hasSourceIndex = false;
+    $indexCheck = $conn->query("SHOW INDEX FROM thucung WHERE Key_name = 'idx_thucung_nguon'");
+    if ($indexCheck) {
+        $hasSourceIndex = $indexCheck->num_rows > 0;
+        $indexCheck->free();
+    }
+    if (!$hasSourceIndex) {
+        $conn->query('CREATE INDEX idx_thucung_nguon ON thucung(nguon_thucung)');
+    }
+
+    $hasProductIndex = false;
+    $indexCheck = $conn->query("SHOW INDEX FROM thucung WHERE Key_name = 'idx_thucung_sanpham_id'");
+    if ($indexCheck) {
+        $hasProductIndex = $indexCheck->num_rows > 0;
+        $indexCheck->free();
+    }
+    if (!$hasProductIndex) {
+        $conn->query('CREATE INDEX idx_thucung_sanpham_id ON thucung(sanpham_id)');
+    }
+
+    return $ok;
+}
+
 function app_seed_dichvu_image_column(mysqli $conn): void
 {
     if (!app_ensure_dichvu_image_column($conn)) {
@@ -894,6 +992,9 @@ if ($api !== '') {
     $conn = app_db_connect();
     app_ensure_user_avatar_column($conn);
     app_ensure_pet_note_column($conn);
+    app_ensure_pet_source_columns($conn);
+    app_ensure_service_category_table($conn);
+    app_ensure_dichvu_category_column($conn);
 
     $handled = app_handle_admin_api($conn, $api)
         || app_handle_staff_api($conn, $api)

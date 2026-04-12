@@ -33,7 +33,7 @@
 </script>
 
 <!-- Professional Pet Shop Page -->
-<section class="shop-section" style="padding: 24px 0 100px; background: #f8f9fa;">
+<section class="shop-section shop-surface-layer" style="padding: 24px 0 100px;">
     <div class="container-fluid px-5">
         <p id="productCount" style="display: none;">Đang tải sản phẩm...</p>
 
@@ -43,26 +43,6 @@
                 <button type="button" class="shop-category-btn active" data-category="">
                     <span class="shop-category-label"><span>Tất cả sản phẩm</span></span>
                 </button>
-                <button type="button" class="shop-category-btn" data-category="Thức ăn">
-                    <span class="shop-category-label"><span>Thức ăn</span></span>
-                </button>
-                <button type="button" class="shop-category-btn" data-category="Phụ kiện">
-                    <span class="shop-category-label"><span>Phụ kiện</span></span>
-                </button>
-                <button type="button" class="shop-category-btn" data-category="Nội thất">
-                    <span class="shop-category-label"><span>Nội thất</span></span>
-                </button>
-                <button type="button" class="shop-category-btn" data-category="Túi xách">
-                    <span class="shop-category-label"><span>Túi xách</span></span>
-                </button>
-                <button type="button" class="shop-category-btn has-children" data-category="Giống chó">
-                    <span class="shop-category-label"><span>Giống chó</span></span>
-                </button>
-                <div id="dogBreedSubmenu" class="shop-subcategory-list" aria-label="Danh sách giống chó"></div>
-                <button type="button" class="shop-category-btn has-children" data-category="Giống mèo">
-                    <span class="shop-category-label"><span>Giống mèo</span></span>
-                </button>
-                <div id="catBreedSubmenu" class="shop-subcategory-list" aria-label="Danh sách giống mèo"></div>
             </aside>
 
             <div class="shop-main-content">
@@ -77,12 +57,6 @@
                         <!-- Category Filter (hidden, controlled by left sidebar) -->
                         <select id="categoryFilter" class="shop-input shop-input-hidden" aria-hidden="true" tabindex="-1">
                             <option value="">Tất cả danh mục</option>
-                            <option value="Thức ăn">Thức ăn</option>
-                            <option value="Phụ kiện">Phụ kiện</option>
-                            <option value="Nội thất">Nội thất</option>
-                            <option value="Túi xách">Túi xách</option>
-                            <option value="Giống chó">Giống chó</option>
-                            <option value="Giống mèo">Giống mèo</option>
                         </select>
 
                         <!-- Price Filter (custom UI + hidden select for logic) -->
@@ -150,28 +124,40 @@
 </section>
 
 <!-- Quick View Modal -->
-<div id="quickViewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;">
-    <div style="background: white; border-radius: 12px; padding: 40px; max-width: 600px; width: 90%; position: relative; animation: slideIn 0.3s ease;">
-        <button onclick="closeQuickView()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 28px; cursor: pointer; color: #999;">×</button>
+<div id="quickViewModal" style="display: none; position: fixed; inset: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 12px; overflow: auto;">
+    <div id="quickViewShell" style="display:flex; align-items:stretch; justify-content:center; gap:12px; width:min(860px, 96vw);">
+    <div id="quickViewMain" style="background: white; border-radius: 12px; padding: 14px; max-width: 460px; width: min(460px, 94vw); max-height: calc(100vh - 24px); overflow-y: auto; position: relative; animation: slideIn 0.3s ease;">
+        <button id="quickViewCloseBtn" type="button" onclick="window.closeQuickView && window.closeQuickView()" style="position: absolute; top: 8px; right: 10px; background: none; border: none; font-size: 28px; cursor: pointer; color: #999;">×</button>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
-            <img id="qvImage" src="" alt="" style="width: 100%; border-radius: 8px; object-fit: cover;">
-            <div>
-                <h2 id="qvName" style="font-size: 24px; font-weight: 700; margin: 0 0 15px 0;"></h2>
-                <p id="qvCategory" style="color: #1F8F4D; font-size: 14px; font-weight: 600; margin: 0 0 10px 0;"></p>
-                <p id="qvDescription" style="color: #666; line-height: 1.6; margin-bottom: 14px;"></p>
-                <div style="margin-bottom: 14px; border: 1px solid #eef2f7; border-radius: 10px; padding: 10px; background: #f8fafc;">
-                    <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Đánh giá sản phẩm</div>
-                    <div id="qvReviewSummary" style="font-size: 13px; color: #475569; margin-bottom: 8px;">Chưa có đánh giá.</div>
-                    <div id="qvReviewList" style="max-height: 150px; overflow: auto; display: grid; gap: 8px;"></div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: center;">
+                <div id="qvImagePane" style="width: min(100%, 210px); aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden; background: #f3f4f6;">
+                    <img id="qvImage" src="" alt="" style="width: 100%; height: 100%; display: block; object-fit: cover;">
                 </div>
-                <p id="qvPrice" style="font-size: 28px; font-weight: 700; color: #1F8F4D; margin: 20px 0;"></p>
-                <button onclick="addToCartFromQV()" style="width: 100%; background: #000; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
+            </div>
+
+            <p id="qvPrice" style="font-size: 22px; font-weight: 700; color: #1F8F4D; margin: 0; text-align: center;"></p>
+
+            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;">
+                <h2 id="qvName" style="font-size: 24px; font-weight: 700; margin: 0;"></h2>
+                <p id="qvCategory" style="display:none; color: #1F8F4D; font-size: 14px; font-weight: 600; margin: 0;"></p>
+                <p id="qvDescription" style="color: #666; line-height: 1.6; margin: 0;"></p>
+
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: auto;">
+                <button onclick="addToCartFromQV()" style="width: auto; min-width: 220px; background: #000; color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
                     <i data-feather="shopping-cart" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
                     Thêm vào giỏ
                 </button>
             </div>
         </div>
+    </div>
+    <aside id="quickViewReviewPanel" style="background:#fff; border-radius:12px; border:1px solid #eef2f7; padding:12px; width:min(320px, 34vw); min-width:240px; max-height:calc(100vh - 24px); overflow-y:auto; animation: slideIn 0.3s ease;">
+        <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Đánh giá sản phẩm</div>
+        <div id="qvReviewSummary" style="font-size: 13px; color: #475569; margin-bottom: 8px;">Chưa có đánh giá.</div>
+        <div id="qvReviewList" style="max-height: 360px; overflow: auto; display: grid; gap: 8px;"></div>
+    </aside>
     </div>
 </div>
 
@@ -214,9 +200,44 @@
         }
     }
 
+    @media (max-width: 900px) {
+        #quickViewShell {
+            flex-direction: column;
+            align-items: center;
+            width: min(460px, 96vw) !important;
+        }
+
+        #quickViewReviewPanel {
+            width: min(460px, 94vw) !important;
+            min-width: 0;
+        }
+    }
+
     .hero-section.content-only-mode .main-header {
         margin-bottom: 0 !important;
         padding: 8px 24px !important;
+    }
+
+    .shop-section.shop-surface-layer {
+        position: relative;
+        isolation: isolate;
+        background:
+            radial-gradient(1200px 360px at 12% -6%, rgba(31, 143, 77, 0.12), transparent 62%),
+            radial-gradient(980px 340px at 86% 8%, rgba(252, 211, 77, 0.14), transparent 60%),
+            linear-gradient(180deg, #f7faf8 0%, #f3f6f4 100%);
+    }
+
+    .shop-section.shop-surface-layer::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+            linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+        background-size: 30px 30px;
+        mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), transparent 82%);
+        z-index: -1;
     }
 
     .hero-section.content-only-mode .logo-container .logo-image.logo-image-full {
@@ -2070,6 +2091,13 @@
         }
     ];
 
+    // Xoa du lieu mau o giao dien user: chi hien thi du lieu API/DB.
+    products = [];
+    dogBreeds.splice(0, dogBreeds.length);
+    catBreeds.splice(0, catBreeds.length);
+    dogPuppies.splice(0, dogPuppies.length);
+    catKittens.splice(0, catKittens.length);
+
     let currentQVProduct = null;
     let currentCheckoutQuickItem = null;
     const DIRECT_CHECKOUT_KEY = 'checkoutDirectItems';
@@ -2078,6 +2106,10 @@
     let currentCatBreedView = '';
     let keepMainSidebarOnDogBreedView = false;
     let currentSubcategoryFilter = '';
+    let lastProductsSignature = '';
+    let lastCategoriesSignature = '';
+    let databaseCategories = [];
+    let databaseCategorySubmenuMap = new Map();
 
     const normalizeTextKey = (value) => {
         return String(value || '')
@@ -2090,87 +2122,65 @@
     const detectProductSubcategory = ({ category, name, code, subcategory }) => {
         const explicit = String(subcategory || '').trim();
         if (explicit) return explicit;
-
-        const normalizedCategory = normalizeTextKey(category);
-        const normalizedName = `${normalizeTextKey(name)} ${normalizeTextKey(code)}`;
-
-        const pick = (rules, fallbackLabel = 'Khác') => {
-            const found = rules.find((rule) => rule.keys.some((keyword) => normalizedName.includes(keyword)));
-            return found ? found.label : fallbackLabel;
-        };
-
-        if (normalizedCategory === 'thuc an') {
-            return pick([
-                { label: 'Cho chó', keys: ['cho', 'dog', 'canine', 'puppy'] },
-                { label: 'Cho mèo', keys: ['meo', 'cat', 'feline', 'kitten'] },
-                { label: 'Snack & thưởng', keys: ['snack', 'thuong', 'treat', 'banh'] },
-                { label: 'Pate & đồ hộp', keys: ['pate', 'hop', 'can'] },
-            ]);
-        }
-
-        if (normalizedCategory === 'phu kien') {
-            return pick([
-                { label: 'Dây dắt & vòng cổ', keys: ['day', 'vong co', 'xich', 'leash', 'collar', 'harness'] },
-                { label: 'Đồ chơi', keys: ['do choi', 'toy', 'ball'] },
-                { label: 'Bát ăn', keys: ['bat', 'bowl', 'an'] },
-                { label: 'Vệ sinh', keys: ['ve sinh', 'shampoo', 'tam', 'cat litter', 'litter'] },
-            ]);
-        }
-
-        if (normalizedCategory === 'noi that') {
-            return pick([
-                { label: 'Nệm & giường', keys: ['nem', 'giuong', 'bed', 'cushion'] },
-                { label: 'Nhà & chuồng', keys: ['nha', 'chuong', 'kennel', 'crate', 'tent'] },
-                { label: 'Ghế & ổ nằm', keys: ['ghe', 'o nam', 'sofa'] },
-            ]);
-        }
-
-        if (normalizedCategory === 'tui xach') {
-            return pick([
-                { label: 'Túi đeo', keys: ['deo', 'shoulder', 'sling'] },
-                { label: 'Ba lô', keys: ['ba lo', 'backpack'] },
-                { label: 'Vali vận chuyển', keys: ['vali', 'carrier', 'transport'] },
-            ]);
-        }
-
-        if (normalizedCategory === 'giong cho') {
-            return pick([
-                { label: 'Poodle', keys: ['poodle'] },
-                { label: 'Golden', keys: ['golden'] },
-                { label: 'Husky', keys: ['husky'] },
-                { label: 'Beagle', keys: ['beagle'] },
-                { label: 'Samoyed', keys: ['samoyed'] },
-            ], 'Giống khác');
-        }
-
-        if (normalizedCategory === 'giong meo') {
-            return pick([
-                { label: 'Mèo Anh', keys: ['anh long ngan', 'british'] },
-                { label: 'Ba Tư', keys: ['ba tu', 'persian'] },
-                { label: 'Scottish Fold', keys: ['scottish'] },
-                { label: 'Maine Coon', keys: ['maine coon'] },
-                { label: 'Ragdoll', keys: ['ragdoll'] },
-            ], 'Giống khác');
-        }
-
-        return 'Khác';
+        return '';
     };
 
-    const DEFAULT_CATEGORY_SUBCATEGORIES = {
-        'Thức ăn': ['Cho chó', 'Cho mèo', 'Snack & thưởng', 'Pate & đồ hộp'],
-        'Phụ kiện': ['Dây dắt & vòng cổ', 'Đồ chơi', 'Bát ăn', 'Vệ sinh'],
-        'Nội thất': ['Nệm & giường', 'Nhà & chuồng', 'Ghế & ổ nằm'],
-        'Túi xách': ['Túi đeo', 'Ba lô', 'Vali vận chuyển'],
-        'Giống chó': ['Poodle', 'Golden', 'Husky', 'Beagle', 'Samoyed', 'Giống khác'],
-        'Giống mèo': ['Mèo Anh', 'Ba Tư', 'Scottish Fold', 'Maine Coon', 'Ragdoll', 'Giống khác'],
+    const escapeRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const hasExactVietnameseWord = (text, keyword) => {
+        const source = String(text || '').trim();
+        const target = String(keyword || '').trim();
+        if (!target) return true;
+        if (!source) return false;
+
+        const pattern = new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegex(target)}([^\\p{L}\\p{N}]|$)`, 'iu');
+        return pattern.test(source);
+    };
+
+    const doesProductMatchSubcategoryKeyword = (product, keyword) => {
+        const exactKeyword = String(keyword || '').trim();
+        if (!exactKeyword) return true;
+
+        if (hasExactVietnameseWord(product?.name || '', exactKeyword)) {
+            return true;
+        }
+
+        const productSubcategory = detectProductSubcategory({
+            category: product?.category,
+            name: product?.name,
+            code: product?.productCode,
+            subcategory: product?.subcategory,
+        });
+
+        return hasExactVietnameseWord(productSubcategory, exactKeyword);
     };
 
     const resolveProductImageUrl = (rawPath) => {
         const fallbackImage = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&h=400&fit=crop';
         const path = String(rawPath || '').trim().replace(/\\/g, '/');
 
+        const encodeUrlPath = (value) => {
+            try {
+                const absolute = new URL(value, window.location.origin);
+                absolute.pathname = absolute.pathname
+                    .split('/')
+                    .map((segment) => {
+                        if (!segment) return segment;
+                        try {
+                            return encodeURIComponent(decodeURIComponent(segment));
+                        } catch (error) {
+                            return encodeURIComponent(segment);
+                        }
+                    })
+                    .join('/');
+                return absolute.toString();
+            } catch (error) {
+                return String(value || '').replace(/ /g, '%20');
+            }
+        };
+
         if (!path) return fallbackImage;
-        if (/^(?:https?:)?\/\//i.test(path) || path.startsWith('data:')) return path;
+        if (/^(?:https?:)?\/\//i.test(path) || path.startsWith('data:')) return encodeUrlPath(path);
 
         let normalizedPath = path;
 
@@ -2189,10 +2199,9 @@
         }
 
         const pathname = String(window.location.pathname || '');
-        const markerIndexRaw = pathname.indexOf('/Giao Diện/');
-        const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
-        const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
-        const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '';
+        const lowercasePathname = pathname.toLowerCase();
+        const markerIndex = lowercasePathname.indexOf('/giao');
+        const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '/phuocthanh/PHPCHINH';
 
         normalizedPath = normalizedPath.replace(/^\.\//, '');
         normalizedPath = normalizedPath.replace(/^Giao Diện\/user\//i, '');
@@ -2202,18 +2211,21 @@
         normalizedPath = normalizedPath.replace(/^user\//i, '');
 
         if (normalizedPath.startsWith('/')) {
-            return normalizedPath.replace(/ /g, '%20');
+            if (/^\/anhdata\//i.test(normalizedPath)) {
+                return encodeUrlPath(`${window.location.origin}${projectBase}${normalizedPath}`);
+            }
+            return encodeUrlPath(`${window.location.origin}${normalizedPath}`);
         }
 
         if (/^anhdata\//i.test(normalizedPath)) {
-            return `${window.location.origin}${projectBase}/${normalizedPath}`.replace(/ /g, '%20');
+            return encodeUrlPath(`${window.location.origin}${projectBase}/${normalizedPath}`);
         }
 
         try {
             if (projectBase) {
-                return new URL(`${projectBase}/${normalizedPath}`.replace(/ /g, '%20'), window.location.origin).toString();
+                return encodeUrlPath(new URL(`${projectBase}/${normalizedPath}`, window.location.origin).toString());
             }
-            return new URL(normalizedPath, window.location.href).toString();
+            return encodeUrlPath(new URL(normalizedPath, window.location.href).toString());
         } catch (error) {
             return fallbackImage;
         }
@@ -2385,8 +2397,7 @@
         const safeBasePrice = Number.isFinite(priceNumber) && priceNumber > 0 ? priceNumber : 0;
         const discountInfo = computeProductDiscount(item, safeBasePrice);
 
-        const quantity = parseInt(item?.soluongsanpham, 10) || 0;
-        const badge = discountInfo.hasDiscount ? 'sale' : (quantity > 0 && quantity <= 10 ? 'sale' : null);
+        const badge = discountInfo.hasDiscount ? 'sale' : null;
 
         return {
             id,
@@ -2562,6 +2573,226 @@
         return candidates;
     };
 
+    const getCategoriesApiCandidates = () => {
+        const base = window.location.href;
+        const candidates = [];
+
+        const safePush = (builder) => {
+            try {
+                const value = builder();
+                if (value && !candidates.includes(value)) {
+                    candidates.push(value);
+                }
+            } catch (error) {
+                // bo qua endpoint loi
+            }
+        };
+
+        safePush(() => new URL('../home_api.php?api=get_home_categories', base).toString());
+        safePush(() => new URL('home_api.php?api=get_home_categories', base).toString());
+        safePush(() => new URL('../../admin/get_services.php?api=get_categories', base).toString());
+        safePush(() => new URL('../../index.php?api=get_home_categories', base).toString());
+        safePush(() => new URL('/PHPCHINH/Giao%20Diện/user/home_api.php?api=get_home_categories', base).toString());
+        safePush(() => new URL('/PHPCHINH/index.php?api=get_home_categories', base).toString());
+        safePush(() => new URL('/index.php?api=get_home_categories', base).toString());
+
+        const pathname = String(window.location.pathname || '');
+        const markerIndexRaw = pathname.indexOf('/Giao Diện/');
+        const markerIndexEncoded = pathname.indexOf('/Giao%20Diện/');
+        const markerIndex = markerIndexRaw >= 0 ? markerIndexRaw : markerIndexEncoded;
+
+        if (markerIndex > 0) {
+            const projectBase = pathname.slice(0, markerIndex);
+            safePush(() => `${window.location.origin}${projectBase}/Giao%20Diện/user/home_api.php?api=get_home_categories`);
+            safePush(() => `${window.location.origin}${projectBase}/index.php?api=get_home_categories`);
+        }
+
+        return candidates;
+    };
+
+    const loadCategoriesFromApi = async () => {
+        const candidates = getCategoriesApiCandidates();
+        let fallbackPayload = null;
+
+        for (const endpoint of candidates) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) continue;
+
+                const payload = await response.json();
+                if (!payload?.ok || !Array.isArray(payload.data)) continue;
+
+                const subMap = new Map();
+                payload.data.forEach((item) => {
+                    const categoryName = String(item?.tendanhmuc || item?.name || '').trim();
+                    const values = Array.isArray(item?.danhmuccon)
+                        ? item.danhmuccon.map((name) => String(name || '').trim()).filter(Boolean)
+                        : [];
+
+                    if (!categoryName) return;
+                    if (!subMap.has(categoryName)) {
+                        subMap.set(categoryName, new Set());
+                    }
+                    values.forEach((name) => subMap.get(categoryName).add(name));
+                });
+
+                const hasSubcategoryData = Array.from(subMap.values()).some((set) => set.size > 0);
+                if (!hasSubcategoryData && !fallbackPayload) {
+                    fallbackPayload = payload;
+                    continue;
+                }
+
+                const names = payload.data
+                    .map((item) => String(item?.tendanhmuc || item?.name || '').trim())
+                    .filter(Boolean);
+
+                databaseCategories = Array.from(new Set(names));
+                databaseCategorySubmenuMap = new Map(
+                    Array.from(subMap.entries()).map(([categoryName, values]) => {
+                        return [categoryName, Array.from(values).sort((a, b) => a.localeCompare(b, 'vi'))];
+                    })
+                );
+                return databaseCategories;
+            } catch (error) {
+                // thu endpoint tiep theo
+            }
+        }
+
+        if (fallbackPayload && Array.isArray(fallbackPayload.data)) {
+            const names = fallbackPayload.data
+                .map((item) => String(item?.tendanhmuc || item?.name || '').trim())
+                .filter(Boolean);
+            databaseCategories = Array.from(new Set(names));
+            databaseCategorySubmenuMap = new Map();
+            return databaseCategories;
+        }
+
+        databaseCategories = [];
+        databaseCategorySubmenuMap = new Map();
+        return null;
+    };
+
+    const buildCategoryListForUi = () => {
+        const merged = [];
+        const pushUnique = (name) => {
+            const safeName = String(name || '').trim();
+            if (safeName && !merged.some((item) => normalizeTextKey(item) === normalizeTextKey(safeName))) {
+                merged.push(safeName);
+            }
+        };
+
+        databaseCategories.forEach(pushUnique);
+        products.forEach((product) => pushUnique(product?.category));
+
+        return merged;
+    };
+
+    const renderCategoryControls = () => {
+        const sidebar = document.getElementById('shopCategorySidebar');
+        const categorySelect = document.getElementById('categoryFilter');
+        if (!sidebar || !categorySelect) return;
+
+        const activeCategory = String(categorySelect.value || '').trim();
+        const categories = buildCategoryListForUi();
+
+        const escapeHtml = (value) => String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
+        const categoryButtons = categories.map((categoryName) => {
+            const normalized = normalizeTextKey(categoryName);
+            const hasBreedSubmenu = normalized === 'giong cho' || normalized === 'giong meo';
+            const buttonClass = hasBreedSubmenu ? 'shop-category-btn has-children' : 'shop-category-btn';
+
+            let extraMarkup = '';
+            if (normalized === 'giong cho') {
+                extraMarkup = '<div id="dogBreedSubmenu" class="shop-subcategory-list" aria-label="Danh sách giống chó"></div>';
+            } else if (normalized === 'giong meo') {
+                extraMarkup = '<div id="catBreedSubmenu" class="shop-subcategory-list" aria-label="Danh sách giống mèo"></div>';
+            }
+
+            return `
+                <button type="button" class="${buttonClass}" data-category="${escapeHtml(categoryName)}">
+                    <span class="shop-category-label"><span>${escapeHtml(categoryName)}</span></span>
+                </button>
+                ${extraMarkup}
+            `;
+        }).join('');
+
+        sidebar.innerHTML = `
+            <h3 class="shop-category-title">Danh mục</h3>
+            <button type="button" class="shop-category-btn" data-category="">
+                <span class="shop-category-label"><span>Tất cả sản phẩm</span></span>
+            </button>
+            ${categoryButtons}
+        `;
+
+        categorySelect.innerHTML = [
+            '<option value="">Tất cả danh mục</option>',
+            ...categories.map((categoryName) => `<option value="${escapeHtml(categoryName)}">${escapeHtml(categoryName)}</option>`)
+        ].join('');
+
+        const matchedOption = Array.from(categorySelect.options).find(
+            (option) => String(option.value || '').trim().toLowerCase() === activeCategory.toLowerCase()
+        );
+
+        if (matchedOption) {
+            categorySelect.value = matchedOption.value;
+        } else {
+            categorySelect.value = '';
+            currentSubcategoryFilter = '';
+            currentDogBreedView = '';
+            currentCatBreedView = '';
+        }
+
+        buildDogBreedSubmenu();
+        buildCatBreedSubmenu();
+    };
+
+    const buildProductsSignature = (items) => {
+        if (!Array.isArray(items) || items.length === 0) return 'empty';
+
+        return items
+            .slice()
+            .sort((a, b) => Number(a?.id || 0) - Number(b?.id || 0))
+            .map((item) => {
+                return [
+                    Number(item?.id || 0),
+                    String(item?.name || '').trim(),
+                    String(item?.category || '').trim(),
+                    String(item?.subcategory || '').trim(),
+                    Number(item?.priceValue || 0),
+                    Number(item?.originalPriceValue || 0),
+                    Number(item?.discountPercent || 0),
+                    item?.hasDiscount ? 1 : 0,
+                    String(item?.image || '').trim(),
+                    String(item?.productCode || '').trim()
+                ].join('|');
+            })
+            .join('||');
+    };
+
+    const buildCategoriesSignature = () => {
+        const categoryNames = Array.isArray(databaseCategories) ? databaseCategories.slice().sort((a, b) => a.localeCompare(b, 'vi')) : [];
+        const subRows = [];
+
+        databaseCategorySubmenuMap.forEach((values, categoryName) => {
+            const category = String(categoryName || '').trim();
+            const list = Array.isArray(values) ? values.slice().sort((a, b) => a.localeCompare(b, 'vi')) : [];
+            subRows.push(`${category}:${list.join(',')}`);
+        });
+
+        subRows.sort((a, b) => a.localeCompare(b, 'vi'));
+        return `${categoryNames.join('|')}||${subRows.join('||')}`;
+    };
+
     const loadProductsFromApi = async () => {
         const candidates = getProductsApiCandidates();
 
@@ -2582,16 +2813,64 @@
                     .map(mapApiProductToUiProduct)
                     .filter((item) => item.id > 0);
 
-                if (mappedProducts.length > 0) {
-                    products = mappedProducts;
-                    return true;
-                }
+                products = mappedProducts;
+                return mappedProducts;
             } catch (error) {
                 // thử endpoint kế tiếp
             }
         }
 
-        return false;
+        return null;
+    };
+
+    const refreshProductsRealtime = async (force = false) => {
+        const loadedProducts = await loadProductsFromApi();
+        if (!Array.isArray(loadedProducts)) return false;
+
+        await loadCategoriesFromApi();
+
+        const nextSignature = buildProductsSignature(loadedProducts);
+        const nextCategoriesSignature = buildCategoriesSignature();
+        const categoriesChanged = nextCategoriesSignature !== lastCategoriesSignature;
+        const productsChanged = nextSignature !== lastProductsSignature;
+
+        if (categoriesChanged || force) {
+            renderCategoryControls();
+            buildGenericCategorySubmenus();
+            syncCategorySidebarState();
+        }
+
+        if (!force && !productsChanged && !categoriesChanged) {
+            return false;
+        }
+
+        lastProductsSignature = nextSignature;
+        lastCategoriesSignature = nextCategoriesSignature;
+        buildGenericCategorySubmenus();
+        filterAndRenderProducts();
+        syncCategorySidebarState();
+        if (typeof feather !== 'undefined') feather.replace();
+        return true;
+    };
+
+    const startProductsRealtimeSync = () => {
+        if (window.__shopProductsRealtimeTimer) {
+            clearInterval(window.__shopProductsRealtimeTimer);
+        }
+
+        window.__shopProductsRealtimeTimer = window.setInterval(() => {
+            if (document.hidden) return;
+            refreshProductsRealtime(false);
+        }, 5000);
+
+        if (!document.body.dataset.shopRealtimeVisibilityBound) {
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    refreshProductsRealtime(false);
+                }
+            });
+            document.body.dataset.shopRealtimeVisibilityBound = '1';
+        }
     };
 
     const updateShopHeroByCategory = () => {
@@ -2696,13 +2975,14 @@
     const buildCategorySubmenuMap = () => {
         const map = new Map();
 
-        Object.entries(DEFAULT_CATEGORY_SUBCATEGORIES).forEach(([categoryName, values]) => {
+        databaseCategorySubmenuMap.forEach((values, categoryName) => {
             if (!map.has(categoryName)) {
                 map.set(categoryName, new Set());
             }
             values.forEach((value) => {
-                if (String(value || '').trim()) {
-                    map.get(categoryName).add(String(value).trim());
+                const safeValue = String(value || '').trim();
+                if (safeValue) {
+                    map.get(categoryName).add(safeValue);
                 }
             });
         });
@@ -2740,7 +3020,7 @@
             if (normalizedCategory === 'giong cho' || normalizedCategory === 'giong meo') return;
 
             const values = Array.from(submenuMap.get(categoryName) || []).sort((a, b) => a.localeCompare(b, 'vi'));
-            if (values.length <= 1) return;
+            if (values.length === 0) return;
 
             const submenu = document.createElement('div');
             submenu.className = 'shop-subcategory-list';
@@ -2874,8 +3154,24 @@
     const openQuickViewWithData = async (item) => {
         if (!item) return;
 
+        const formatModalPriceVnd = (value) => {
+            const text = String(value || '').trim();
+            if (!text) return 'Liên hệ';
+            if (/liên hệ|lien he/i.test(text)) return 'Liên hệ';
+            return /\bvnd\b/i.test(text) ? text : `${text} VND`;
+        };
+
         currentQVProduct = item;
-        document.getElementById('qvImage').src = item.image || '';
+        const qvImage = document.getElementById('qvImage');
+        if (qvImage) {
+            qvImage.dataset.fallbackQueueBuilt = '';
+            qvImage.dataset.fallbackQueue = '[]';
+            qvImage.dataset.fallbackIndex = '0';
+            qvImage.onerror = () => {
+                window.handleShopImageFallback(qvImage);
+            };
+            qvImage.src = resolveProductImageUrl(item.image || '');
+        }
         document.getElementById('qvName').textContent = item.name || '';
         document.getElementById('qvCategory').textContent = item.category || '';
         document.getElementById('qvDescription').textContent = item.description || 'Thong tin san pham dang duoc cap nhat.';
@@ -2888,12 +3184,14 @@
         const qvPrice = document.getElementById('qvPrice');
         if (qvPrice) {
             if (item.hasDiscount && item.originalPrice) {
-                qvPrice.innerHTML = `${item.price || '0'}₫ <span style="font-size:16px;color:#9ca3af;text-decoration:line-through;font-weight:600;">${item.originalPrice}₫</span>`;
+                qvPrice.innerHTML = `${formatModalPriceVnd(item.price || '0')} <span style="font-size:16px;color:#9ca3af;text-decoration:line-through;font-weight:600;">${formatModalPriceVnd(item.originalPrice)}</span>`;
             } else {
-                qvPrice.textContent = `${item.price || 'Liên hệ'}`;
+                qvPrice.textContent = formatModalPriceVnd(item.price || 'Liên hệ');
             }
         }
         document.getElementById('quickViewModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
 
         if (Number(item.id || 0) > 0) {
             const reviewPayload = await fetchProductReviews(item.id);
@@ -3454,15 +3752,7 @@
             }
 
             if (currentSubcategoryFilter) {
-                const productSubcategory = normalizeTextKey(
-                    detectProductSubcategory({
-                        category: product.category,
-                        name: product.name,
-                        code: product.productCode,
-                        subcategory: product.subcategory,
-                    })
-                );
-                if (productSubcategory !== normalizeTextKey(currentSubcategoryFilter)) {
+                if (!doesProductMatchSubcategoryKeyword(product, currentSubcategoryFilter)) {
                     return false;
                 }
             }
@@ -3571,7 +3861,10 @@
 
     const closeQuickView = () => {
         document.getElementById('quickViewModal').style.display = 'none';
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
     };
+    window.closeQuickView = closeQuickView;
 
     const openCheckoutQuickModal = (item) => {
         if (!item || !item.name) return;
@@ -3712,6 +4005,14 @@
         const productsGrid = document.getElementById('productsGrid');
         const clearBtn = document.getElementById('clearFiltersBtn');
         const categorySidebar = document.getElementById('shopCategorySidebar');
+        const quickViewCloseBtn = document.getElementById('quickViewCloseBtn');
+
+        if (quickViewCloseBtn && !quickViewCloseBtn.dataset.bound) {
+            quickViewCloseBtn.addEventListener('click', () => {
+                closeQuickView();
+            });
+            quickViewCloseBtn.dataset.bound = '1';
+        }
 
         if (toolbar && !toolbar.dataset.bound) {
             toolbar.addEventListener('input', (event) => {
@@ -4007,12 +4308,14 @@
     const initShopPage = async () => {
         console.log('Shop page initialized');
         normalizeFallbackProductsSubcategory();
-        buildDogBreedSubmenu();
-        buildCatBreedSubmenu();
         setupDelegatedEvents();
         setupCustomSelectEvents();
 
         await loadProductsFromApi();
+        await loadCategoriesFromApi();
+        renderCategoryControls();
+        lastProductsSignature = buildProductsSignature(products);
+        lastCategoriesSignature = buildCategoriesSignature();
         buildGenericCategorySubmenus();
 
         const hasPendingCategory = applyPendingCategoryFilter();
@@ -4023,6 +4326,7 @@
 
         syncCategorySidebarState();
         document.querySelectorAll('.shop-custom-select').forEach(syncCustomSelectFromNative);
+        startProductsRealtimeSync();
 
         if (typeof feather !== 'undefined') feather.replace();
     };

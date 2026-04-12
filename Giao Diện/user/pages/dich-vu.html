@@ -43,63 +43,13 @@
 
     <div class="service-filter-wrap mb-5">
         <button type="button" class="service-filter-btn" data-category="all">Tất cả dịch vụ</button>
-        <button type="button" class="service-filter-btn" data-category="spa">Spa - Cắt tạo kiểu</button>
-        <button type="button" class="service-filter-btn" data-category="bath-dry">Tắm &amp; Sấy</button>
-        <button type="button" class="service-filter-btn" data-category="ear-cleaning">Vệ sinh tai</button>
-        <button type="button" class="service-filter-btn" data-category="nail-trimming">Cắt móng</button>
-        <button type="button" class="service-filter-btn" data-category="health-check">Khám sức khỏe định kỳ</button>
-        <button type="button" class="service-filter-btn" data-category="training">Huấn luyện cơ bản</button>
     </div>
 
-    <section class="service-category-block" data-category="spa">
-        <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Spa - Cắt tạo kiểu</h2><p class="text-muted mb-0">Chăm sóc toàn diện, tạo kiểu gọn gàng, thơm sạch và thư giãn.</p></div></div>
-        <div class="row g-4 mb-4">
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="sun"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói Tắm Rửa Cơ Bản</h5><p class="text-muted mb-3">Tắm rửa, sấy khô, cắt móng và vệ sinh tai với sản phẩm an toàn.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">250.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="scissors"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói Cắt Tạo Kiểu</h5><p class="text-muted mb-3">Cắt tạo kiểu theo yêu cầu, chải lông và làm đẹp chuyên sâu.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">350.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="star"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói Spa Cao Cấp</h5><p class="text-muted mb-3">Kết hợp spa và massage thư giãn, dưỡng da và chăm sóc kỹ lưỡng.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">500.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-        </div>
-    </section>
+    <div id="serviceCategoryContainer"></div>
 
-    <section class="service-category-block" data-category="bath-dry">
-        <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Tắm &amp; Sấy</h2><p class="text-muted mb-0">Làm sạch dịu nhẹ, sấy đúng kỹ thuật để bé luôn thơm tho, khỏe da lông.</p></div></div>
-        <div class="row g-4 mb-4">
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="droplet"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói Tắm Cơ Bản</h5><p class="text-muted mb-3">Tắm chuyên dụng, xả sạch, sấy khô và chải lông cơ bản.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">120.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="wind"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói Tắm Dưỡng</h5><p class="text-muted mb-3">Tắm + ủ dưỡng + sấy tạo phồng giúp lông mềm mượt, giảm rối.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">180.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-        </div>
-    </section>
-
-    <section class="service-category-block" data-category="ear-cleaning">
-        <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Vệ sinh tai</h2><p class="text-muted mb-0">Làm sạch nhẹ nhàng để giảm khó chịu và phòng ngừa viêm tai cho thú cưng.</p></div></div>
-        <div class="row g-4 mb-4">
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="activity"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Vệ sinh cơ bản</h5><p class="text-muted mb-3">Kiểm tra tai, làm sạch bên ngoài ống tai và khử mùi nhẹ.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">80.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="shield"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Vệ sinh chuyên sâu</h5><p class="text-muted mb-3">Làm sạch sâu cho tai nhạy cảm, tư vấn theo từng tình trạng.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">140.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-4 col-md-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="clipboard"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Gói định kỳ</h5><p class="text-muted mb-3">Vệ sinh tai theo lịch hằng tháng để duy trì sức khỏe tai.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">350.000/3 lần</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-        </div>
-    </section>
-
-    <section class="service-category-block" data-category="nail-trimming">
-        <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Cắt móng</h2><p class="text-muted mb-0">Cắt và dũa móng an toàn, hạn chế trầy xước và giúp bé di chuyển thoải mái.</p></div></div>
-        <div class="row g-4 mb-4">
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="scissors"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Cắt móng tiêu chuẩn</h5><p class="text-muted mb-3">Cắt móng 4 chân, kiểm tra nhanh đệm chân và vệ sinh cơ bản.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">70.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="star"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Cắt móng + dũa mịn</h5><p class="text-muted mb-3">Cắt móng, dũa bo tròn đầu móng và dưỡng đệm chân chống khô nứt.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">110.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-        </div>
-    </section>
-
-    <section class="service-category-block" data-category="health-check">
-        <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Khám sức khỏe định kỳ</h2><p class="text-muted mb-0">Theo dõi sức khỏe tổng quát định kỳ để phát hiện sớm các vấn đề thường gặp.</p></div></div>
-        <div class="row g-4 mb-4">
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="heart"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Khám cơ bản</h5><p class="text-muted mb-3">Kiểm tra tổng quát, cân nặng, da lông và tư vấn chăm sóc hằng ngày.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">249.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="shield"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Khám nâng cao</h5><p class="text-muted mb-3">Khám chi tiết hơn theo lịch định kỳ và hồ sơ chăm sóc từng bé.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">399.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-        </div>
-    </section>
-
-    <section class="service-category-block" data-category="training">
-        <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">Huấn luyện cơ bản</h2><p class="text-muted mb-0">Rèn thói quen tốt, tăng tương tác và giúp thú cưng nghe lời hơn mỗi ngày.</p></div></div>
-        <div class="row g-4 mb-4">
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="zap"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Huấn luyện nhập môn</h5><p class="text-muted mb-3">Làm quen kỷ luật cơ bản: ngồi, đứng, chờ và phản hồi khi gọi tên.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">350.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-            <div class="col-lg-6"><div class="card service-card h-100 shadow-sm"><div class="service-icon-bg"><i data-feather="target"></i></div><div class="card-body p-4"><h5 class="card-title fw-bold mb-3">Huấn luyện theo mục tiêu</h5><p class="text-muted mb-3">Thiết kế lộ trình riêng theo độ tuổi, tính cách và mục tiêu hành vi.</p><div class="d-flex justify-content-between align-items-center"><span class="service-price">490.000</span><button class="btn btn-sm service-booking-btn">Đặt ngay</button></div></div></div></div>
-        </div>
-    </section>
+    <div class="service-empty-state" id="serviceEmptyState" hidden>
+        Hiện chưa có dịch vụ trong hệ thống.
+    </div>
 </div>
 
 <div class="service-detail-modal" id="serviceDetailModal" aria-hidden="true">
@@ -154,20 +104,19 @@
 }
 .unified-services-page .service-filter-btn:hover,
 .unified-services-page .service-filter-btn.active { background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%); color: #fff; border-color: transparent; }
-.unified-services-page .service-filter-thumb {
-    width: 26px;
-    height: 26px;
-    border-radius: 999px;
-    background-size: cover;
-    background-position: center;
-    background-color: #e5e7eb;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(17, 24, 39, 0.18);
+.unified-services-page .service-empty-state {
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    color: #64748b;
+    font-weight: 600;
 }
 .unified-services-page .service-category-block .row.g-4.mb-4 {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.25rem;
+    margin-top: 10px;
 }
 .unified-services-page .service-category-block .row.g-4.mb-4 > [class*="col-"] {
     width: 100%;
@@ -221,6 +170,13 @@
     height: 72px;
     color: #fff;
     stroke: currentColor;
+}
+.unified-services-page .service-card-empty {
+    border: 1px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 16px;
+    color: #64748b;
+    background: #f8fafc;
 }
 .unified-services-page .service-price { color: #111827; font-size: 20px; font-weight: 700; }
 .unified-services-page .service-booking-btn { background-color: #1F8F4D; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; }
@@ -323,16 +279,13 @@
 
 <script>
 (function () {
-    const validCategories = ["spa", "bath-dry", "ear-cleaning", "nail-trimming", "health-check", "training"];
-    const categoryLabelMap = {
-        all: 'Tất cả dịch vụ',
-        spa: 'Spa - Cắt tạo kiểu',
-        'bath-dry': 'Tắm & Sấy',
-        'ear-cleaning': 'Vệ sinh tai',
-        'nail-trimming': 'Cắt móng',
-        'health-check': 'Khám sức khỏe định kỳ',
-        training: 'Huấn luyện cơ bản'
-    };
+    let validCategories = [];
+    const categoryLabelMap = { all: 'Tất cả dịch vụ' };
+    const SERVICE_RT_EVENT_KEY = 'app_services_realtime_event';
+    let servicesRealtimeTimer = null;
+    let stopServiceRealtimeSubscribe = null;
+    let lastServiceDataSignature = '';
+    let isRefreshingServices = false;
 
     const normalizeCategory = (category) => {
         if (!category || typeof category !== "string") return "all";
@@ -340,67 +293,46 @@
         return validCategories.includes(category) ? category : "all";
     };
 
-    const normalizeServiceName = (name) => {
-        return String(name || '').replace(/^\s*\[[^\]]+\]\s*/u, '').trim();
+    const buildCategoryKey = (id) => `category-${Number(id || 0)}`;
+
+    const rebuildDynamicCategoryLayout = (categoryRows) => {
+        const page = document.querySelector('.unified-services-page');
+        const filterWrap = page?.querySelector('.service-filter-wrap');
+        const container = document.getElementById('serviceCategoryContainer');
+        if (!page || !filterWrap || !container) return;
+
+        const normalizedCategories = Array.isArray(categoryRows)
+            ? categoryRows.map((row) => ({
+                id: Number(row.id || 0),
+                key: buildCategoryKey(row.id || 0),
+                label: String(row.tendanhmucdichvu || '').trim(),
+            })).filter((row) => row.id > 0 && row.label !== '')
+            : [];
+
+        validCategories = normalizedCategories.map((row) => row.key);
+
+        Object.keys(categoryLabelMap).forEach((key) => {
+            if (key !== 'all') delete categoryLabelMap[key];
+        });
+        normalizedCategories.forEach((row) => {
+            categoryLabelMap[row.key] = row.label;
+        });
+
+        filterWrap.innerHTML = [
+            '<button type="button" class="service-filter-btn" data-category="all">Tất cả dịch vụ</button>',
+            ...normalizedCategories.map((row) => `<button type="button" class="service-filter-btn" data-category="${row.key}">${row.label}</button>`)
+        ].join('');
+
+        container.innerHTML = normalizedCategories.map((row) => `
+            <section class="service-category-block" data-category="${row.key}">
+                <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">${row.label}</h2><p class="text-muted mb-0">Danh sách dịch vụ thuộc danh mục này.</p></div></div>
+                <div class="row g-4 mb-4"></div>
+            </section>
+        `).join('');
     };
 
-    const resolveCategoryFromServiceName = (serviceName) => {
-        const lower = String(serviceName || '').toLowerCase();
-
-        if (lower.includes('vệ sinh tai') || lower.includes('ve sinh tai')) return 'ear-cleaning';
-        if (lower.includes('cắt móng') || lower.includes('cat mong')) return 'nail-trimming';
-        if (lower.includes('tắm') || lower.includes('tam') || lower.includes('sấy') || lower.includes('say')) return 'bath-dry';
-        if (lower.includes('huấn luyện') || lower.includes('huan luyen') || lower.includes('đào tạo') || lower.includes('dao tao')) return 'training';
-        if (
-            lower.includes('khám')
-            || lower.includes('kham')
-            || lower.includes('vaccine')
-            || lower.includes('tiêm')
-            || lower.includes('tiem')
-            || lower.includes('tẩy giun')
-            || lower.includes('tay giun')
-            || lower.includes('xét nghiệm')
-            || lower.includes('xet nghiem')
-            || lower.includes('siêu âm')
-            || lower.includes('sieu am')
-            || lower.includes('cấp cứu')
-            || lower.includes('cap cuu')
-            || lower.includes('da liễu')
-            || lower.includes('da lieu')
-            || lower.includes('thú y')
-            || lower.includes('thu y')
-        ) return 'health-check';
-
-        if (
-            lower.includes('spa')
-            || lower.includes('tạo kiểu')
-            || lower.includes('tao kieu')
-            || lower.includes('cắt tỉa')
-            || lower.includes('cat tia')
-            || lower.includes('dưỡng lông')
-            || lower.includes('duong long')
-            || lower.includes('gỡ rối')
-            || lower.includes('go roi')
-            || lower.includes('khử mùi')
-            || lower.includes('khu mui')
-            || lower.includes('răng miệng')
-            || lower.includes('rang mieng')
-            || lower.includes('nhuộm lông')
-            || lower.includes('nhuom long')
-            || lower.includes('lưu chuồng')
-            || lower.includes('luu chuong')
-            || lower.includes('trông giữ')
-            || lower.includes('trong giu')
-            || lower.includes('vận chuyển')
-            || lower.includes('van chuyen')
-            || lower.includes('hộ chiếu')
-            || lower.includes('ho chieu')
-        ) return 'spa';
-
-        if (lower.includes('vệ sinh tai') || lower.includes('tai')) return 'ear-cleaning';
-        if (lower.includes('cắt móng') || lower.includes('móng')) return 'nail-trimming';
-
-        return 'spa';
+    const normalizeServiceName = (name) => {
+        return String(name || '').replace(/^\s*\[[^\]]+\]\s*/u, '').trim();
     };
 
     const formatCurrencyVND = (value) => {
@@ -408,8 +340,6 @@
         if (!Number.isFinite(amount) || amount <= 0) return 'Liên hệ';
         return `${new Intl.NumberFormat('vi-VN').format(Math.round(amount))}₫`;
     };
-
-    const fallbackServiceImage = 'https://images.unsplash.com/photo-1583512603805-3cc6b41f3edb?w=900&h=500&fit=crop';
 
     const resolveMediaUrl = (rawPath) => {
         const path = String(rawPath || '').trim().replace(/\\/g, '/');
@@ -448,6 +378,12 @@
 
     const toSafeCssUrl = (value) => String(value || '').replace(/'/g, "\\'");
     const toSafeText = (value) => String(value || '').trim();
+    const escapeHtml = (value) => String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 
     const extractSummaryFromInfo = (info, fallbackText) => {
         const fallback = toSafeText(fallbackText) || 'Dịch vụ chăm sóc thú cưng với quy trình an toàn và chuyên nghiệp.';
@@ -467,26 +403,152 @@
         return compact.length > 160 ? `${compact.slice(0, 157)}...` : compact;
     };
 
-    const setServiceFilterButtonThumbs = (servicesByCategory) => {
+    const setServiceFilterButtonLabels = () => {
         document.querySelectorAll('.service-filter-btn').forEach((button) => {
             const category = button.getAttribute('data-category') || '';
-            const bucket = category === 'all'
-                ? validCategories.flatMap((key) => servicesByCategory[key] || [])
-                : (servicesByCategory[category] || []);
-            const firstImage = resolveMediaUrl(String(bucket[0]?.hinhanh || '').trim()) || fallbackServiceImage;
-
             const label = categoryLabelMap[category] || button.textContent.trim();
-            button.innerHTML = '';
-
-            const thumb = document.createElement('span');
-            thumb.className = 'service-filter-thumb';
-            thumb.style.backgroundImage = `url('${toSafeCssUrl(firstImage)}')`;
-            button.appendChild(thumb);
-
-            const text = document.createElement('span');
-            text.textContent = label;
-            button.appendChild(text);
+            button.textContent = label;
         });
+    };
+
+    const buildServiceDataSignature = (rows, categories) => {
+        const normalizedCategories = Array.isArray(categories)
+            ? categories.map((row) => [Number(row?.id || 0), String(row?.tendanhmucdichvu || '').trim()])
+            : [];
+
+        const normalizedRows = Array.isArray(rows)
+            ? rows.map((row) => [
+                Number(row?.id || 0),
+                Number(row?.danhmucdichvu_id || 0),
+                String(row?.tendichvu || '').trim(),
+                String(row?.trangthaidichvu || '').trim().toLowerCase(),
+                Number(row?.giadichvu || 0),
+                Number(row?.thoigiandichvu || 0),
+                String(row?.thongtin || '').trim(),
+                String(row?.hinhanh || row?.hinhanhdichvu || '').trim(),
+            ])
+            : [];
+
+        return JSON.stringify({ c: normalizedCategories, s: normalizedRows });
+    };
+
+    const refreshServicesFromDatabase = async (force = false) => {
+        if (isRefreshingServices && !force) return;
+        isRefreshingServices = true;
+
+        try {
+            const payload = await fetchServiceData();
+            const rows = Array.isArray(payload?.data) ? payload.data : [];
+            const categories = Array.isArray(payload?.categories) ? payload.categories : [];
+            const emptyState = document.getElementById('serviceEmptyState');
+
+            const nextSignature = buildServiceDataSignature(rows, categories);
+            if (!force && nextSignature === lastServiceDataSignature) {
+                return;
+            }
+            lastServiceDataSignature = nextSignature;
+
+            rebuildDynamicCategoryLayout(categories);
+            setServiceFilterButtonLabels();
+
+            if (categories.length === 0) {
+                if (emptyState) emptyState.hidden = false;
+                applyCategory('all');
+                return;
+            }
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                if (emptyState) emptyState.hidden = false;
+                applyCategory('all');
+                return;
+            }
+
+            const activeRows = rows.filter((row) => {
+                const status = String(row?.trangthaidichvu || '').trim().toLowerCase();
+                return status === '' || status === 'hoatdong';
+            });
+
+            if (activeRows.length === 0) {
+                if (emptyState) emptyState.hidden = false;
+                applyCategory('all');
+                return;
+            }
+
+            const servicesByCategory = {};
+            validCategories.forEach((key) => {
+                servicesByCategory[key] = [];
+            });
+
+            activeRows.forEach((row) => {
+                const dynamicCategoryId = Number(row?.danhmucdichvu_id || 0);
+                const key = dynamicCategoryId > 0 ? buildCategoryKey(dynamicCategoryId) : '';
+                if (!key || !servicesByCategory[key]) return;
+
+                const normalized = {
+                    ...row,
+                    tendichvu: normalizeServiceName(row?.tendichvu || ''),
+                    hinhanh: String(row?.hinhanh || row?.hinhanhdichvu || '').trim()
+                };
+                servicesByCategory[key].push(normalized);
+            });
+
+            const totalMapped = Object.values(servicesByCategory).reduce((sum, bucket) => sum + bucket.length, 0);
+            if (totalMapped === 0) {
+                if (emptyState) emptyState.hidden = false;
+                bindServicesToCards(servicesByCategory);
+                applyCategory('all');
+                return;
+            }
+
+            bindServicesToCards(servicesByCategory);
+            if (emptyState) emptyState.hidden = true;
+
+            const selectedCategory = normalizeCategory(window.currentServiceCategory);
+            if (selectedCategory !== 'all' && (servicesByCategory[selectedCategory] || []).length === 0) {
+                applyCategory('all');
+            } else {
+                applyCategory(selectedCategory);
+            }
+        } finally {
+            isRefreshingServices = false;
+        }
+    };
+
+    const startServicesRealtime = () => {
+        const sessionApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+        if (sessionApi && typeof sessionApi.subscribe === 'function') {
+            stopServiceRealtimeSubscribe = sessionApi.subscribe((event) => {
+                if (!event || !event.type) return;
+                if (event.type === 'services_changed' || event.type === 'entity_changed') {
+                    refreshServicesFromDatabase(true);
+                }
+            });
+        }
+
+        window.addEventListener('storage', (event) => {
+            if (event.key === SERVICE_RT_EVENT_KEY && event.newValue) {
+                refreshServicesFromDatabase(true);
+            }
+        });
+
+        if (servicesRealtimeTimer) {
+            window.clearInterval(servicesRealtimeTimer);
+        }
+
+        servicesRealtimeTimer = window.setInterval(() => {
+            refreshServicesFromDatabase(false);
+        }, 8000);
+    };
+
+    const stopServicesRealtime = () => {
+        if (typeof stopServiceRealtimeSubscribe === 'function') {
+            stopServiceRealtimeSubscribe();
+            stopServiceRealtimeSubscribe = null;
+        }
+        if (servicesRealtimeTimer) {
+            window.clearInterval(servicesRealtimeTimer);
+            servicesRealtimeTimer = null;
+        }
     };
 
     const bindServicesToCards = (servicesByCategory) => {
@@ -495,63 +557,47 @@
             const cardGrid = section?.querySelector('.row.g-4.mb-4');
             if (!cardGrid) return;
 
-            const templateCard = cardGrid.querySelector('.service-card');
-            if (!templateCard) return;
-
             const bucket = servicesByCategory[category] || [];
-            if (bucket.length === 0) return;
-
-            let cards = Array.from(cardGrid.querySelectorAll('.service-card'));
-            while (cards.length < bucket.length) {
-                const templateCol = cards[0].closest('.col-lg-4, .col-lg-6, .col-md-6') || cards[0].parentElement;
-                if (!templateCol) break;
-                const clonedCol = templateCol.cloneNode(true);
-                cardGrid.appendChild(clonedCol);
-                cards = Array.from(cardGrid.querySelectorAll('.service-card'));
+            if (bucket.length === 0) {
+                cardGrid.innerHTML = '<div class="service-card-empty">Chưa có dịch vụ trong danh mục này.</div>';
+                return;
             }
 
-            cards.forEach((card, index) => {
-                const service = bucket[index];
-                card.style.display = service ? '' : 'none';
-                if (!service) return;
-
-                const titleEl = card.querySelector('.card-title');
-                if (titleEl) {
-                    titleEl.textContent = normalizeServiceName(service.tendichvu);
-                }
-
-                const priceEl = card.querySelector('.service-price');
-                if (priceEl) {
-                    priceEl.textContent = formatCurrencyVND(service.giadichvu);
-                }
-
-                const bookingBtn = card.querySelector('.service-booking-btn');
-                if (bookingBtn) {
-                    bookingBtn.dataset.serviceName = normalizeServiceName(service.tendichvu);
-                    bookingBtn.dataset.servicePrice = formatCurrencyVND(service.giadichvu);
-                }
-
-                const descEl = card.querySelector('.card-body .text-muted');
+            cardGrid.innerHTML = bucket.map((service) => {
+                const serviceName = normalizeServiceName(service.tendichvu);
+                const servicePrice = formatCurrencyVND(service.giadichvu);
                 const dbInfo = toSafeText(service.thongtin);
-                if (descEl) {
-                    descEl.textContent = extractSummaryFromInfo(dbInfo, descEl.textContent);
-                }
-
-                card.dataset.serviceName = normalizeServiceName(service.tendichvu);
-                card.dataset.servicePrice = formatCurrencyVND(service.giadichvu);
-                card.dataset.serviceDuration = Number(service.thoigiandichvu || 0) > 0
+                const summary = extractSummaryFromInfo(dbInfo, '');
+                const duration = Number(service.thoigiandichvu || 0) > 0
                     ? `${Math.round(Number(service.thoigiandichvu || 0))} phút`
                     : 'Chưa cập nhật thời lượng';
-                card.dataset.serviceInfo = dbInfo || toSafeText(descEl?.textContent || 'Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.');
+                const imageUrl = resolveMediaUrl(service.hinhanh);
+                const iconClass = imageUrl ? 'service-icon-bg has-photo' : 'service-icon-bg';
+                const iconStyle = imageUrl ? ` style="background-image:url('${toSafeCssUrl(imageUrl)}')"` : '';
 
-                const imageBox = card.querySelector('.service-icon-bg');
-                const imageUrl = resolveMediaUrl(service.hinhanh) || fallbackServiceImage;
-                if (imageBox && imageUrl) {
-                    imageBox.classList.add('has-photo');
-                    imageBox.style.backgroundImage = `url('${toSafeCssUrl(imageUrl)}')`;
-                }
-                card.dataset.serviceImage = imageUrl;
-            });
+                return `
+                    <div class="col-lg-4 col-md-6">
+                        <div
+                            class="card service-card h-100 shadow-sm"
+                            data-service-name="${escapeHtml(serviceName)}"
+                            data-service-price="${escapeHtml(servicePrice)}"
+                            data-service-duration="${escapeHtml(duration)}"
+                            data-service-info="${escapeHtml(dbInfo || summary || 'Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.')}"
+                            data-service-image="${escapeHtml(String(imageUrl || ''))}"
+                        >
+                            <div class="${iconClass}"${iconStyle}><i data-feather="star"></i></div>
+                            <div class="card-body p-4">
+                                <h5 class="card-title fw-bold mb-3">${escapeHtml(serviceName)}</h5>
+                                <p class="text-muted mb-3">${escapeHtml(summary)}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="service-price">${escapeHtml(servicePrice)}</span>
+                                    <button class="btn btn-sm service-booking-btn" data-service-name="${escapeHtml(serviceName)}" data-service-price="${escapeHtml(servicePrice)}">Đặt ngay</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         });
 
         if (typeof window.feather !== 'undefined') {
@@ -596,11 +642,11 @@
                 if (!res.ok) continue;
                 const payload = await res.json();
                 if (!payload || payload.ok !== true || !Array.isArray(payload.data)) continue;
-                return payload.data;
+                return payload;
             } catch (error) {}
         }
 
-        return [];
+        return { ok: false, data: [], categories: [] };
     };
 
     const applyCategory = (category) => {
@@ -621,8 +667,10 @@
         window.currentServiceCategory = current;
     };
 
-    document.querySelectorAll(".service-filter-btn").forEach((button) => {
-        button.addEventListener("click", () => applyCategory(button.getAttribute("data-category")));
+    document.querySelector('.service-filter-wrap')?.addEventListener('click', (event) => {
+        const button = event.target.closest('.service-filter-btn[data-category]');
+        if (!button) return;
+        applyCategory(button.getAttribute('data-category'));
     });
 
     const serviceDetailModal = document.getElementById('serviceDetailModal');
@@ -647,8 +695,10 @@
         serviceDetailDuration.textContent = toSafeText(serviceCard.dataset.serviceDuration) || 'Chưa cập nhật thời lượng';
         serviceDetailInfo.textContent = toSafeText(serviceCard.dataset.serviceInfo) || 'Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.';
 
-        const imageUrl = toSafeText(serviceCard.dataset.serviceImage) || fallbackServiceImage;
-        serviceDetailImage.style.backgroundImage = `url('${toSafeCssUrl(imageUrl)}')`;
+        const imageUrl = toSafeText(serviceCard.dataset.serviceImage);
+        serviceDetailImage.style.backgroundImage = imageUrl
+            ? `url('${toSafeCssUrl(imageUrl)}')`
+            : 'linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%)';
 
         serviceDetailModal.classList.add('open');
         serviceDetailModal.setAttribute('aria-hidden', 'false');
@@ -725,44 +775,9 @@
 
     applyCategory(window.currentServiceCategory);
 
-    fetchServiceData().then((rows) => {
-        if (!Array.isArray(rows) || rows.length === 0) return;
-
-        const activeRows = rows.filter((row) => {
-            const status = String(row?.trangthaidichvu || '').trim().toLowerCase();
-            return status === '' || status === 'hoatdong';
-        });
-
-        if (activeRows.length === 0) return;
-
-        const servicesByCategory = {
-            spa: [],
-            'bath-dry': [],
-            'ear-cleaning': [],
-            'nail-trimming': [],
-            'health-check': [],
-            training: []
-        };
-
-        activeRows.forEach((row) => {
-            const key = resolveCategoryFromServiceName(row?.tendichvu || '');
-            if (!key || !servicesByCategory[key]) return;
-            const normalized = {
-                ...row,
-                tendichvu: normalizeServiceName(row?.tendichvu || ''),
-                hinhanh: String(row?.hinhanh || row?.hinhanhdichvu || '').trim()
-            };
-            servicesByCategory[key].push(normalized);
-        });
-
-        setServiceFilterButtonThumbs(servicesByCategory);
-        bindServicesToCards(servicesByCategory);
-
-        const selectedCategory = normalizeCategory(window.currentServiceCategory);
-        if (selectedCategory !== 'all' && (servicesByCategory[selectedCategory] || []).length === 0) {
-            applyCategory('all');
-        }
-    });
+    refreshServicesFromDatabase(true);
+    startServicesRealtime();
+    window.addEventListener('beforeunload', stopServicesRealtime);
 })();
 </script>
 

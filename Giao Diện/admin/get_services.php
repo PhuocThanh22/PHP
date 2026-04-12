@@ -32,6 +32,144 @@ function app_ensure_category_image_column(mysqli $conn): bool
     return (bool) $conn->query($alterSql);
 }
 
+function app_ensure_category_subcategory_table(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'danhmuccon')) {
+        $createSql = "
+            CREATE TABLE danhmuccon (
+                id INT NOT NULL AUTO_INCREMENT,
+                danhmuc_id INT NOT NULL,
+                tendanhmuccon VARCHAR(120) NOT NULL,
+                ngaytao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_danhmuccon_unique (danhmuc_id, tendanhmuccon),
+                KEY idx_danhmuccon_danhmuc (danhmuc_id),
+                CONSTRAINT fk_danhmuccon_danhmuc
+                    FOREIGN KEY (danhmuc_id) REFERENCES danhmuc(id)
+                    ON DELETE CASCADE ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ";
+
+        if (!$conn->query($createSql)) {
+            return false;
+        }
+    }
+
+    if (!app_column_exists($conn, 'danhmuccon', 'ngaytao')) {
+        if (!$conn->query('ALTER TABLE danhmuccon ADD COLUMN ngaytao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function app_get_category_subcategories_map(mysqli $conn): array
+{
+    if (!app_table_exists($conn, 'danhmuccon')) {
+        return [];
+    }
+
+    $sql = "
+        SELECT danhmuc_id, COALESCE(NULLIF(TRIM(tendanhmuccon), ''), '') AS tendanhmuccon
+        FROM danhmuccon
+        ORDER BY danhmuc_id ASC, tendanhmuccon ASC
+        LIMIT 5000
+    ";
+
+    $result = $conn->query($sql);
+    if (!$result) {
+        return [];
+    }
+
+    $map = [];
+    while ($row = $result->fetch_assoc()) {
+        $categoryId = (int) ($row['danhmuc_id'] ?? 0);
+        $name = (string) ($row['tendanhmuccon'] ?? '');
+        if ($categoryId <= 0 || $name === '') {
+            continue;
+        }
+
+        if (!isset($map[$categoryId])) {
+            $map[$categoryId] = [];
+        }
+
+        $map[$categoryId][] = $name;
+    }
+    $result->free();
+
+    foreach ($map as $categoryId => $values) {
+        $map[$categoryId] = array_values(array_unique($values));
+    }
+
+    return $map;
+}
+
+function app_get_service_categories(mysqli $conn): array
+{
+    if (!app_table_exists($conn, 'danhmucdichvu')) {
+        return [];
+    }
+
+    $sql = "
+        SELECT
+            dm.id,
+            dm.tendanhmucdichvu,
+            COUNT(d.id) AS so_dich_vu
+        FROM danhmucdichvu dm
+        LEFT JOIN dichvu d ON d.danhmucdichvu_id = dm.id
+        GROUP BY dm.id, dm.tendanhmucdichvu
+        ORDER BY dm.tendanhmucdichvu ASC
+        LIMIT 1000
+    ";
+
+    $result = $conn->query($sql);
+    if (!$result) {
+        return [];
+    }
+
+    $rows = [];
+    while ($row = $result->fetch_assoc()) {
+        $rows[] = [
+            'id' => (int) ($row['id'] ?? 0),
+            'tendanhmucdichvu' => (string) ($row['tendanhmucdichvu'] ?? ''),
+            'so_dich_vu' => (int) ($row['so_dich_vu'] ?? 0),
+        ];
+    }
+    $result->free();
+
+    return $rows;
+}
+
+function app_resolve_service_category_id(mysqli $conn, $value): int
+{
+    $id = (int) $value;
+    if ($id > 0) {
+        return $id;
+    }
+
+    $name = trim((string) $value);
+    if ($name === '') {
+        return 0;
+    }
+
+    $stmt = $conn->prepare('SELECT id FROM danhmucdichvu WHERE tendanhmucdichvu = ? LIMIT 1');
+    if (!$stmt) {
+        return 0;
+    }
+
+    $stmt->bind_param('s', $name);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    if ($result) {
+        $result->free();
+    }
+    $stmt->close();
+
+    return (int) ($row['id'] ?? 0);
+}
+
 function app_admin_upload_image(array $file, string $group): array
 {
     $errorCode = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
@@ -121,6 +259,24 @@ function app_admin_normalize_datetime_input(string $value): ?string
     return date('Y-m-d H:i:s', $timestamp);
 }
 
+function app_admin_resolve_product_status(int $qty, string $requestedStatus = 'conhang'): string
+{
+    if ($qty <= 0) {
+        return 'hethang';
+    }
+
+    if ($qty < 5) {
+        return 'saphet';
+    }
+
+    $status = trim($requestedStatus);
+    if (!in_array($status, ['conhang', 'saphet', 'hethang'], true)) {
+        return 'conhang';
+    }
+
+    return $status;
+}
+
 function app_admin_voucher_games(): array
 {
     return [
@@ -157,6 +313,61 @@ function app_admin_customer_tier_key(float $spending): string
         return 'bac';
     }
     return 'dong';
+}
+
+function app_admin_resolve_customer_type_for_storage(mysqli $conn, string $candidate): string
+{
+    $value = trim($candidate);
+    if ($value === '') {
+        $value = 'dong';
+    }
+
+    if (!app_table_exists($conn, 'khachhang') || !app_column_exists($conn, 'khachhang', 'loaikhachhang')) {
+        return $value;
+    }
+
+    $columnResult = $conn->query("SHOW COLUMNS FROM khachhang LIKE 'loaikhachhang'");
+    $columnRow = $columnResult ? $columnResult->fetch_assoc() : null;
+    if ($columnResult) {
+        $columnResult->free();
+    }
+    if (!is_array($columnRow)) {
+        return $value;
+    }
+
+    $columnType = app_lower((string) ($columnRow['Type'] ?? ''));
+    if (strpos($columnType, 'enum(') !== 0) {
+        return $value;
+    }
+
+    $allowed = [];
+    if (preg_match_all("/'([^']+)'/", $columnType, $matches) > 0 && isset($matches[1])) {
+        foreach ($matches[1] as $enumValue) {
+            $enumText = app_lower(trim((string) $enumValue));
+            if ($enumText !== '') {
+                $allowed[] = $enumText;
+            }
+        }
+    }
+    $allowed = array_values(array_unique($allowed));
+    if (count($allowed) === 0) {
+        return $value;
+    }
+
+    $normalized = app_lower($value);
+    if (in_array($normalized, $allowed, true)) {
+        return $normalized;
+    }
+
+    $vipTier = in_array($normalized, ['vang', 'bach_kim', 'kim_cuong'], true);
+    if ($vipTier && in_array('vip', $allowed, true)) {
+        return 'vip';
+    }
+    if (in_array('thuong', $allowed, true)) {
+        return 'thuong';
+    }
+
+    return $allowed[0];
 }
 
 function app_admin_parse_id_list($value): array
@@ -221,6 +432,50 @@ function app_admin_sync_voucher_products(mysqli $conn, int $voucherId, array $pr
     return true;
 }
 
+function app_recalculate_customer_spending_from_orders(mysqli $conn, int $customerId): bool
+{
+    if ($customerId <= 0) {
+        return false;
+    }
+
+    if (!app_table_exists($conn, 'donhang') || !app_table_exists($conn, 'khachhang')) {
+        return false;
+    }
+
+    $sumSql = "
+        SELECT COALESCE(SUM(COALESCE(tongtiendonhang, 0)), 0) AS tong
+        FROM donhang
+        WHERE khachhang_id = ?
+          AND LOWER(TRIM(COALESCE(trangthaidonhang, ''))) IN ('hoanthanh', 'hoan_tat', 'hoan tat')
+    ";
+    $sumStmt = $conn->prepare($sumSql);
+    if (!$sumStmt) {
+        return false;
+    }
+
+    $sumStmt->bind_param('i', $customerId);
+    $sumStmt->execute();
+    $sumResult = $sumStmt->get_result();
+    $sumRow = $sumResult ? $sumResult->fetch_assoc() : null;
+    if ($sumResult) {
+        $sumResult->free();
+    }
+    $sumStmt->close();
+
+    $total = is_array($sumRow) ? (float) ($sumRow['tong'] ?? 0) : 0;
+
+    $updateStmt = $conn->prepare('UPDATE khachhang SET tongchitieukhachhang = ? WHERE id = ? LIMIT 1');
+    if (!$updateStmt) {
+        return false;
+    }
+
+    $updateStmt->bind_param('di', $total, $customerId);
+    $ok = $updateStmt->execute();
+    $updateStmt->close();
+
+    return $ok;
+}
+
 function app_handle_admin_api(mysqli $conn, string $api): bool
 {
     if ($api === 'upload_image') {
@@ -267,6 +522,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
 
     if ($api === 'get_categories') {
         app_ensure_category_image_column($conn);
+        app_ensure_category_subcategory_table($conn);
 
         $sql = "
             SELECT
@@ -288,14 +544,17 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
             ], 500);
         }
 
+        $subcategoryMap = app_get_category_subcategories_map($conn);
         $data = [];
         while ($row = $result->fetch_assoc()) {
             $rawImage = (string) ($row['hinhanhdanhmuc'] ?? '');
+            $categoryId = (int) ($row['id'] ?? 0);
             $data[] = [
-                'id' => (int) ($row['id'] ?? 0),
+                'id' => $categoryId,
                 'tendanhmuc' => (string) ($row['tendanhmuc'] ?? ''),
                 'hinhanhdanhmuc' => $rawImage,
                 'hinhanh' => app_to_public_image_url($rawImage),
+                'danhmuccon' => $subcategoryMap[$categoryId] ?? [],
             ];
         }
 
@@ -624,11 +883,14 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
         if ($entity === 'services') {
             app_ensure_dichvu_image_column($conn);
             app_ensure_dichvu_info_column($conn);
+            app_ensure_service_category_table($conn);
+            app_ensure_dichvu_category_column($conn);
 
             if ($action === 'create') {
                 $name = trim((string) ($input['tendichvu'] ?? ''));
                 $price = (float) ($input['giadichvu'] ?? 0);
                 $duration = (int) ($input['thoigiandichvu'] ?? 0);
+                $serviceCategoryId = app_resolve_service_category_id($conn, $input['danhmucdichvu_id'] ?? 0);
                 $status = trim((string) ($input['trangthaidichvu'] ?? 'hoatdong'));
                 $image = trim((string) ($input['hinhanhdichvu'] ?? ''));
                 $info = trim((string) ($input['thongtin'] ?? ''));
@@ -638,13 +900,13 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Du lieu dich vu khong hop le'], 400);
                 }
 
-                $stmt = $conn->prepare('INSERT INTO dichvu (tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, thongtin) VALUES (?, ?, ?, ?, ?, ?)');
+                $stmt = $conn->prepare('INSERT INTO dichvu (tendichvu, giadichvu, thoigiandichvu, danhmucdichvu_id, trangthaidichvu, hinhanhdichvu, thongtin) VALUES (?, ?, ?, ?, ?, ?, ?)');
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the them dich vu', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sdisss', $name, $price, $duration, $status, $image, $info);
+                $stmt->bind_param('sdiisss', $name, $price, $duration, $serviceCategoryId, $status, $image, $info);
                 $ok = $stmt->execute();
                 $newId = (int) $conn->insert_id;
                 $stmt->close();
@@ -654,7 +916,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Them dich vu that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, COALESCE(thongtin, "") AS thongtin, ngaytaodichvu FROM dichvu WHERE id = ' . $newId . ' LIMIT 1');
+                $rowResult = $conn->query('SELECT d.id, d.tendichvu, d.giadichvu, d.thoigiandichvu, d.danhmucdichvu_id, COALESCE(dm.tendanhmucdichvu, "") AS tendanhmucdichvu, d.trangthaidichvu, d.hinhanhdichvu, COALESCE(d.thongtin, "") AS thongtin, d.ngaytaodichvu FROM dichvu d LEFT JOIN danhmucdichvu dm ON dm.id = d.danhmucdichvu_id WHERE d.id = ' . $newId . ' LIMIT 1');
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
@@ -669,6 +931,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $name = trim((string) ($input['tendichvu'] ?? ''));
                 $price = (float) ($input['giadichvu'] ?? 0);
                 $duration = (int) ($input['thoigiandichvu'] ?? 0);
+                $serviceCategoryId = app_resolve_service_category_id($conn, $input['danhmucdichvu_id'] ?? 0);
                 $status = trim((string) ($input['trangthaidichvu'] ?? 'hoatdong'));
                 $image = trim((string) ($input['hinhanhdichvu'] ?? ''));
                 $info = trim((string) ($input['thongtin'] ?? ''));
@@ -678,13 +941,13 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Du lieu cap nhat dich vu khong hop le'], 400);
                 }
 
-                $stmt = $conn->prepare('UPDATE dichvu SET tendichvu = ?, giadichvu = ?, thoigiandichvu = ?, trangthaidichvu = ?, hinhanhdichvu = ?, thongtin = ? WHERE id = ?');
+                $stmt = $conn->prepare('UPDATE dichvu SET tendichvu = ?, giadichvu = ?, thoigiandichvu = ?, danhmucdichvu_id = ?, trangthaidichvu = ?, hinhanhdichvu = ?, thongtin = ? WHERE id = ?');
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the cap nhat dich vu', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sdisssi', $name, $price, $duration, $status, $image, $info, $id);
+                $stmt->bind_param('sdiisssi', $name, $price, $duration, $serviceCategoryId, $status, $image, $info, $id);
                 $ok = $stmt->execute();
                 $stmt->close();
                 if (!$ok) {
@@ -692,7 +955,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Cap nhat dich vu that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query('SELECT id, tendichvu, giadichvu, thoigiandichvu, trangthaidichvu, hinhanhdichvu, COALESCE(thongtin, "") AS thongtin, ngaytaodichvu FROM dichvu WHERE id = ' . $id . ' LIMIT 1');
+                $rowResult = $conn->query('SELECT d.id, d.tendichvu, d.giadichvu, d.thoigiandichvu, d.danhmucdichvu_id, COALESCE(dm.tendanhmucdichvu, "") AS tendanhmucdichvu, d.trangthaidichvu, d.hinhanhdichvu, COALESCE(d.thongtin, "") AS thongtin, d.ngaytaodichvu FROM dichvu d LEFT JOIN danhmucdichvu dm ON dm.id = d.danhmucdichvu_id WHERE d.id = ' . $id . ' LIMIT 1');
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
@@ -728,6 +991,79 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
             }
         }
 
+        if ($entity === 'service_categories') {
+            if (!app_ensure_service_category_table($conn)) {
+                $conn->close();
+                app_json_response(['ok' => false, 'message' => 'Khong the khoi tao bang danh muc dich vu', 'error' => $conn->error], 500);
+            }
+            app_ensure_dichvu_category_column($conn);
+
+            if ($action === 'create') {
+                $name = trim((string) ($input['tendanhmucdichvu'] ?? ''));
+                if ($name === '') {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Ten danh muc dich vu khong hop le'], 400);
+                }
+
+                $stmt = $conn->prepare('INSERT INTO danhmucdichvu (tendanhmucdichvu) VALUES (?)');
+                if (!$stmt) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the them danh muc dich vu', 'error' => $conn->error], 500);
+                }
+
+                $stmt->bind_param('s', $name);
+                $ok = $stmt->execute();
+                $newId = (int) $conn->insert_id;
+                $stmt->close();
+
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Them danh muc dich vu that bai (co the bi trung)', 'error' => $conn->error], 500);
+                }
+
+                $rows = app_get_service_categories($conn);
+                $created = null;
+                foreach ($rows as $row) {
+                    if ((int) ($row['id'] ?? 0) === $newId) {
+                        $created = $row;
+                        break;
+                    }
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true, 'data' => $created]);
+            }
+
+            if ($action === 'delete') {
+                $id = (int) ($input['id'] ?? 0);
+                if ($id <= 0) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'ID danh muc dich vu khong hop le'], 400);
+                }
+
+                $conn->query('UPDATE dichvu SET danhmucdichvu_id = NULL WHERE danhmucdichvu_id = ' . $id);
+
+                $stmt = $conn->prepare('DELETE FROM danhmucdichvu WHERE id = ?');
+                if (!$stmt) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the xoa danh muc dich vu', 'error' => $conn->error], 500);
+                }
+
+                $stmt->bind_param('i', $id);
+                $ok = $stmt->execute();
+                $affected = $stmt->affected_rows;
+                $stmt->close();
+
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Xoa danh muc dich vu that bai', 'error' => $conn->error], 500);
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true, 'deleted' => max(0, (int) $affected)]);
+            }
+        }
+
         if ($entity === 'products') {
             app_ensure_product_subcategory_column($conn);
             app_ensure_product_discount_columns($conn);
@@ -744,6 +1080,13 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $status = trim((string) ($input['trangthaisanpham'] ?? 'conhang'));
                 $image = trim((string) ($input['hinhanhsanpham'] ?? ''));
                 $info = trim((string) ($input['thongtin'] ?? ''));
+                $createStorePetRaw = $input['them_vao_danh_sach_thu_cung'] ?? false;
+                $createStorePet = false;
+                if (is_bool($createStorePetRaw)) {
+                    $createStorePet = $createStorePetRaw;
+                } else {
+                    $createStorePet = in_array(strtolower(trim((string) $createStorePetRaw)), ['1', 'true', 'on', 'yes'], true);
+                }
                 $discountPercent = (float) ($input['phantramgiamgia'] ?? 0);
                 $discountStart = app_admin_normalize_datetime_input((string) ($input['thoigianbatdaugiam'] ?? ''));
                 $discountEnd = app_admin_normalize_datetime_input((string) ($input['thoigianketthucgiam'] ?? ''));
@@ -784,6 +1127,8 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     $code = 'SP' . str_pad((string) time(), 10, '0', STR_PAD_LEFT);
                 }
 
+                $status = app_admin_resolve_product_status($qty, $status);
+
                 $stmt = $conn->prepare('INSERT INTO sanpham (tensanpham, danhmuc_id, danhmuccon, masanpham, giasanpham, phantramgiamgia, thoigianbatdaugiam, thoigianketthucgiam, soluongsanpham, trangthaisanpham, hinhanhsanpham, thongtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 if (!$stmt) {
                     $conn->close();
@@ -797,6 +1142,57 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 if (!$ok) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Them san pham that bai', 'error' => $conn->error], 500);
+                }
+
+                if ($createStorePet && app_table_exists($conn, 'thucung')) {
+                    $petTypeColumn = app_detect_pet_type_column($conn);
+                    if ($petTypeColumn !== '') {
+                        $hasPetSourceColumn = app_column_exists($conn, 'thucung', 'nguon_thucung');
+                        $hasPetProductColumn = app_column_exists($conn, 'thucung', 'sanpham_id');
+
+                        $petTypeValue = trim($categoryName) !== '' ? $categoryName : 'Thu cung';
+                        $petBreedValue = 'Khong ro';
+                        $petStatusValue = 'Dang ban';
+                        $petNoteValue = 'Tu dong tao tu san pham cua cua hang';
+                        $petRegDateValue = date('Y-m-d');
+                        $petOwnerId = null;
+                        $petSourceValue = 'cua_hang';
+
+                        $petInsertColumns = "tenthucung, {$petTypeColumn}, giongthucung, chusohuu_id";
+                        $petInsertValues = '?, ?, ?, ?';
+                        $petInsertTypes = 'sssi';
+                        if ($hasPetSourceColumn) {
+                            $petInsertColumns .= ', nguon_thucung';
+                            $petInsertValues .= ', ?';
+                            $petInsertTypes .= 's';
+                        }
+                        if ($hasPetProductColumn) {
+                            $petInsertColumns .= ', sanpham_id';
+                            $petInsertValues .= ', ?';
+                            $petInsertTypes .= 'i';
+                        }
+                        $petInsertColumns .= ', trangthaithucung, thongtin, ngaydangkythucung';
+                        $petInsertValues .= ', ?, ?, ?';
+                        $petInsertTypes .= 'sss';
+
+                        $petInsertSql = "INSERT INTO thucung ({$petInsertColumns}) VALUES ({$petInsertValues})";
+                        $petStmt = $conn->prepare($petInsertSql);
+                        if ($petStmt) {
+                            $petBindValues = [$name, $petTypeValue, $petBreedValue, $petOwnerId];
+                            if ($hasPetSourceColumn) {
+                                $petBindValues[] = $petSourceValue;
+                            }
+                            if ($hasPetProductColumn) {
+                                $petBindValues[] = $newId;
+                            }
+                            $petBindValues[] = $petStatusValue;
+                            $petBindValues[] = $petNoteValue;
+                            $petBindValues[] = $petRegDateValue;
+                            $petStmt->bind_param($petInsertTypes, ...$petBindValues);
+                            $petStmt->execute();
+                            $petStmt->close();
+                        }
+                    }
                 }
 
                 $rowResult = $conn->query("SELECT s.id, s.tensanpham, s.danhmuc_id, COALESCE(NULLIF(TRIM(s.danhmuccon), ''), '') AS danhmuccon, COALESCE(d.tendanhmuc, 'Chua phan loai') AS tendanhmuc, s.masanpham, s.giasanpham, COALESCE(s.phantramgiamgia, 0) AS phantramgiamgia, s.thoigianbatdaugiam, s.thoigianketthucgiam, s.soluongsanpham, s.trangthaisanpham, s.hinhanhsanpham, COALESCE(s.thongtin, '') AS thongtin FROM sanpham s LEFT JOIN danhmuc d ON d.id = s.danhmuc_id WHERE s.id = {$newId} LIMIT 1");
@@ -820,6 +1216,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $qty = (int) ($input['soluongsanpham'] ?? 0);
                 $status = trim((string) ($input['trangthaisanpham'] ?? 'conhang'));
                 $image = trim((string) ($input['hinhanhsanpham'] ?? ''));
+                $hasInfoField = is_array($input) && array_key_exists('thongtin', $input);
                 $info = trim((string) ($input['thongtin'] ?? ''));
                 $discountPercent = (float) ($input['phantramgiamgia'] ?? 0);
                 $discountStart = app_admin_normalize_datetime_input((string) ($input['thoigianbatdaugiam'] ?? ''));
@@ -878,9 +1275,11 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     $image = (string) ($existing['hinhanhsanpham'] ?? '');
                 }
 
-                if ($info === '') {
+                if (!$hasInfoField) {
                     $info = (string) ($existing['thongtin'] ?? '');
                 }
+
+                $status = app_admin_resolve_product_status($qty, $status);
 
                 $stmt = $conn->prepare('UPDATE sanpham SET tensanpham = ?, danhmuc_id = ?, danhmuccon = ?, masanpham = ?, giasanpham = ?, phantramgiamgia = ?, thoigianbatdaugiam = ?, thoigianketthucgiam = ?, soluongsanpham = ?, trangthaisanpham = ?, hinhanhsanpham = ?, thongtin = ? WHERE id = ?');
                 if (!$stmt) {
@@ -934,6 +1333,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
 
         if ($entity === 'categories') {
             app_ensure_category_image_column($conn);
+            app_ensure_category_subcategory_table($conn);
 
             if ($action === 'create') {
                 $name = trim((string) ($input['tendanhmuc'] ?? ''));
@@ -1027,6 +1427,10 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'ID danh muc khong hop le'], 400);
                 }
 
+                if (app_table_exists($conn, 'danhmuccon')) {
+                    $conn->query('DELETE FROM danhmuccon WHERE danhmuc_id = ' . $id);
+                }
+
                 $stmt = $conn->prepare('DELETE FROM danhmuc WHERE id = ?');
                 if (!$stmt) {
                     $conn->close();
@@ -1047,13 +1451,104 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
             }
         }
 
+        if ($entity === 'category_subcategories') {
+            if (!app_ensure_category_subcategory_table($conn)) {
+                $conn->close();
+                app_json_response(['ok' => false, 'message' => 'Khong the khoi tao bang danh muc con', 'error' => $conn->error], 500);
+            }
+
+            if ($action === 'create') {
+                $categoryId = (int) ($input['danhmuc_id'] ?? 0);
+                $name = trim((string) ($input['tendanhmuccon'] ?? ''));
+
+                if ($categoryId <= 0 || $name === '') {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Du lieu danh muc con khong hop le'], 400);
+                }
+
+                $checkCategory = $conn->query('SELECT id FROM danhmuc WHERE id = ' . $categoryId . ' LIMIT 1');
+                $existsCategory = $checkCategory && $checkCategory->num_rows > 0;
+                if ($checkCategory) {
+                    $checkCategory->free();
+                }
+                if (!$existsCategory) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong tim thay danh muc cha'], 404);
+                }
+
+                $stmt = $conn->prepare('INSERT INTO danhmuccon (danhmuc_id, tendanhmuccon) VALUES (?, ?)');
+                if (!$stmt) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Khong the them danh muc con', 'error' => $conn->error], 500);
+                }
+
+                $stmt->bind_param('is', $categoryId, $name);
+                $ok = $stmt->execute();
+                $newId = (int) $conn->insert_id;
+                $stmt->close();
+
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Them danh muc con that bai (co the bi trung)', 'error' => $conn->error], 500);
+                }
+
+                $rowResult = $conn->query('SELECT id, danhmuc_id, tendanhmuccon FROM danhmuccon WHERE id = ' . $newId . ' LIMIT 1');
+                $row = $rowResult ? $rowResult->fetch_assoc() : null;
+                if ($rowResult) {
+                    $rowResult->free();
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true, 'data' => $row]);
+            }
+
+            if ($action === 'delete') {
+                $id = (int) ($input['id'] ?? 0);
+                $categoryId = (int) ($input['danhmuc_id'] ?? 0);
+                $name = trim((string) ($input['tendanhmuccon'] ?? ''));
+
+                if ($id <= 0 && ($categoryId <= 0 || $name === '')) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Thieu thong tin de xoa danh muc con'], 400);
+                }
+
+                if ($id > 0) {
+                    $stmt = $conn->prepare('DELETE FROM danhmuccon WHERE id = ?');
+                    if (!$stmt) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Khong the xoa danh muc con', 'error' => $conn->error], 500);
+                    }
+                    $stmt->bind_param('i', $id);
+                } else {
+                    $stmt = $conn->prepare('DELETE FROM danhmuccon WHERE danhmuc_id = ? AND tendanhmuccon = ?');
+                    if (!$stmt) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Khong the xoa danh muc con', 'error' => $conn->error], 500);
+                    }
+                    $stmt->bind_param('is', $categoryId, $name);
+                }
+
+                $ok = $stmt->execute();
+                $affected = $stmt->affected_rows;
+                $stmt->close();
+
+                if (!$ok) {
+                    $conn->close();
+                    app_json_response(['ok' => false, 'message' => 'Xoa danh muc con that bai', 'error' => $conn->error], 500);
+                }
+
+                $conn->close();
+                app_json_response(['ok' => true, 'deleted' => max(0, (int) $affected)]);
+            }
+        }
+
         if ($entity === 'customers') {
             if ($action === 'create') {
                 $name = trim((string) ($input['tenkhachhang'] ?? ''));
                 $phone = trim((string) ($input['sodienthoaikhachhang'] ?? ''));
                 $email = trim((string) ($input['emailkhachhang'] ?? ''));
                 $spending = max(0, (float) ($input['tongchitieukhachhang'] ?? 0));
-                $type = app_admin_customer_tier_key($spending);
+                $type = app_admin_resolve_customer_type_for_storage($conn, app_admin_customer_tier_key($spending));
 
                 if ($name === '' || $phone === '' || $email === '') {
                     $conn->close();
@@ -1094,7 +1589,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $phone = trim((string) ($input['sodienthoaikhachhang'] ?? ''));
                 $email = trim((string) ($input['emailkhachhang'] ?? ''));
                 $spending = max(0, (float) ($input['tongchitieukhachhang'] ?? 0));
-                $type = app_admin_customer_tier_key($spending);
+                $type = app_admin_resolve_customer_type_for_storage($conn, app_admin_customer_tier_key($spending));
 
                 if ($id <= 0 || $name === '' || $phone === '' || $email === '') {
                     $conn->close();
@@ -1103,18 +1598,20 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
 
                 $stmt = $conn->prepare('UPDATE khachhang SET tenkhachhang = ?, sodienthoaikhachhang = ?, emailkhachhang = ?, tongchitieukhachhang = ?, loaikhachhang = ? WHERE id = ?');
                 if (!$stmt) {
+                    $prepareError = $conn->error;
                     $conn->close();
-                    app_json_response(['ok' => false, 'message' => 'Khong the cap nhat khach hang', 'error' => $conn->error], 500);
+                    app_json_response(['ok' => false, 'message' => 'Khong the cap nhat khach hang', 'error' => $prepareError], 500);
                 }
                 $stmt->bind_param('sssdsi', $name, $phone, $email, $spending, $type, $id);
                 $ok = $stmt->execute();
+                $executeError = $stmt->error;
                 $stmt->close();
                 if (!$ok) {
                     $conn->close();
-                    app_json_response(['ok' => false, 'message' => 'Cap nhat khach hang that bai', 'error' => $conn->error], 500);
+                    app_json_response(['ok' => false, 'message' => 'Cap nhat khach hang that bai', 'error' => $executeError], 500);
                 }
 
-                $rowResult = $conn->query('SELECT k.id, k.tenkhachhang, k.sodienthoaikhachhang, k.emailkhachhang, k.tongchitieukhachhang, k.loaikhachhang, k.ngaytaokhachhang, (SELECT COALESCE(NULLIF(TRIM(u.anhdaidiennguoidung), ""), "") FROM nguoidung u WHERE LOWER(TRIM(COALESCE(u.emailnguoidung, ""))) = LOWER(TRIM(COALESCE(k.emailkhachhang, ""))) ORDER BY u.id DESC LIMIT 1) AS anhdaidiennguoidung, COUNT(t.id) AS so_thu_cung FROM khachhang k LEFT JOIN thucung t ON t.chusohuu_id = k.id WHERE k.id = ' . $id . ' GROUP BY k.id, k.tenkhachhang, k.sodienthoaikhachhang, k.emailkhachhang, k.tongchitieukhachhang, k.loaikhachhang, k.ngaytaokhachhang LIMIT 1');
+                $rowResult = $conn->query('SELECT k.id, k.tenkhachhang, k.sodienthoaikhachhang, k.emailkhachhang, k.tongchitieukhachhang, k.loaikhachhang, k.ngaytaokhachhang, (SELECT COALESCE(NULLIF(TRIM(u.anhdaidiennguoidung), ""), "") FROM nguoidung u WHERE LOWER(TRIM(COALESCE(u.emailnguoidung, ""))) = LOWER(TRIM(COALESCE(k.emailkhachhang, ""))) ORDER BY u.id DESC LIMIT 1) AS anhdaidiennguoidung, COUNT(t.id) AS so_thu_cung FROM khachhang k LEFT JOIN thucung t ON t.chusohuu_id = k.id AND COALESCE(t.nguon_thucung, "khach_hang") = "khach_hang" WHERE k.id = ' . $id . ' GROUP BY k.id, k.tenkhachhang, k.sodienthoaikhachhang, k.emailkhachhang, k.tongchitieukhachhang, k.loaikhachhang, k.ngaytaokhachhang LIMIT 1');
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
@@ -1160,38 +1657,97 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 app_json_response(['ok' => false, 'message' => 'Khong tim thay cot loai thu cung trong bang thucung'], 500);
             }
 
+            $hasPetSourceColumn = app_column_exists($conn, 'thucung', 'nguon_thucung');
+            $hasPetProductColumn = app_column_exists($conn, 'thucung', 'sanpham_id');
+
             if ($action === 'create') {
                 $name = trim((string) ($input['tenthucung'] ?? ''));
                 $type = trim((string) ($input['loaithucung'] ?? ''));
                 $breed = trim((string) ($input['giongthucung'] ?? ''));
                 $ownerId = (int) ($input['chusohuu_id'] ?? 0);
+                $source = trim((string) ($input['nguon_thucung'] ?? ''));
+                $productId = (int) ($input['sanpham_id'] ?? 0);
                 $status = trim((string) ($input['trangthaithucung'] ?? ''));
                 $note = trim((string) ($input['thongtin'] ?? ''));
                 $regDate = trim((string) ($input['ngaydangkythucung'] ?? ''));
 
-                if ($name === '' || $type === '' || $breed === '' || $ownerId <= 0 || $status === '' || $regDate === '') {
+                if ($name === '' || $type === '' || $breed === '' || $status === '' || $regDate === '') {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Du lieu thu cung khong hop le'], 400);
                 }
 
-                $ownerCheck = $conn->query('SELECT id FROM khachhang WHERE id = ' . $ownerId . ' LIMIT 1');
-                $ownerRow = $ownerCheck ? $ownerCheck->fetch_assoc() : null;
-                if ($ownerCheck) {
-                    $ownerCheck->free();
-                }
-                if (!$ownerRow) {
-                    $conn->close();
-                    app_json_response(['ok' => false, 'message' => 'Chu so huu khong ton tai'], 400);
+                if (!in_array($source, ['khach_hang', 'cua_hang'], true)) {
+                    $source = $ownerId > 0 ? 'khach_hang' : 'cua_hang';
                 }
 
-                $sqlInsert = "INSERT INTO thucung (tenthucung, {$petTypeColumn}, giongthucung, chusohuu_id, trangthaithucung, thongtin, ngaydangkythucung) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                if ($source === 'khach_hang') {
+                    if ($ownerId <= 0) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Vui long chon chu so huu cho thu cung cua khach hang'], 400);
+                    }
+
+                    $ownerCheck = $conn->query('SELECT id FROM khachhang WHERE id = ' . $ownerId . ' LIMIT 1');
+                    $ownerRow = $ownerCheck ? $ownerCheck->fetch_assoc() : null;
+                    if ($ownerCheck) {
+                        $ownerCheck->free();
+                    }
+                    if (!$ownerRow) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Chu so huu khong ton tai'], 400);
+                    }
+                } else {
+                    $ownerId = null;
+                }
+
+                if ($source === 'cua_hang' && $productId > 0 && app_table_exists($conn, 'sanpham')) {
+                    $productCheck = $conn->query('SELECT id FROM sanpham WHERE id = ' . $productId . ' LIMIT 1');
+                    $productRow = $productCheck ? $productCheck->fetch_assoc() : null;
+                    if ($productCheck) {
+                        $productCheck->free();
+                    }
+                    if (!$productRow) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'San pham lien ket khong ton tai'], 400);
+                    }
+                } else {
+                    $productId = 0;
+                }
+
+                $insertColumns = "tenthucung, {$petTypeColumn}, giongthucung, chusohuu_id";
+                $insertValues = '?, ?, ?, ?';
+                $insertTypes = 'sssi';
+                if ($hasPetSourceColumn) {
+                    $insertColumns .= ', nguon_thucung';
+                    $insertValues .= ', ?';
+                    $insertTypes .= 's';
+                }
+                if ($hasPetProductColumn) {
+                    $insertColumns .= ', sanpham_id';
+                    $insertValues .= ', ?';
+                    $insertTypes .= 'i';
+                }
+                $insertColumns .= ', trangthaithucung, thongtin, ngaydangkythucung';
+                $insertValues .= ', ?, ?, ?';
+                $insertTypes .= 'sss';
+
+                $sqlInsert = "INSERT INTO thucung ({$insertColumns}) VALUES ({$insertValues})";
                 $stmt = $conn->prepare($sqlInsert);
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the them thu cung', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sssisss', $name, $type, $breed, $ownerId, $status, $note, $regDate);
+                $bindValues = [$name, $type, $breed, $ownerId];
+                if ($hasPetSourceColumn) {
+                    $bindValues[] = $source;
+                }
+                if ($hasPetProductColumn) {
+                    $bindValues[] = $productId > 0 ? $productId : null;
+                }
+                $bindValues[] = $status;
+                $bindValues[] = $note;
+                $bindValues[] = $regDate;
+                $stmt->bind_param($insertTypes, ...$bindValues);
                 $ok = $stmt->execute();
                 $newId = (int) $conn->insert_id;
                 $stmt->close();
@@ -1200,7 +1756,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Them thu cung that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query("SELECT t.id, t.tenthucung, t.{$petTypeColumn} AS loaithucung, t.giongthucung, t.chusohuu_id, k.tenkhachhang AS tenchusohuu, t.trangthaithucung, t.thongtin, t.ngaydangkythucung FROM thucung t LEFT JOIN khachhang k ON k.id = t.chusohuu_id WHERE t.id = {$newId} LIMIT 1");
+                $rowResult = $conn->query("SELECT t.id, t.tenthucung, t.{$petTypeColumn} AS loaithucung, t.giongthucung, t.chusohuu_id, COALESCE(NULLIF(TRIM(t.nguon_thucung), ''), CASE WHEN COALESCE(t.chusohuu_id, 0) > 0 THEN 'khach_hang' ELSE 'cua_hang' END) AS nguon_thucung, t.sanpham_id, k.tenkhachhang AS tenchusohuu, COALESCE(sp.tensanpham, '') AS tensanpham_lienket, COALESCE(sp.hinhanhsanpham, '') AS hinhanhsanpham_lienket, t.trangthaithucung, t.thongtin, t.ngaydangkythucung FROM thucung t LEFT JOIN khachhang k ON k.id = t.chusohuu_id LEFT JOIN sanpham sp ON sp.id = t.sanpham_id WHERE t.id = {$newId} LIMIT 1");
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
@@ -1216,33 +1772,92 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 $type = trim((string) ($input['loaithucung'] ?? ''));
                 $breed = trim((string) ($input['giongthucung'] ?? ''));
                 $ownerId = (int) ($input['chusohuu_id'] ?? 0);
+                $source = trim((string) ($input['nguon_thucung'] ?? ''));
+                $productId = (int) ($input['sanpham_id'] ?? 0);
                 $status = trim((string) ($input['trangthaithucung'] ?? ''));
                 $note = trim((string) ($input['thongtin'] ?? ''));
                 $regDate = trim((string) ($input['ngaydangkythucung'] ?? ''));
 
-                if ($id <= 0 || $name === '' || $type === '' || $breed === '' || $ownerId <= 0 || $status === '' || $regDate === '') {
+                if ($id <= 0 || $name === '' || $type === '' || $breed === '' || $status === '' || $regDate === '') {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Du lieu cap nhat thu cung khong hop le'], 400);
                 }
 
-                $ownerCheck = $conn->query('SELECT id FROM khachhang WHERE id = ' . $ownerId . ' LIMIT 1');
-                $ownerRow = $ownerCheck ? $ownerCheck->fetch_assoc() : null;
-                if ($ownerCheck) {
-                    $ownerCheck->free();
-                }
-                if (!$ownerRow) {
-                    $conn->close();
-                    app_json_response(['ok' => false, 'message' => 'Chu so huu khong ton tai'], 400);
+                if (!in_array($source, ['khach_hang', 'cua_hang'], true)) {
+                    $source = $ownerId > 0 ? 'khach_hang' : 'cua_hang';
                 }
 
-                $sqlUpdate = "UPDATE thucung SET tenthucung = ?, {$petTypeColumn} = ?, giongthucung = ?, chusohuu_id = ?, trangthaithucung = ?, thongtin = ?, ngaydangkythucung = ? WHERE id = ?";
+                if ($source === 'khach_hang') {
+                    if ($ownerId <= 0) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Vui long chon chu so huu cho thu cung cua khach hang'], 400);
+                    }
+
+                    $ownerCheck = $conn->query('SELECT id FROM khachhang WHERE id = ' . $ownerId . ' LIMIT 1');
+                    $ownerRow = $ownerCheck ? $ownerCheck->fetch_assoc() : null;
+                    if ($ownerCheck) {
+                        $ownerCheck->free();
+                    }
+                    if (!$ownerRow) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'Chu so huu khong ton tai'], 400);
+                    }
+                } else {
+                    $ownerId = null;
+                }
+
+                if ($source === 'cua_hang' && $productId > 0 && app_table_exists($conn, 'sanpham')) {
+                    $productCheck = $conn->query('SELECT id FROM sanpham WHERE id = ' . $productId . ' LIMIT 1');
+                    $productRow = $productCheck ? $productCheck->fetch_assoc() : null;
+                    if ($productCheck) {
+                        $productCheck->free();
+                    }
+                    if (!$productRow) {
+                        $conn->close();
+                        app_json_response(['ok' => false, 'message' => 'San pham lien ket khong ton tai'], 400);
+                    }
+                } else {
+                    $productId = 0;
+                }
+
+                $setParts = [
+                    'tenthucung = ?',
+                    "{$petTypeColumn} = ?",
+                    'giongthucung = ?',
+                    'chusohuu_id = ?',
+                ];
+                $updateTypes = 'sssi';
+                $updateValues = [$name, $type, $breed, $ownerId];
+
+                if ($hasPetSourceColumn) {
+                    $setParts[] = 'nguon_thucung = ?';
+                    $updateTypes .= 's';
+                    $updateValues[] = $source;
+                }
+
+                if ($hasPetProductColumn) {
+                    $setParts[] = 'sanpham_id = ?';
+                    $updateTypes .= 'i';
+                    $updateValues[] = $productId > 0 ? $productId : null;
+                }
+
+                $setParts[] = 'trangthaithucung = ?';
+                $setParts[] = 'thongtin = ?';
+                $setParts[] = 'ngaydangkythucung = ?';
+                $updateTypes .= 'sssi';
+                $updateValues[] = $status;
+                $updateValues[] = $note;
+                $updateValues[] = $regDate;
+                $updateValues[] = $id;
+
+                $sqlUpdate = 'UPDATE thucung SET ' . implode(', ', $setParts) . ' WHERE id = ?';
                 $stmt = $conn->prepare($sqlUpdate);
                 if (!$stmt) {
                     $conn->close();
                     app_json_response(['ok' => false, 'message' => 'Khong the cap nhat thu cung', 'error' => $conn->error], 500);
                 }
 
-                $stmt->bind_param('sssisssi', $name, $type, $breed, $ownerId, $status, $note, $regDate, $id);
+                $stmt->bind_param($updateTypes, ...$updateValues);
                 $ok = $stmt->execute();
                 $stmt->close();
                 if (!$ok) {
@@ -1250,7 +1865,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     app_json_response(['ok' => false, 'message' => 'Cap nhat thu cung that bai', 'error' => $conn->error], 500);
                 }
 
-                $rowResult = $conn->query("SELECT t.id, t.tenthucung, t.{$petTypeColumn} AS loaithucung, t.giongthucung, t.chusohuu_id, k.tenkhachhang AS tenchusohuu, t.trangthaithucung, t.thongtin, t.ngaydangkythucung FROM thucung t LEFT JOIN khachhang k ON k.id = t.chusohuu_id WHERE t.id = {$id} LIMIT 1");
+                $rowResult = $conn->query("SELECT t.id, t.tenthucung, t.{$petTypeColumn} AS loaithucung, t.giongthucung, t.chusohuu_id, COALESCE(NULLIF(TRIM(t.nguon_thucung), ''), CASE WHEN COALESCE(t.chusohuu_id, 0) > 0 THEN 'khach_hang' ELSE 'cua_hang' END) AS nguon_thucung, t.sanpham_id, k.tenkhachhang AS tenchusohuu, COALESCE(sp.tensanpham, '') AS tensanpham_lienket, COALESCE(sp.hinhanhsanpham, '') AS hinhanhsanpham_lienket, t.trangthaithucung, t.thongtin, t.ngaydangkythucung FROM thucung t LEFT JOIN khachhang k ON k.id = t.chusohuu_id LEFT JOIN sanpham sp ON sp.id = t.sanpham_id WHERE t.id = {$id} LIMIT 1");
                 $row = $rowResult ? $rowResult->fetch_assoc() : null;
                 if ($rowResult) {
                     $rowResult->free();
@@ -1303,6 +1918,80 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
             ], 500);
         }
 
+        if (!app_column_exists($conn, 'donhang_online', 'da_cong_chi_tieu')) {
+            $conn->query("ALTER TABLE donhang_online ADD COLUMN da_cong_chi_tieu TINYINT(1) NOT NULL DEFAULT 0 AFTER nguoiduyet");
+        }
+
+        if (app_table_exists($conn, 'donhang') && app_table_exists($conn, 'khachhang')) {
+            $reconcileSql = "
+                SELECT
+                    o.id,
+                    o.donhang_id,
+                    COALESCE(o.tongtien, 0) AS tongtien_online,
+                    COALESCE(d.khachhang_id, 0) AS khachhang_id,
+                    COALESCE(d.tongtiendonhang, 0) AS tongtien_donhang
+                FROM donhang_online o
+                LEFT JOIN donhang d ON d.id = o.donhang_id
+                WHERE o.trangthai = 'da_duyet'
+                  AND COALESCE(o.da_cong_chi_tieu, 0) = 0
+                ORDER BY o.id ASC
+                LIMIT 500
+            ";
+            $reconcileResult = $conn->query($reconcileSql);
+            if ($reconcileResult) {
+                while ($reconcileRow = $reconcileResult->fetch_assoc()) {
+                    $onlineIdToSync = (int) ($reconcileRow['id'] ?? 0);
+                    $internalOrderIdToSync = (int) ($reconcileRow['donhang_id'] ?? 0);
+                    $customerIdToSync = (int) ($reconcileRow['khachhang_id'] ?? 0);
+                    $orderAmountToSync = (float) ($reconcileRow['tongtien_donhang'] ?? 0);
+                    $onlineAmountToSync = (float) ($reconcileRow['tongtien_online'] ?? 0);
+                    $spendingToSync = $orderAmountToSync > 0 ? $orderAmountToSync : $onlineAmountToSync;
+
+                    if ($internalOrderIdToSync > 0) {
+                        $syncOrderStmt = $conn->prepare("UPDATE donhang SET trangthaidonhang = 'hoanthanh' WHERE id = ? LIMIT 1");
+                        if ($syncOrderStmt) {
+                            $syncOrderStmt->bind_param('i', $internalOrderIdToSync);
+                            $syncOrderStmt->execute();
+                            $syncOrderStmt->close();
+                        }
+                    }
+
+                    if ($customerIdToSync > 0 && $spendingToSync > 0) {
+                        app_recalculate_customer_spending_from_orders($conn, $customerIdToSync);
+                    }
+
+                    if ($onlineIdToSync > 0) {
+                        $syncFlagStmt = $conn->prepare('UPDATE donhang_online SET da_cong_chi_tieu = 1 WHERE id = ? LIMIT 1');
+                        if ($syncFlagStmt) {
+                            $syncFlagStmt->bind_param('i', $onlineIdToSync);
+                            $syncFlagStmt->execute();
+                            $syncFlagStmt->close();
+                        }
+                    }
+                }
+                $reconcileResult->free();
+            }
+
+            $recalcCustomerSql = "
+                SELECT DISTINCT COALESCE(d.khachhang_id, 0) AS khachhang_id
+                FROM donhang_online o
+                INNER JOIN donhang d ON d.id = o.donhang_id
+                WHERE o.trangthai = 'da_duyet'
+                  AND COALESCE(d.khachhang_id, 0) > 0
+                LIMIT 2000
+            ";
+            $recalcCustomerResult = $conn->query($recalcCustomerSql);
+            if ($recalcCustomerResult) {
+                while ($recalcRow = $recalcCustomerResult->fetch_assoc()) {
+                    $recalcCustomerId = (int) ($recalcRow['khachhang_id'] ?? 0);
+                    if ($recalcCustomerId > 0) {
+                        app_recalculate_customer_spending_from_orders($conn, $recalcCustomerId);
+                    }
+                }
+                $recalcCustomerResult->free();
+            }
+        }
+
         $status = trim((string) ($_GET['status'] ?? ''));
         $keyword = trim((string) ($_GET['keyword'] ?? ''));
         $limit = (int) ($_GET['limit'] ?? 300);
@@ -1343,6 +2032,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 trangthai,
                 ldotuchoi,
                 nguoiduyet,
+                COALESCE(da_cong_chi_tieu, 0) AS da_cong_chi_tieu,
                 nguon,
                 chitiet_json,
                 ngaytao,
@@ -1541,6 +2231,10 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
             ], 500);
         }
 
+        if (!app_column_exists($conn, 'donhang_online', 'da_cong_chi_tieu')) {
+            $conn->query("ALTER TABLE donhang_online ADD COLUMN da_cong_chi_tieu TINYINT(1) NOT NULL DEFAULT 0 AFTER nguoiduyet");
+        }
+
         if (!app_ensure_order_tables($conn)) {
             $conn->close();
             app_json_response([
@@ -1575,7 +2269,7 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
         }
 
         $findSql = "
-            SELECT id, donhang_id, madonhang, trangthai, chitiet_json
+            SELECT id, donhang_id, madonhang, trangthai, tongtien, COALESCE(da_cong_chi_tieu, 0) AS da_cong_chi_tieu, chitiet_json
             FROM donhang_online
             WHERE " . ($id > 0 ? 'id = ?' : 'madonhang = ?') . "
             LIMIT 1
@@ -1615,6 +2309,8 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
         $onlineId = (int) ($targetRow['id'] ?? 0);
         $internalOrderId = (int) ($targetRow['donhang_id'] ?? 0);
         $oldStatus = trim((string) ($targetRow['trangthai'] ?? 'cho_duyet'));
+        $onlineTotal = (float) ($targetRow['tongtien'] ?? 0);
+        $spendingAlreadyApplied = ((int) ($targetRow['da_cong_chi_tieu'] ?? 0)) === 1;
         $itemsFromOnline = json_decode((string) ($targetRow['chitiet_json'] ?? '[]'), true);
         if (!is_array($itemsFromOnline)) {
             $itemsFromOnline = [];
@@ -1695,6 +2391,43 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                     $updateDonHangStmt->bind_param('si', $orderStatus, $internalOrderId);
                     $updateDonHangStmt->execute();
                     $updateDonHangStmt->close();
+                }
+            }
+
+            if ($status === 'da_duyet' && $internalOrderId > 0 && app_table_exists($conn, 'donhang') && app_table_exists($conn, 'khachhang')) {
+                $orderInfoSql = "
+                    SELECT khachhang_id, COALESCE(tongtiendonhang, 0) AS tongtiendonhang
+                    FROM donhang
+                    WHERE id = ?
+                    LIMIT 1
+                ";
+                $orderInfoStmt = $conn->prepare($orderInfoSql);
+                if ($orderInfoStmt) {
+                    $orderInfoStmt->bind_param('i', $internalOrderId);
+                    $orderInfoStmt->execute();
+                    $orderInfoResult = $orderInfoStmt->get_result();
+                    $orderInfoRow = $orderInfoResult ? $orderInfoResult->fetch_assoc() : null;
+                    if ($orderInfoResult) {
+                        $orderInfoResult->free();
+                    }
+                    $orderInfoStmt->close();
+
+                    $orderCustomerId = is_array($orderInfoRow) ? (int) ($orderInfoRow['khachhang_id'] ?? 0) : 0;
+                    $orderTotal = is_array($orderInfoRow) ? (float) ($orderInfoRow['tongtiendonhang'] ?? 0) : 0;
+                    $spendingAmount = $orderTotal > 0 ? $orderTotal : $onlineTotal;
+
+                    if ($orderCustomerId > 0 && $spendingAmount > 0) {
+                        app_recalculate_customer_spending_from_orders($conn, $orderCustomerId);
+                    }
+
+                    if (!$spendingAlreadyApplied) {
+                        $appliedFlagStmt = $conn->prepare('UPDATE donhang_online SET da_cong_chi_tieu = 1 WHERE id = ? LIMIT 1');
+                        if ($appliedFlagStmt) {
+                            $appliedFlagStmt->bind_param('i', $onlineId);
+                            $appliedFlagStmt->execute();
+                            $appliedFlagStmt->close();
+                        }
+                    }
                 }
             }
 

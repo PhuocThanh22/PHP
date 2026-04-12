@@ -6,7 +6,7 @@
     <title>Khách Hàng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="admin-style.css?v=20260412-3">
     <style>
         #customerTableBody tr {
             cursor: pointer;
@@ -116,6 +116,19 @@
         .status-badge.tier-bach-kim { background: #dcfce7; color: #15803d; }
         .status-badge.tier-kim-cuong { background: #ede9fe; color: #6d28d9; }
 
+        .module-card.is-clickable {
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .module-card.is-clickable:hover {
+            transform: translateY(-2px);
+        }
+
+        .module-card.is-active {
+            box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.24), 0 10px 18px rgba(2, 6, 23, 0.08);
+        }
+
         @media (max-width: 768px) {
             .customer-detail-grid {
                 grid-template-columns: 1fr;
@@ -132,24 +145,21 @@
                 <i class="bi bi-search"></i>
                 <input id="customerSearchInput" type="text" placeholder="Tìm theo tên, SĐT, email hoặc mã khách..." aria-label="Tìm khách hàng">
             </div>
-            <div class="service-toolbar-actions">
-                <span class="text-muted fw-semibold">Chỉ staff có quyền thêm/sửa/xóa khách hàng</span>
-            </div>
         </div>
     </div>
 
     <div class="module-grid mb-3">
-        <div class="module-card">
+        <div class="module-card is-clickable is-active" data-mode="all">
             <div class="module-title"><i class="bi bi-people"></i><span>Tổng Khách Hàng</span></div>
             <div class="module-value" id="customerTotal">0</div>
             <div class="module-desc">Đã có hồ sơ trong hệ thống</div>
         </div>
-        <div class="module-card">
-            <div class="module-title"><i class="bi bi-gem"></i><span>Khách VIP</span></div>
+        <div class="module-card is-clickable" data-mode="vip">
+            <div class="module-title"><i class="bi bi-gem"></i><span>Khách Kim Cương</span></div>
             <div class="module-value" id="customerVip">0</div>
-            <div class="module-desc">Tệp khách hàng ưu tiên</div>
+            <div class="module-desc">Khách hàng hạng cao nhất</div>
         </div>
-        <div class="module-card">
+        <div class="module-card is-clickable" data-mode="pet_owners">
             <div class="module-title"><i class="bi bi-heart"></i><span>Tổng Thú Cưng</span></div>
             <div class="module-value" id="customerPetCount">0</div>
             <div class="module-desc">Số thú cưng đã liên kết chủ</div>
@@ -157,7 +167,7 @@
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-people text-warning me-2"></i>Danh Sách Khách Hàng</h3></div>
+        <div class="section-header"><h3 id="customerSectionTitle"><i class="bi bi-people text-warning me-2"></i>Danh Sách Khách Hàng</h3></div>
         <div class="data-table">
             <table>
                 <thead>
@@ -260,6 +270,7 @@
     let allCustomers = [];
     let customerFilter = '';
     let customerMode = 'update';
+    let currentCustomerListMode = 'all';
     let selectedCustomerId = '';
     const selectedCustomerIds = new Set();
     const ADMIN_CAN_MANAGE_CUSTOMERS = false;
@@ -592,10 +603,7 @@
 
     function updateCustomerSummary() {
         const total = allCustomers.length;
-        const vip = allCustomers.filter((item) => {
-            const tier = getCustomerTier(item.loaikhachhang, item.tongchitieukhachhang);
-            return ['vang', 'bach_kim', 'kim_cuong'].includes(tier.key);
-        }).length;
+        const vip = allCustomers.filter((item) => isVipCustomer(item)).length;
         const petCount = allCustomers.reduce((sum, item) => sum + Number(item.so_thu_cung || 0), 0);
 
         document.getElementById('customerTotal').textContent = total;
@@ -603,11 +611,63 @@
         document.getElementById('customerPetCount').textContent = petCount;
     }
 
-    function getFilteredCustomers() {
-        const key = String(customerFilter || '').trim().toLowerCase();
-        if (!key) return allCustomers;
+    function isVipCustomer(item) {
+        const tier = getCustomerTier(item.loaikhachhang, item.tongchitieukhachhang);
+        return tier.key === 'kim_cuong';
+    }
 
-        return allCustomers.filter((item) => {
+    function getCustomerRowsByMode() {
+        if (currentCustomerListMode === 'vip') {
+            return allCustomers.filter((item) => isVipCustomer(item));
+        }
+        if (currentCustomerListMode === 'pet_owners') {
+            return allCustomers.filter((item) => Number(item.so_thu_cung || 0) > 0);
+        }
+        return allCustomers;
+    }
+
+    function updateCustomerModeCardsUI() {
+        document.querySelectorAll('.module-card[data-mode]').forEach((card) => {
+            const mode = String(card.getAttribute('data-mode') || 'all');
+            card.classList.toggle('is-active', mode === currentCustomerListMode);
+        });
+    }
+
+    function updateCustomerSectionTitle() {
+        const titleEl = document.getElementById('customerSectionTitle');
+        if (!titleEl) return;
+
+        if (currentCustomerListMode === 'vip') {
+            titleEl.innerHTML = '<i class="bi bi-gem text-warning me-2"></i>Danh Sách Khách Kim Cương';
+            return;
+        }
+        if (currentCustomerListMode === 'pet_owners') {
+            titleEl.innerHTML = '<i class="bi bi-heart text-warning me-2"></i>Khách Hàng Có Thú Cưng';
+            return;
+        }
+        titleEl.innerHTML = '<i class="bi bi-people text-warning me-2"></i>Danh Sách Khách Hàng';
+    }
+
+    function setCustomerListMode(mode) {
+        const nextMode = String(mode || '').trim();
+        if (!['all', 'vip', 'pet_owners'].includes(nextMode)) return;
+
+        currentCustomerListMode = nextMode;
+        customerFilter = '';
+        const searchInput = document.getElementById('customerSearchInput');
+        if (searchInput) searchInput.value = '';
+
+        updateCustomerModeCardsUI();
+        updateCustomerSectionTitle();
+        renderCustomers();
+    }
+
+    function getFilteredCustomers() {
+        const byMode = getCustomerRowsByMode();
+        const key = String(customerFilter || '').trim().toLowerCase();
+        if (!key) return byMode;
+
+        return byMode.filter((item) => {
             const idText = String(item.id || '').toLowerCase();
             const name = String(item.tenkhachhang || '').toLowerCase();
             const phone = String(item.sodienthoaikhachhang || '').toLowerCase();
@@ -876,6 +936,11 @@
         customerFilter = event.target.value || '';
         renderCustomers();
     });
+    document.querySelectorAll('.module-card[data-mode]').forEach((card) => {
+        card.addEventListener('click', () => {
+            setCustomerListMode(card.getAttribute('data-mode') || 'all');
+        });
+    });
 
     document.getElementById('closeCustomerModal').addEventListener('click', closeCustomerModal);
     document.getElementById('cancelCustomerModal').addEventListener('click', closeCustomerModal);
@@ -970,6 +1035,8 @@
 
     document.documentElement.classList.add('hide-scrollbar');
     document.body.classList.add('hide-scrollbar');
+    updateCustomerModeCardsUI();
+    updateCustomerSectionTitle();
     loadCustomers();
 </script>
 </body>
