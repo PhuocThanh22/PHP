@@ -1028,6 +1028,7 @@
         wishlist: 'wishlist',
         cart: 'cart'
       };
+      const SAMPLE_VOUCHER_CODES = new Set(['PET10', 'FREESHIP']);
       const ONLINE_ORDER_SYNC_KEY = 'onlineOrderSyncSignal';
 
       const store = {
@@ -1686,6 +1687,17 @@
         if (!localStorage.getItem(KEYS.auth)) store.set(KEYS.auth, defaultAuth);
         if (!localStorage.getItem(KEYS.vouchers)) store.set(KEYS.vouchers, defaultVouchers);
         if (!localStorage.getItem(KEYS.support)) store.set(KEYS.support, []);
+
+        const existingVouchers = store.get(KEYS.vouchers, []);
+        if (Array.isArray(existingVouchers) && existingVouchers.length) {
+          const cleanedVouchers = existingVouchers.filter((voucher) => {
+            const code = String(voucher?.code || voucher?.magiamgia || '').trim().toUpperCase();
+            return !SAMPLE_VOUCHER_CODES.has(code);
+          });
+          if (cleanedVouchers.length !== existingVouchers.length) {
+            store.set(KEYS.vouchers, cleanedVouchers);
+          }
+        }
       };
 
       const orderTotal = (order) => (order.items || []).reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1), 0);
@@ -2263,6 +2275,12 @@
             sessionStorage.removeItem('isLoggedIn');
             localStorage.removeItem('isLoggedIn');
             localStorage.setItem('isLoggedIn', 'false');
+            localStorage.setItem('wishlist', '[]');
+            localStorage.setItem('cart', '[]');
+
+            if (typeof window.clearCollectionsForGuest === 'function') {
+              window.clearCollectionsForGuest();
+            }
 
             const guestProfile = {
               name: 'Khach hang',

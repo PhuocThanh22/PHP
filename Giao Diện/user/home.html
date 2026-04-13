@@ -541,10 +541,10 @@
     <section class="best-selling-section py-5">
         <div class="container-fluid px-5">
             <h2 class="section-title text-center mb-5 no-underline">Dịch vụ nổi bật</h2>
-            <div class="row g-3">
+            <div class="row g-3" id="homeFeaturedServicesGrid">
                 <div class="col-12">
                     <div style="background:#fff;border:1px dashed #d0d7de;border-radius:14px;padding:24px;text-align:center;color:#64748b;">
-                        Chưa có dữ liệu dịch vụ trong CSDL.
+                        Đang tải dữ liệu dịch vụ nổi bật...
                     </div>
                 </div>
             </div>
@@ -660,7 +660,8 @@
             return serviceCategoryOptions.has(key) ? key : 'all';
         };
 
-        const getServiceApiCandidates = () => {
+        const getServiceApiCandidates = (apiName = 'get_services') => {
+            const safeApi = encodeURIComponent(String(apiName || 'get_services').trim() || 'get_services');
             const list = [];
             const pathname = decodeURIComponent(window.location.pathname || '');
             const marker = '/Giao Diện/';
@@ -668,14 +669,14 @@
             const projectBase = markerIndex > 0 ? pathname.slice(0, markerIndex) : '';
 
             if (projectBase) {
-                list.push(`${projectBase}/index.php?api=get_services`);
+                list.push(`${projectBase}/index.php?api=${safeApi}`);
             }
 
-            list.push('../../index.php?api=get_services');
-            list.push('../staff/get_services.php?api=get_services');
-            list.push('/PHPCHINH/index.php?api=get_services');
-            list.push('/phuocthanh/PHPCHINH/index.php?api=get_services');
-            list.push('/index.php?api=get_services');
+            list.push(`../../index.php?api=${safeApi}`);
+            list.push(`../staff/get_services.php?api=${safeApi}`);
+            list.push(`/PHPCHINH/index.php?api=${safeApi}`);
+            list.push(`/phuocthanh/PHPCHINH/index.php?api=${safeApi}`);
+            list.push(`/index.php?api=${safeApi}`);
 
             return Array.from(new Set(list));
         };
@@ -702,7 +703,7 @@
         };
 
         const loadServiceDropdownCategories = async () => {
-            const candidates = getServiceApiCandidates();
+            const candidates = getServiceApiCandidates('get_services');
             for (const url of candidates) {
                 try {
                     const response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' }, cache: 'no-store' });
@@ -1735,7 +1736,7 @@
                 const style = document.createElement('style');
                 style.id = 'userNoticePopupStyle';
                 style.textContent =
-                    '.user-notice-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,24,18,.42);z-index:12000;padding:16px;}' +
+                    '.user-notice-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,24,18,.42);z-index:310000;padding:16px;}' +
                     '.user-notice-modal{width:min(420px,92vw);background:#fff;border:1px solid #d7e9dd;border-radius:14px;box-shadow:0 20px 44px rgba(0,0,0,.22);font-family:Poppins,Arial,sans-serif;overflow:hidden;}' +
                     '.user-notice-head{padding:12px 16px;background:linear-gradient(135deg,#16a34a 0%,#22c55e 100%);color:#fff;font-weight:700;font-size:16px;}' +
                     '.user-notice-body{padding:16px;color:#102b20;font-size:14px;line-height:1.55;}' +
@@ -1803,8 +1804,68 @@
 
         installAlertOverride();
 
-        const popupScrollState = { count: 0 };
+        const popupScrollState = {
+            count: 0,
+            bodyTop: '',
+            bodyOverflow: '',
+            htmlOverflow: '',
+            listenersAttached: false
+        };
+
+        const popupScrollableSelectors = [
+            '.featured-info-modal-body',
+            '.service-detail-body',
+            '#searchResultsModal',
+            '#quickViewMain',
+            '#quickViewReviewPanel',
+            '#bookingModal'
+        ];
+
+        const isInsidePopupScrollable = (target) => {
+            if (!target || typeof target.closest !== 'function') return false;
+            return popupScrollableSelectors.some((selector) => Boolean(target.closest(selector)));
+        };
+
+        const preventBackgroundScroll = (event) => {
+            if (popupScrollState.count <= 0) return;
+
+            if (event.type === 'keydown') {
+                const keys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '];
+                if (!keys.includes(event.key)) return;
+            }
+
+            if (isInsidePopupScrollable(event.target)) return;
+            event.preventDefault();
+        };
+
+        const attachPopupScrollBlockers = () => {
+            if (popupScrollState.listenersAttached) return;
+            popupScrollState.listenersAttached = true;
+
+            window.addEventListener('wheel', preventBackgroundScroll, { passive: false, capture: true });
+            window.addEventListener('touchmove', preventBackgroundScroll, { passive: false, capture: true });
+            window.addEventListener('keydown', preventBackgroundScroll, { passive: false, capture: true });
+        };
+
+        const detachPopupScrollBlockers = () => {
+            if (!popupScrollState.listenersAttached) return;
+            popupScrollState.listenersAttached = false;
+
+            window.removeEventListener('wheel', preventBackgroundScroll, { capture: true });
+            window.removeEventListener('touchmove', preventBackgroundScroll, { capture: true });
+            window.removeEventListener('keydown', preventBackgroundScroll, { capture: true });
+        };
+
         const lockBackgroundScroll = () => {
+            if (popupScrollState.count === 0) {
+                popupScrollState.bodyTop = document.body.style.top;
+                popupScrollState.bodyOverflow = document.body.style.overflow;
+                popupScrollState.htmlOverflow = document.documentElement.style.overflow;
+
+                document.documentElement.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden';
+                attachPopupScrollBlockers();
+            }
             popupScrollState.count += 1;
             document.body.classList.add('app-popup-open');
         };
@@ -1812,6 +1873,10 @@
             popupScrollState.count = Math.max(0, popupScrollState.count - 1);
             if (popupScrollState.count === 0) {
                 document.body.classList.remove('app-popup-open');
+                document.body.style.top = popupScrollState.bodyTop;
+                document.body.style.overflow = popupScrollState.bodyOverflow;
+                document.documentElement.style.overflow = popupScrollState.htmlOverflow;
+                detachPopupScrollBlockers();
             }
         };
 
@@ -1838,6 +1903,382 @@
             }
         };
 
+        const getCurrentAuthUserForWishlist = () => {
+            const parse = (raw) => {
+                if (!raw) return null;
+                try {
+                    const parsed = JSON.parse(raw);
+                    const userId = Number(parsed?.id || parsed?.user_id || parsed?.userId || 0);
+                    if (!Number.isFinite(userId) || userId <= 0) return null;
+                    const role = String(parsed?.role || parsed?.vaitronguoidung || 'user').toLowerCase();
+                    if (role.includes('admin') || role.includes('staff')) return null;
+                    return {
+                        id: userId,
+                        email: String(parsed?.email || parsed?.emailnguoidung || '').trim(),
+                    };
+                } catch (_) {
+                    return null;
+                }
+            };
+
+            return parse(sessionStorage.getItem('authUser'))
+                || parse(localStorage.getItem('authUser'))
+                || parse(localStorage.getItem('userSession'));
+        };
+
+        const USER_COLLECTION_SYNC_DEBOUNCE_MS = 350;
+        let userCollectionSyncTimer = null;
+        let userCollectionSyncInFlight = false;
+        let userCollectionApplyFromServer = false;
+        let userCollectionLastKnownSignature = '';
+        let userCollectionWatchTimer = null;
+
+        const buildLocalCollectionsSignature = () => {
+            const wishlist = safeParseArray(localStorage.getItem('wishlist'));
+            const cart = safeParseArray(localStorage.getItem('cart'));
+            return JSON.stringify({
+                wishlist: normalizeWishlistForSync(wishlist),
+                cart: normalizeCartForSync(cart),
+            });
+        };
+
+        const getCollectionApiCandidates = (apiName) => {
+            const safeApi = encodeURIComponent(String(apiName || '').trim());
+            return [
+                `home_api.php?api=${safeApi}`,
+                new URL(`home_api.php?api=${safeApi}`, window.location.href).toString(),
+                new URL(`../../index.php?api=${safeApi}`, window.location.href).toString(),
+                `/phuocthanh/PHPCHINH/index.php?api=${safeApi}`,
+                `/PHPCHINH/index.php?api=${safeApi}`,
+                `/index.php?api=${safeApi}`,
+            ];
+        };
+
+        const safeParseArray = (raw) => {
+            try {
+                const parsed = JSON.parse(raw || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (_) {
+                return [];
+            }
+        };
+
+        const normalizeWishlistForSync = (wishlist) => {
+            return (Array.isArray(wishlist) ? wishlist : [])
+                .map((item) => ({
+                    id: Number(item?.id || item?.product_id || 0),
+                    name: String(item?.name || item?.product_name || '').trim(),
+                    image: String(item?.image || '').trim(),
+                    price: String(item?.price || '').trim(),
+                }))
+                .filter((item) => item.name !== '');
+        };
+
+        const normalizeCartForSync = (cart) => {
+            return (Array.isArray(cart) ? cart : [])
+                .map((item) => {
+                    const quantity = Math.max(1, Math.min(999, Number(item?.quantity || 1) || 1));
+                    const priceText = String(item?.price || '').trim();
+                    const priceValue = parseVnPrice(priceText);
+                    return {
+                        id: Number(item?.id || item?.product_id || 0),
+                        name: String(item?.name || item?.product_name || '').trim(),
+                        image: String(item?.image || '').trim(),
+                        price: priceText,
+                        price_value: priceValue,
+                        quantity,
+                    };
+                })
+                .filter((item) => item.name !== '');
+        };
+
+        const applyCollectionsToLocal = (wishlist, cart) => {
+            userCollectionApplyFromServer = true;
+            try {
+                localStorage.setItem('wishlist', JSON.stringify(Array.isArray(wishlist) ? wishlist : []));
+                localStorage.setItem('cart', JSON.stringify(Array.isArray(cart) ? cart : []));
+            } finally {
+                userCollectionApplyFromServer = false;
+            }
+
+            userCollectionLastKnownSignature = buildLocalCollectionsSignature();
+
+            if (typeof updateWishlistIcons === 'function') {
+                updateWishlistIcons();
+            }
+            if (typeof updateCartBadge === 'function') {
+                updateCartBadge();
+            }
+            if (typeof window.loadCart === 'function') {
+                window.loadCart();
+            }
+            if (typeof window.renderFavoritesPage === 'function') {
+                window.renderFavoritesPage();
+            }
+        };
+
+        const callUserCollectionsApi = async (apiName, payload) => {
+            let lastError = 'Không thể kết nối máy chủ.';
+            for (const url of getCollectionApiCandidates(apiName)) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload || {}),
+                        cache: 'no-store',
+                    });
+
+                    const result = await response.json().catch(() => null);
+                    if (response.ok && result && result.ok) {
+                        return { ok: true, data: result.data || {} };
+                    }
+
+                    if (result && result.message) {
+                        lastError = result.message;
+                    }
+                } catch (_) {
+                    // try next endpoint
+                }
+            }
+
+            return { ok: false, message: lastError };
+        };
+
+        const syncCollectionsFromServerToLocal = async () => {
+            const authUser = getCurrentAuthUserForWishlist();
+            if (!authUser || authUser.id <= 0) {
+                applyCollectionsToLocal([], []);
+                return;
+            }
+
+            const result = await callUserCollectionsApi('get_user_collections', {
+                user_id: authUser.id,
+                user_email: authUser.email,
+            });
+
+            if (!result.ok) {
+                return;
+            }
+
+            const serverWishlist = normalizeWishlistForSync(result.data?.wishlist || []);
+            const serverCart = normalizeCartForSync(result.data?.cart || []);
+            applyCollectionsToLocal(serverWishlist, serverCart);
+        };
+
+        const syncCollectionsToServerNow = async () => {
+            if (userCollectionSyncInFlight) {
+                return;
+            }
+
+            const authUser = getCurrentAuthUserForWishlist();
+            if (!authUser || authUser.id <= 0) {
+                return;
+            }
+
+            userCollectionSyncInFlight = true;
+            try {
+                const wishlist = normalizeWishlistForSync(safeParseArray(localStorage.getItem('wishlist')));
+                const cart = normalizeCartForSync(safeParseArray(localStorage.getItem('cart')));
+                await callUserCollectionsApi('sync_user_collections', {
+                    user_id: authUser.id,
+                    user_email: authUser.email,
+                    wishlist,
+                    cart,
+                });
+                userCollectionLastKnownSignature = buildLocalCollectionsSignature();
+            } finally {
+                userCollectionSyncInFlight = false;
+            }
+        };
+
+        const scheduleUserCollectionsSync = () => {
+            if (userCollectionApplyFromServer) {
+                return;
+            }
+
+            if (userCollectionSyncTimer) {
+                clearTimeout(userCollectionSyncTimer);
+            }
+
+            userCollectionSyncTimer = setTimeout(() => {
+                userCollectionSyncTimer = null;
+                syncCollectionsToServerNow();
+            }, USER_COLLECTION_SYNC_DEBOUNCE_MS);
+        };
+
+        const clearCollectionsForGuest = () => {
+            applyCollectionsToLocal([], []);
+        };
+
+        const startCollectionsChangeWatcher = () => {
+            if (userCollectionWatchTimer) {
+                clearInterval(userCollectionWatchTimer);
+            }
+
+            userCollectionLastKnownSignature = buildLocalCollectionsSignature();
+            userCollectionWatchTimer = setInterval(() => {
+                if (userCollectionApplyFromServer) {
+                    return;
+                }
+
+                const authUser = getCurrentAuthUserForWishlist();
+                if (!authUser || authUser.id <= 0) {
+                    return;
+                }
+
+                const currentSignature = buildLocalCollectionsSignature();
+                if (currentSignature === userCollectionLastKnownSignature) {
+                    return;
+                }
+
+                userCollectionLastKnownSignature = currentSignature;
+                scheduleUserCollectionsSync();
+            }, 1200);
+        };
+
+        const installCollectionStorageSyncPatch = () => {
+            if (window.__userCollectionStoragePatched) {
+                return;
+            }
+            window.__userCollectionStoragePatched = true;
+
+            const originalSetItem = localStorage.setItem.bind(localStorage);
+            const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+
+            localStorage.setItem = function (key, value) {
+                originalSetItem(key, value);
+                if (key === 'wishlist' || key === 'cart') {
+                    scheduleUserCollectionsSync();
+                }
+            };
+
+            localStorage.removeItem = function (key) {
+                originalRemoveItem(key);
+                if (key === 'wishlist' || key === 'cart') {
+                    scheduleUserCollectionsSync();
+                }
+            };
+        };
+
+        const watchAuthStateForCollections = () => {
+            window.addEventListener('storage', (event) => {
+                const key = String(event.key || '');
+                if (key === 'authUser' || key === 'userSession' || key === 'customerPortalAuth') {
+                    const authUser = getCurrentAuthUserForWishlist();
+                    if (authUser && authUser.id > 0) {
+                        syncCollectionsFromServerToLocal();
+                    } else {
+                        clearCollectionsForGuest();
+                    }
+                }
+            });
+
+            window.addEventListener('customerSessionUpdated', () => {
+                syncCollectionsFromServerToLocal();
+            });
+        };
+
+        window.syncCollectionsFromServerToLocal = syncCollectionsFromServerToLocal;
+        window.syncCollectionsToServerNow = syncCollectionsToServerNow;
+        window.clearCollectionsForGuest = clearCollectionsForGuest;
+        const SERVICE_WISHLIST_KEY = 'wishlistServices';
+
+        const getServiceWishlist = () => {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(SERVICE_WISHLIST_KEY) || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (_) {
+                return [];
+            }
+        };
+
+        const saveServiceWishlist = (items) => {
+            localStorage.setItem(SERVICE_WISHLIST_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+        };
+
+        const isServiceWishlistItem = (serviceName) => {
+            const target = String(serviceName || '').trim();
+            if (target === '') return false;
+            return getServiceWishlist().some((item) => String(item?.name || '').trim() === target);
+        };
+
+        const toggleServiceWishlistItem = (serviceName, serviceImage, servicePrice, button, silent = false) => {
+            const name = String(serviceName || '').trim();
+            if (name === '') return false;
+
+            const serviceWishlist = getServiceWishlist();
+            const existingIndex = serviceWishlist.findIndex((item) => String(item?.name || '').trim() === name);
+
+            if (existingIndex >= 0) {
+                serviceWishlist.splice(existingIndex, 1);
+                saveServiceWishlist(serviceWishlist);
+                if (button) {
+                    button.classList.remove('liked');
+                }
+                updateWishlistIcons();
+                if (!silent) {
+                    alert('Đã xóa "' + name + '" khỏi danh sách yêu thích!');
+                }
+                return false;
+            }
+
+            serviceWishlist.push({
+                type: 'service',
+                name,
+                image: normalizeUserAssetUrl(serviceImage),
+                price: String(servicePrice || 'Liên hệ').trim() || 'Liên hệ',
+            });
+            saveServiceWishlist(serviceWishlist);
+
+            if (button) {
+                button.classList.add('liked');
+            }
+            updateWishlistIcons();
+            if (!silent) {
+                alert('Đã thêm "' + name + '" vào danh sách yêu thích!');
+            }
+            return true;
+        };
+
+        const syncWishlistProductToServer = async (action, productName) => {
+            const authUser = getCurrentAuthUserForWishlist();
+            if (!authUser || authUser.id <= 0) return;
+
+            const payload = {
+                action,
+                user_id: authUser.id,
+                user_email: authUser.email,
+                product_name: String(productName || '').trim(),
+            };
+
+            const candidates = [
+                'home_api.php?api=toggle_product_favorite',
+                new URL('home_api.php?api=toggle_product_favorite', window.location.href).toString(),
+                new URL('../../index.php?api=toggle_product_favorite', window.location.href).toString(),
+                '/phuocthanh/PHPCHINH/index.php?api=toggle_product_favorite',
+                '/PHPCHINH/index.php?api=toggle_product_favorite',
+                '/index.php?api=toggle_product_favorite',
+            ];
+
+            for (const url of candidates) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        cache: 'no-store',
+                    });
+
+                    const result = await response.json().catch(() => null);
+                    if (response.ok && result && result.ok) {
+                        return;
+                    }
+                } catch (_) {
+                    // continue to next endpoint
+                }
+            }
+        };
+
         // Add to Wishlist function
         const addToWishlist = (productName, productImage, productPrice, button) => {
             const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
@@ -1855,6 +2296,7 @@
                     button.classList.remove('liked');
                 }
                 updateWishlistIcons();
+                syncWishlistProductToServer('remove', productName);
                 alert('Đã xóa "' + productName + '" khỏi danh sách yêu thích!');
                 return;
             }
@@ -1873,19 +2315,25 @@
                 button.classList.add('liked');
             }
             updateWishlistIcons();
+            syncWishlistProductToServer('add', productName);
             alert('Đã thêm "' + productName + '" vào danh sách yêu thích!');
         };
 
         // Update wishlist icons across all pages
         const updateWishlistIcons = () => {
             const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+            const serviceWishlist = getServiceWishlist();
+            const totalFavorites = wishlist.length + serviceWishlist.length;
             const favoriteCount = document.getElementById('favoriteCount');
             
             if (favoriteCount) {
-                favoriteCount.textContent = wishlist.length;
-                favoriteCount.style.display = wishlist.length > 0 ? 'inline-flex' : 'none';
+                favoriteCount.textContent = totalFavorites;
+                favoriteCount.style.display = totalFavorites > 0 ? 'inline-flex' : 'none';
             }
         };
+
+        window.toggleServiceWishlistItem = toggleServiceWishlistItem;
+        window.isServiceWishlistItem = isServiceWishlistItem;
 
         // Add to Cart function
         const addToCart = (productName, productPrice, productImage) => {
@@ -2073,6 +2521,15 @@
 
         // Load cart count on page load
         window.addEventListener('DOMContentLoaded', () => {
+            installCollectionStorageSyncPatch();
+            watchAuthStateForCollections();
+            startCollectionsChangeWatcher();
+            const authUser = getCurrentAuthUserForWishlist();
+            if (authUser && authUser.id > 0) {
+                syncCollectionsFromServerToLocal();
+            } else {
+                clearCollectionsForGuest();
+            }
             updateCartBadge();
         });
     </script>
@@ -3015,6 +3472,368 @@
             }
         };
 
+        const homeFeaturedServicesGridEl = document.getElementById('homeFeaturedServicesGrid');
+        const HOME_SERVICE_RT_EVENT_KEY = 'app_services_realtime_event';
+        let homeFeaturedServicesRealtimeTimer = null;
+        let stopHomeFeaturedServicesRealtimeSubscribe = null;
+        let lastHomeFeaturedServicesSignature = '';
+
+        const formatServiceBookings = (value) => {
+            const total = Number(value || 0);
+            if (!Number.isFinite(total) || total <= 0) return '0 lượt đặt';
+            return `${new Intl.NumberFormat('vi-VN').format(Math.round(total))} lượt đặt`;
+        };
+
+        const buildHomeFeaturedServiceCardHtml = (service) => {
+            const serviceName = String(service?.tendichvu || '').trim() || 'Dịch vụ thú cưng';
+            const serviceImage = normalizeFeaturedImageUrl(service?.hinhanh || service?.hinhanhdichvu || '');
+            const servicePrice = formatFeaturedPrice(service?.giadichvu || 0);
+            const serviceCategory = String(service?.tendanhmucdichvu || 'Chưa phân loại').trim() || 'Chưa phân loại';
+            const bookingCount = Number(service?.soluotdatdichvu || 0);
+            const bookingText = formatServiceBookings(bookingCount);
+            const serviceDuration = Number(service?.thoigiandichvu || 0);
+            const serviceInfo = String(service?.thongtin || '').trim();
+            const isLiked = typeof window.isServiceWishlistItem === 'function' && window.isServiceWishlistItem(serviceName);
+
+            return `
+                <div class="col-12 col-md-6 col-lg-4 featured-service-col">
+                    <article
+                        class="product-card featured-service-card h-100"
+                        role="button"
+                        tabindex="0"
+                        data-service-name="${featuredEscapeAttr(serviceName)}"
+                        data-service-image="${featuredEscapeAttr(serviceImage)}"
+                        data-service-price="${featuredEscapeAttr(servicePrice)}"
+                        data-service-category="${featuredEscapeAttr(serviceCategory)}"
+                        data-service-bookings="${featuredEscapeAttr(bookingText)}"
+                        data-service-duration="${featuredEscapeAttr(serviceDuration > 0 ? `${serviceDuration} phút` : 'Đang cập nhật')}"
+                        data-service-info="${featuredEscapeAttr(serviceInfo !== '' ? serviceInfo : 'Dịch vụ chăm sóc thú cưng chất lượng cao, đặt lịch nhanh tại 3 Chú Cún Con.')}"
+                    >
+                        <div class="product-image featured-service-image" style="background:#f8fafc;">
+                            <button type="button" class="service-favorite-btn ${isLiked ? 'liked' : ''} featured-service-favorite-btn" data-service-name="${featuredEscapeAttr(serviceName)}" data-service-image="${featuredEscapeAttr(serviceImage)}" data-service-price="${featuredEscapeAttr(servicePrice)}" aria-label="Thêm dịch vụ vào yêu thích">
+                                <i data-feather="heart"></i>
+                            </button>
+                            <img src="${featuredEscapeAttr(serviceImage)}" alt="${featuredEscapeAttr(serviceName)}" onerror="this.onerror=null;this.src='${featuredEscapeAttr(FEATURED_FALLBACK_IMAGE)}';">
+                        </div>
+                        <div class="featured-service-content">
+                            <h5 class="featured-service-name">${featuredEscapeAttr(serviceName)}</h5>
+                            <div class="featured-service-price">${featuredEscapeAttr(servicePrice)}</div>
+                            <div class="featured-service-bookings">${featuredEscapeAttr(bookingText)}</div>
+                            <button type="button" class="btn featured-service-book-btn service-detail-btn service-booking-btn" data-service-name="${featuredEscapeAttr(serviceName)}" data-service-price="${featuredEscapeAttr(servicePrice)}">Đặt ngay</button>
+                        </div>
+                    </article>
+                </div>
+            `;
+        };
+
+        const ensureFeaturedServiceInfoModal = () => {
+            let modal = document.getElementById('featuredServiceInfoModal');
+            if (modal) return modal;
+
+            modal = document.createElement('div');
+            modal.id = 'featuredServiceInfoModal';
+            modal.className = 'featured-info-modal-overlay';
+            modal.setAttribute('aria-hidden', 'true');
+            modal.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,0.45);z-index:5000;';
+            if (!document.getElementById('featuredServiceInfoModalStyle')) {
+                const style = document.createElement('style');
+                style.id = 'featuredServiceInfoModalStyle';
+                style.textContent = `
+                    @media (max-width: 860px) {
+                        #featuredServiceInfoModal .featured-info-modal-dialog {
+                            width: min(96vw, 640px) !important;
+                        }
+                        #featuredServiceInfoModal .featured-info-modal-body {
+                            grid-template-columns: 1fr !important;
+                        }
+                        #featuredServiceInfoModal .featured-info-modal-title {
+                            font-size: 24px !important;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            modal.innerHTML = `
+                <div class="featured-info-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="featuredServiceInfoTitle" style="max-width:1040px;width:min(1040px,96vw);max-height:90vh;overflow:hidden;background:#fff;border-radius:18px;box-shadow:0 20px 50px rgba(15,23,42,0.25);display:flex;flex-direction:column;">
+                    <div class="featured-info-modal-header" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #e2e8f0;">
+                        <h3 class="featured-info-modal-title" id="featuredServiceInfoTitle" style="margin:0;font-size:30px;line-height:1.2;color:#0f172a;font-weight:800;">Chi tiết dịch vụ</h3>
+                        <button type="button" class="featured-info-modal-close" id="featuredServiceInfoCloseBtn" aria-label="Đóng" style="width:32px;height:32px;border:1px solid #cbd5e1;background:#fff;border-radius:8px;font-size:22px;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#0f172a;">&times;</button>
+                    </div>
+                    <div class="featured-info-modal-body" style="display:grid;grid-template-columns:minmax(280px,44%) minmax(0,56%);gap:16px;padding:14px 16px;overflow:auto;flex:1;">
+                        <div style="min-height:0;">
+                            <img id="featuredServiceInfoImage" alt="Ảnh dịch vụ" style="width:100%;height:100%;max-height:420px;object-fit:cover;border-radius:14px;border:1px solid #e2e8f0;">
+                        </div>
+                        <div style="display:grid;gap:10px;align-content:start;color:#1e293b;min-height:0;">
+                            <div style="font-size:16px;"><b>Danh mục:</b> <span id="featuredServiceInfoCategory">-</span></div>
+                            <div style="font-size:16px;"><b>Giá:</b> <span id="featuredServiceInfoPrice">-</span></div>
+                            <div style="font-size:16px;"><b>Thời gian:</b> <span id="featuredServiceInfoDuration">-</span></div>
+                            <div style="font-size:16px;"><b>Lượt đặt:</b> <span id="featuredServiceInfoBookings">-</span></div>
+                            <div style="font-size:15px;line-height:1.65;"><b>Mô tả:</b> <span id="featuredServiceInfoText">-</span></div>
+                        </div>
+                    </div>
+                    <div class="featured-info-modal-footer" style="display:flex;gap:10px;justify-content:flex-end;padding:12px 16px 16px;border-top:1px solid #e2e8f0;">
+                        <button type="button" class="btn btn-outline-secondary" id="featuredServiceInfoCancelBtn">Đóng</button>
+                        <button type="button" class="btn service-detail-btn" id="featuredServiceInfoBookBtn">Đặt ngay</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const lockScroll = () => {
+                if (typeof window.__lockBackgroundScroll === 'function') {
+                    window.__lockBackgroundScroll();
+                    return;
+                }
+                document.body.classList.add('app-popup-open');
+            };
+
+            const unlockScroll = () => {
+                if (typeof window.__unlockBackgroundScroll === 'function') {
+                    window.__unlockBackgroundScroll();
+                    return;
+                }
+                document.body.classList.remove('app-popup-open');
+            };
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+                unlockScroll();
+            };
+
+            modal.querySelector('#featuredServiceInfoCloseBtn')?.addEventListener('click', closeModal);
+            modal.querySelector('#featuredServiceInfoCancelBtn')?.addEventListener('click', closeModal);
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) closeModal();
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && modal.style.display === 'flex') {
+                    closeModal();
+                }
+            });
+
+            return modal;
+        };
+
+        const openFeaturedServiceInfoModal = (payload) => {
+            const modal = ensureFeaturedServiceInfoModal();
+            const serviceName = String(payload?.name || 'Dịch vụ thú cưng').trim() || 'Dịch vụ thú cưng';
+            const serviceImage = String(payload?.image || FEATURED_FALLBACK_IMAGE).trim() || FEATURED_FALLBACK_IMAGE;
+            const servicePrice = String(payload?.price || 'Liên hệ').trim() || 'Liên hệ';
+            const serviceCategory = String(payload?.category || 'Chưa phân loại').trim() || 'Chưa phân loại';
+            const serviceBookings = String(payload?.bookings || '0 lượt đặt').trim() || '0 lượt đặt';
+            const serviceDuration = String(payload?.duration || 'Đang cập nhật').trim() || 'Đang cập nhật';
+            const serviceInfo = String(payload?.info || '').trim() || 'Dịch vụ chăm sóc thú cưng chất lượng cao, đặt lịch nhanh tại 3 Chú Cún Con.';
+
+            const titleEl = modal.querySelector('#featuredServiceInfoTitle');
+            const imageEl = modal.querySelector('#featuredServiceInfoImage');
+            const categoryEl = modal.querySelector('#featuredServiceInfoCategory');
+            const priceEl = modal.querySelector('#featuredServiceInfoPrice');
+            const durationEl = modal.querySelector('#featuredServiceInfoDuration');
+            const bookingsEl = modal.querySelector('#featuredServiceInfoBookings');
+            const infoEl = modal.querySelector('#featuredServiceInfoText');
+            const bookBtn = modal.querySelector('#featuredServiceInfoBookBtn');
+
+            if (titleEl) titleEl.textContent = serviceName;
+            if (imageEl) {
+                imageEl.src = serviceImage;
+                imageEl.alt = serviceName;
+            }
+            if (categoryEl) categoryEl.textContent = serviceCategory;
+            if (priceEl) priceEl.textContent = servicePrice;
+            if (durationEl) durationEl.textContent = serviceDuration;
+            if (bookingsEl) bookingsEl.textContent = serviceBookings;
+            if (infoEl) infoEl.textContent = serviceInfo;
+
+            if (bookBtn) {
+                bookBtn.onclick = () => {
+                    closeModal();
+                    openBookingModal(serviceName, servicePrice);
+                };
+            }
+
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-hidden', 'false');
+            lockScroll();
+        };
+
+        const bindFeaturedServiceCardInteractions = () => {
+            if (!homeFeaturedServicesGridEl) return;
+
+            if (homeFeaturedServicesGridEl.dataset.featuredServiceBound === '1') return;
+            homeFeaturedServicesGridEl.dataset.featuredServiceBound = '1';
+
+            const openFromCard = (card) => {
+                if (!card) return;
+                openFeaturedServiceInfoModal({
+                    name: card.dataset.serviceName,
+                    image: card.dataset.serviceImage,
+                    price: card.dataset.servicePrice,
+                    category: card.dataset.serviceCategory,
+                    bookings: card.dataset.serviceBookings,
+                    duration: card.dataset.serviceDuration,
+                    info: card.dataset.serviceInfo,
+                });
+            };
+
+            homeFeaturedServicesGridEl.addEventListener('click', (event) => {
+                const favoriteBtn = event.target.closest('.featured-service-favorite-btn');
+                if (favoriteBtn && homeFeaturedServicesGridEl.contains(favoriteBtn)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const serviceName = String(favoriteBtn.dataset.serviceName || '').trim();
+                    const serviceImage = String(favoriteBtn.dataset.serviceImage || '').trim();
+                    const servicePrice = String(favoriteBtn.dataset.servicePrice || 'Liên hệ').trim() || 'Liên hệ';
+                    if (typeof window.toggleServiceWishlistItem === 'function') {
+                        window.toggleServiceWishlistItem(serviceName, serviceImage, servicePrice, favoriteBtn);
+                    }
+                    return;
+                }
+
+                const bookBtn = event.target.closest('.featured-service-book-btn');
+                if (bookBtn && homeFeaturedServicesGridEl.contains(bookBtn)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const serviceName = String(bookBtn.dataset.serviceName || 'Dịch vụ thú cưng').trim() || 'Dịch vụ thú cưng';
+                    const servicePrice = String(bookBtn.dataset.servicePrice || 'Liên hệ').trim() || 'Liên hệ';
+                    openBookingModal(serviceName, servicePrice);
+                    return;
+                }
+
+                const card = event.target.closest('.featured-service-card');
+                if (!card || !homeFeaturedServicesGridEl.contains(card)) return;
+                openFromCard(card);
+            });
+
+            homeFeaturedServicesGridEl.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                const card = event.target.closest('.featured-service-card');
+                if (!card || !homeFeaturedServicesGridEl.contains(card)) return;
+                event.preventDefault();
+                openFromCard(card);
+            });
+        };
+
+        const buildHomeFeaturedServicesSignature = (rows) => {
+            const normalized = Array.isArray(rows)
+                ? rows.map((service) => [
+                    Number(service?.id || 0),
+                    String(service?.tendichvu || '').trim(),
+                    Number(service?.giadichvu || 0),
+                    String(service?.hinhanh || service?.hinhanhdichvu || '').trim(),
+                    String(service?.tendanhmucdichvu || '').trim(),
+                    Number(service?.soluotdatdichvu || 0),
+                    Number(service?.thoigiandichvu || 0),
+                    String(service?.thongtin || '').trim(),
+                    String(service?.trangthaidichvu || '').trim().toLowerCase()
+                ])
+                : [];
+
+            return JSON.stringify(normalized);
+        };
+
+        const renderHomeFeaturedServices = (services, options = {}) => {
+            if (!homeFeaturedServicesGridEl) return;
+
+            const rows = Array.isArray(services) ? services.slice(0, 10) : [];
+            const force = Boolean(options?.force);
+            const nextSignature = buildHomeFeaturedServicesSignature(rows);
+            if (!force && nextSignature === lastHomeFeaturedServicesSignature) {
+                return;
+            }
+            lastHomeFeaturedServicesSignature = nextSignature;
+
+            if (rows.length === 0) {
+                homeFeaturedServicesGridEl.innerHTML = `
+                    <div class="col-12">
+                        <div style="background:#fff;border:1px dashed #d0d7de;border-radius:14px;padding:24px;text-align:center;color:#64748b;">
+                            Chưa có dữ liệu dịch vụ trong CSDL.
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            homeFeaturedServicesGridEl.innerHTML = rows.map(buildHomeFeaturedServiceCardHtml).join('');
+            bindFeaturedServiceCardInteractions();
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        };
+
+        const fetchHomeFeaturedServices = async (force = false) => {
+            const topCandidates = getServiceApiCandidates('get_featured_services');
+            for (const candidate of topCandidates) {
+                try {
+                    const separator = candidate.includes('?') ? '&' : '?';
+                    const response = await fetch(`${candidate}${separator}_t=${Date.now()}`, { cache: 'no-store' });
+                    if (!response.ok) continue;
+
+                    const payload = await response.json();
+                    if (!payload || payload.ok !== true || !Array.isArray(payload.data)) continue;
+
+                    renderHomeFeaturedServices(payload.data, { force });
+                    return;
+                } catch (_) {
+                    // thử endpoint tiếp theo
+                }
+            }
+
+            const fallbackCandidates = getServiceApiCandidates('get_services');
+            for (const candidate of fallbackCandidates) {
+                try {
+                    const separator = candidate.includes('?') ? '&' : '?';
+                    const response = await fetch(`${candidate}${separator}_t=${Date.now()}`, { cache: 'no-store' });
+                    if (!response.ok) continue;
+
+                    const payload = await response.json();
+                    if (!payload || payload.ok !== true || !Array.isArray(payload.data)) continue;
+
+                    const rows = payload.data
+                        .filter((row) => String(row?.trangthaidichvu || 'hoatdong') === 'hoatdong')
+                        .sort((a, b) => Number(b?.soluotdatdichvu || 0) - Number(a?.soluotdatdichvu || 0));
+
+                    renderHomeFeaturedServices(rows, { force });
+                    return;
+                } catch (_) {
+                    // thử endpoint tiếp theo
+                }
+            }
+
+            renderHomeFeaturedServices([], { force });
+        };
+
+        const startHomeFeaturedServicesRealtime = () => {
+            if (!homeFeaturedServicesGridEl) return;
+            if (homeFeaturedServicesGridEl.dataset.featuredServiceRealtimeBound === '1') return;
+            homeFeaturedServicesGridEl.dataset.featuredServiceRealtimeBound = '1';
+
+            const sessionApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+            if (sessionApi && typeof sessionApi.subscribe === 'function') {
+                stopHomeFeaturedServicesRealtimeSubscribe = sessionApi.subscribe((event) => {
+                    if (!event || !event.type) return;
+                    if (event.type === 'services_changed' || event.type === 'entity_changed') {
+                        fetchHomeFeaturedServices(true);
+                    }
+                });
+            }
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === HOME_SERVICE_RT_EVENT_KEY && event.newValue) {
+                    fetchHomeFeaturedServices(true);
+                }
+            });
+
+            if (homeFeaturedServicesRealtimeTimer) {
+                clearInterval(homeFeaturedServicesRealtimeTimer);
+            }
+
+            homeFeaturedServicesRealtimeTimer = setInterval(() => {
+                fetchHomeFeaturedServices(false);
+            }, 8000);
+        };
+
         const initFeaturedShowcaseCarousel = () => {
             const track = document.querySelector('.featured-showcase-track');
             const prevBtn = document.getElementById('featuredPrevBtn');
@@ -3126,6 +3945,8 @@
 
         initFeaturedShowcaseCarousel();
         fetchFeaturedProducts();
+        fetchHomeFeaturedServices();
+        startHomeFeaturedServicesRealtime();
 
         const toggleScrollTopButton = () => {
             const scrollTopBtn = document.getElementById('scrollTopBtn');
@@ -3567,7 +4388,7 @@
       const style = document.createElement('style');
       style.id = AUTH_STYLE_ID;
       style.textContent =
-                '.u-auth-overlay{position:fixed;inset:0;background:rgba(15,23,42,.52);display:none;align-items:center;justify-content:center;z-index:3000;padding:16px;}' +
+                '.u-auth-overlay{position:fixed;inset:0;background:rgba(15,23,42,.52);display:none;align-items:center;justify-content:center;z-index:300000;padding:16px;}' +
                 'body.auth-modal-open{overflow:hidden;}' +
                 '.u-auth-card{width:min(560px,100%);background:#fff;border-radius:16px;box-shadow:0 28px 76px rgba(0,0,0,.32);overflow:hidden;font-family:Poppins,Arial,sans-serif;border:1px solid #d9e2ec;color:#0f172a;}' +
                 '.u-auth-head{padding:14px 18px 6px;position:relative;display:flex;justify-content:center;align-items:center;}' +
@@ -3721,12 +4542,22 @@
                 }
                 localStorage.removeItem(AUTH_STORAGE_KEYS.pendingAuthPrompt);
 
-                if (postLoginAction) {
-                    postLoginAction();
-                } else if (typeof window.routeToPage === 'function') {
-                    window.routeToPage('user');
-                } else if (typeof window.loadPage === 'function') {
-                    window.loadPage('user');
+                const completeNavigation = () => {
+                    if (postLoginAction) {
+                        postLoginAction();
+                    } else if (typeof window.routeToPage === 'function') {
+                        window.routeToPage('user');
+                    } else if (typeof window.loadPage === 'function') {
+                        window.loadPage('user');
+                    }
+                };
+
+                if (typeof window.syncCollectionsFromServerToLocal === 'function') {
+                    window.syncCollectionsFromServerToLocal()
+                        .catch(() => {})
+                        .finally(completeNavigation);
+                } else {
+                    completeNavigation();
                 }
             };
 

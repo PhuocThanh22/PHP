@@ -1547,6 +1547,132 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     transition: transform 0.35s ease;
 }
 
+#homeFeaturedServicesGrid .featured-service-image {
+    aspect-ratio: auto;
+    width: 100%;
+    height: 44%;
+    position: relative;
+    overflow: hidden;
+}
+
+#homeFeaturedServicesGrid .featured-service-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#homeFeaturedServicesGrid .featured-service-col {
+    flex: 0 0 20%;
+    max-width: 20%;
+}
+
+#homeFeaturedServicesGrid .featured-service-content {
+    padding: 10px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+#homeFeaturedServicesGrid .featured-service-name {
+    margin: 0 0 8px;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.25;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+#homeFeaturedServicesGrid .featured-service-price {
+    color: #111827;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 6px;
+}
+
+#homeFeaturedServicesGrid .featured-service-bookings {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+#homeFeaturedServicesGrid .featured-service-book-btn {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    padding: 8px 12px;
+    font-weight: 700;
+    margin-top: auto;
+    color: #ffffff;
+    background: linear-gradient(135deg, #1f8f4d 0%, #6fcf5f 100%);
+    box-shadow: 0 8px 16px rgba(31, 143, 77, 0.24);
+}
+
+#homeFeaturedServicesGrid .featured-service-book-btn:hover,
+#homeFeaturedServicesGrid .featured-service-book-btn:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(31, 143, 77, 0.28);
+    filter: brightness(1.03);
+}
+
+#homeFeaturedServicesGrid .featured-service-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+#homeFeaturedServicesGrid .featured-service-card:focus-visible {
+    outline: 2px solid #0ea5e9;
+    outline-offset: 2px;
+}
+
+#homeFeaturedServicesGrid .featured-service-card {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    border-radius: 22px;
+    border: 1px solid #d8dee6;
+    overflow: hidden;
+    cursor: pointer;
+    background: #f3f4f6;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (max-width: 1399.98px) {
+    #homeFeaturedServicesGrid .featured-service-col {
+        flex: 0 0 20%;
+        max-width: 20%;
+    }
+}
+
+@media (max-width: 1199.98px) {
+    #homeFeaturedServicesGrid .featured-service-col {
+        flex: 0 0 25%;
+        max-width: 25%;
+    }
+}
+
+@media (max-width: 991.98px) {
+    #homeFeaturedServicesGrid .featured-service-col {
+        flex: 0 0 33.3333%;
+        max-width: 33.3333%;
+    }
+}
+
+@media (max-width: 575.98px) {
+    #homeFeaturedServicesGrid .featured-service-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
 .featured-hover-info {
     position: absolute;
     left: 14px;

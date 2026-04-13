@@ -32,6 +32,60 @@ function app_ensure_category_image_column(mysqli $conn): bool
     return (bool) $conn->query($alterSql);
 }
 
+function app_admin_reset_cart_for_customer(mysqli $conn, int $customerId): void
+{
+    if ($customerId <= 0 || !app_table_exists($conn, 'giohang') || !app_table_exists($conn, 'chitietgiohang')) {
+        return;
+    }
+
+    $userId = 0;
+    if (app_table_exists($conn, 'khachhang') && app_column_exists($conn, 'khachhang', 'nguoidung_id')) {
+        $customerStmt = $conn->prepare('SELECT nguoidung_id FROM khachhang WHERE id = ? LIMIT 1');
+        if ($customerStmt) {
+            $customerStmt->bind_param('i', $customerId);
+            $customerStmt->execute();
+            $customerResult = $customerStmt->get_result();
+            $customerRow = $customerResult ? $customerResult->fetch_assoc() : null;
+            if ($customerResult) {
+                $customerResult->free();
+            }
+            $customerStmt->close();
+            $userId = (int) ($customerRow['nguoidung_id'] ?? 0);
+        }
+    }
+
+    if ($userId > 0) {
+        $deleteDetailStmt = $conn->prepare("DELETE ct FROM chitietgiohang ct INNER JOIN giohang g ON g.id = ct.giohang_id WHERE g.khachhang_id = ? OR g.nguoidung_id = ?");
+        if ($deleteDetailStmt) {
+            $deleteDetailStmt->bind_param('ii', $customerId, $userId);
+            $deleteDetailStmt->execute();
+            $deleteDetailStmt->close();
+        }
+
+        $deleteCartStmt = $conn->prepare('DELETE FROM giohang WHERE khachhang_id = ? OR nguoidung_id = ?');
+        if ($deleteCartStmt) {
+            $deleteCartStmt->bind_param('ii', $customerId, $userId);
+            $deleteCartStmt->execute();
+            $deleteCartStmt->close();
+        }
+        return;
+    }
+
+    $deleteDetailStmt = $conn->prepare("DELETE ct FROM chitietgiohang ct INNER JOIN giohang g ON g.id = ct.giohang_id WHERE g.khachhang_id = ?");
+    if ($deleteDetailStmt) {
+        $deleteDetailStmt->bind_param('i', $customerId);
+        $deleteDetailStmt->execute();
+        $deleteDetailStmt->close();
+    }
+
+    $deleteCartStmt = $conn->prepare('DELETE FROM giohang WHERE khachhang_id = ?');
+    if ($deleteCartStmt) {
+        $deleteCartStmt->bind_param('i', $customerId);
+        $deleteCartStmt->execute();
+        $deleteCartStmt->close();
+    }
+}
+
 function app_ensure_category_subcategory_table(mysqli $conn): bool
 {
     if (!app_table_exists($conn, 'danhmuccon')) {
@@ -2418,6 +2472,10 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
 
                     if ($orderCustomerId > 0 && $spendingAmount > 0) {
                         app_recalculate_customer_spending_from_orders($conn, $orderCustomerId);
+                    }
+
+                    if ($orderCustomerId > 0) {
+                        app_admin_reset_cart_for_customer($conn, $orderCustomerId);
                     }
 
                     if (!$spendingAlreadyApplied) {

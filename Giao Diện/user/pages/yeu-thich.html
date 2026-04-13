@@ -104,6 +104,20 @@
         .trim()
         .replace(/\s+/g, ' ');
 
+    const SERVICE_WISHLIST_KEY = 'wishlistServices';
+    const getServiceFavorites = () => {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(SERVICE_WISHLIST_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+            return [];
+        }
+    };
+
+    const saveServiceFavorites = (items) => {
+        localStorage.setItem(SERVICE_WISHLIST_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+    };
+
     const buildProductLookup = async () => {
         const lookup = new Map();
         const productRows = [];
@@ -193,14 +207,53 @@
         }).filter(Boolean);
     };
 
+    const renderFavoriteCard = (item) => {
+        const isService = item.kind === 'service';
+        const safeName = escapeHtml(item.name || 'Mục yêu thích');
+        const safeNameJs = escapeJsSingleQuote(item.name || '');
+        const safePrice = escapeHtml(item.price || 'Liên hệ');
+        const safePriceJs = escapeJsSingleQuote(item.price || 'Liên hệ');
+        const safeImage = escapeHtml(item.image || 'https://via.placeholder.com/400x300?text=No+Image');
+        const safeImageJs = escapeJsSingleQuote(item.image || '');
+        const badge = isService ? 'Dịch vụ' : 'Sản phẩm';
+        const badgeBg = isService ? '#e8f7ee' : '#eef3ff';
+        const badgeColor = isService ? '#1f8f4d' : '#3346b5';
+
+        return `
+            <div class="wishlist-card" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:all .3s ease;border:1px solid #f0f0f0;display:flex;flex-direction:column;" onmouseover="this.style.boxShadow='0 12px 24px rgba(0,0,0,0.15)'; this.style.transform='translateY(-8px)';" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)';">
+                <div style="position:relative;overflow:hidden;height:280px;background:#f8f9fa;">
+                    <img src="${safeImage}" alt="${safeName}" style="width:100%;height:100%;object-fit:cover;transition:transform .3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image';">
+                    <span style="position:absolute;left:12px;top:12px;background:${badgeBg};color:${badgeColor};font-size:12px;font-weight:700;border-radius:999px;padding:6px 10px;">${badge}</span>
+                    <button onclick="removeFavoriteItem('${isService ? 'service' : 'product'}','${safeNameJs}')" style="position:absolute;top:12px;right:12px;width:40px;height:40px;background:#fff;color:#111;border:1px solid #e5e5e5;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.12);transition:all .3s ease;font-size:20px;" onmouseover="this.style.background='#f4f4f4'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#fff'; this.style.transform='scale(1)';" title="Bỏ yêu thích">
+                        <i data-feather="x" style="width:20px;height:20px;"></i>
+                    </button>
+                </div>
+
+                <div style="padding:20px;flex-grow:1;display:flex;flex-direction:column;">
+                    <h3 style="font-size:16px;font-weight:600;margin:0 0 10px 0;color:#333;line-height:1.4;">${safeName}</h3>
+                    <div style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                        <p style="color:#000;font-size:22px;font-weight:800;margin:0;">${safePrice}</p>
+                        ${isService
+                            ? `<button class="quick-book-btn" onclick="bookServiceFromFavorites('${safeNameJs}','${safePriceJs}')" style="height:44px;min-width:112px;background:#1F8F4D;color:#fff;border:none;border-radius:999px;cursor:pointer;padding:0 16px;font-weight:700;transition:all .25s ease;" onmouseover="this.style.background='#15703c'" onmouseout="this.style.background='#1F8F4D'">Đặt lịch</button>`
+                            : `<button class="quick-cart-btn" onclick="addToCartFromFavorites('${safeNameJs}','${safePriceJs}','${safeImageJs}')" style="width:52px;height:52px;min-width:52px;background:#000;color:#fff;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:none;transition:all .3s ease;" onmouseover="this.style.background='#222'; this.style.transform='scale(1.08)'; this.style.boxShadow='0 8px 18px rgba(0,0,0,0.35)'" onmouseout="this.style.background='#000'; this.style.transform='scale(1)'; this.style.boxShadow='none';" title="Thêm vào giỏ">
+                                <i data-feather="shopping-cart" style="width:22px;height:22px;"></i>
+                            </button>`}
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+
     const renderFavoritesPage = async () => {
         const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+        const serviceWishlist = getServiceFavorites();
         const contentArea = document.getElementById('favoriteContentArea');
         const countElement = document.getElementById('wishlistCount');
 
-        countElement.textContent = `${wishlist.length} sản phẩm`;
+        const totalFavorites = wishlist.length + serviceWishlist.length;
+        countElement.textContent = `${totalFavorites} mục yêu thích`;
 
-        if (wishlist.length === 0) {
+        if (totalFavorites === 0) {
             contentArea.innerHTML = `
                 <div style="text-align: center; padding: 80px 20px;">
                     <div style="margin-bottom: 30px;">
@@ -221,38 +274,24 @@
             const enrichedWishlist = await enrichWishlist(wishlist);
             localStorage.setItem('wishlist', JSON.stringify(enrichedWishlist));
 
+            const unifiedItems = [
+                ...enrichedWishlist.map((product) => ({
+                    kind: 'product',
+                    name: String(product?.name || '').trim(),
+                    image: normalizeAssetUrl(product?.image || ''),
+                    price: String(product?.price || '').trim() || 'Liên hệ'
+                })),
+                ...serviceWishlist.map((service) => ({
+                    kind: 'service',
+                    name: String(service?.name || '').trim(),
+                    image: normalizeAssetUrl(service?.image || ''),
+                    price: String(service?.price || '').trim() || 'Liên hệ'
+                }))
+            ].filter((item) => item.name !== '');
+
             contentArea.innerHTML = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px;">
-                    ${enrichedWishlist.map((product) => {
-                        const safeName = escapeHtml(product.name);
-                        const safeNameJs = escapeJsSingleQuote(product.name);
-                        const safePrice = escapeHtml(product.price || 'Liên hệ');
-                        const safePriceJs = escapeJsSingleQuote(product.price || 'Liên hệ');
-                        const safeImage = escapeHtml(product.image || 'https://via.placeholder.com/400x300?text=No+Image');
-                        const safeImageJs = escapeJsSingleQuote(product.image || '');
-
-                        return `
-                        <div class="wishlist-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 1px solid #f0f0f0; display: flex; flex-direction: column;" onmouseover="this.style.boxShadow='0 12px 24px rgba(0,0,0,0.15)'; this.style.transform='translateY(-8px)';" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)';">
-                            <div style="position: relative; overflow: hidden; height: 280px; background: #f8f9fa;">
-                                <img src="${safeImage}" alt="${safeName}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image';">
-
-                                <button onclick="removeFromWishlist('${safeNameJs}')" style="position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; background: #fff; color: #111; border: 1px solid #e5e5e5; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); transition: all 0.3s ease; font-size: 20px;" onmouseover="this.style.background='#f4f4f4'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#fff'; this.style.transform='scale(1)';" title="Bỏ yêu thích">
-                                    <i data-feather="x" style="width: 20px; height: 20px;"></i>
-                                </button>
-                            </div>
-
-                            <div style="padding: 20px; flex-grow: 1; display: flex; flex-direction: column;">
-                                <h3 style="font-size: 16px; font-weight: 600; margin: 0 0 10px 0; color: #333; line-height: 1.4;">${safeName}</h3>
-                                <div style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                    <p style="color: #000; font-size: 22px; font-weight: 800; margin: 0;">${safePrice}</p>
-                                    <button class="quick-cart-btn" onclick="addToCartFromFavorites('${safeNameJs}', '${safePriceJs}', '${safeImageJs}')" style="width: 52px; height: 52px; min-width: 52px; background: #000; color: #fff; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: none; transition: all 0.3s ease;" onmouseover="this.style.background='#222'; this.style.transform='scale(1.08)'; this.style.boxShadow='0 8px 18px rgba(0,0,0,0.35)'" onmouseout="this.style.background='#000'; this.style.transform='scale(1)'; this.style.boxShadow='none';" title="Thêm vào giỏ">
-                                        <i data-feather="shopping-cart" style="width: 22px; height: 22px;"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    }).join('')}
+                    ${unifiedItems.map(renderFavoriteCard).join('')}
                 </div>
             `;
         }
@@ -262,26 +301,28 @@
         }
     };
 
-    // Remove from wishlist
-    const removeFromWishlist = (productName) => {
-        const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
-        const index = wishlist.findIndex(p => p.name === productName);
-        
-        if (index > -1) {
-            wishlist.splice(index, 1);
-            localStorage.setItem('wishlist', JSON.stringify(wishlist));
-            renderFavoritesPage();
-            
-            // Update wishlist icons on home page
-            if (typeof updateWishlistIcons === 'function') {
-                updateWishlistIcons();
-            }
-            
-            alert(`Đã xóa "${productName}" khỏi danh sách yêu thích`);
+    const removeFavoriteItem = (kind, itemName) => {
+        const normalizedName = String(itemName || '').trim();
+        if (normalizedName === '') return;
+
+        if (kind === 'service') {
+            const serviceFavorites = getServiceFavorites();
+            const nextServices = serviceFavorites.filter((item) => String(item?.name || '').trim() !== normalizedName);
+            saveServiceFavorites(nextServices);
+        } else {
+            const wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+            const nextWishlist = wishlist.filter((item) => String(item?.name || '').trim() !== normalizedName);
+            localStorage.setItem('wishlist', JSON.stringify(nextWishlist));
         }
+
+        renderFavoritesPage();
+        if (typeof updateWishlistIcons === 'function') {
+            updateWishlistIcons();
+        }
+        alert(`Đã xóa "${normalizedName}" khỏi danh sách yêu thích`);
     };
 
-    window.removeFromWishlist = removeFromWishlist;
+    window.removeFavoriteItem = removeFavoriteItem;
 
     // Add to cart from favorites
     const addToCartFromFavorites = (productName, productPrice, productImage) => {
@@ -311,6 +352,37 @@
     };
 
     window.addToCartFromFavorites = addToCartFromFavorites;
+
+    const bookServiceFromFavorites = (serviceName, servicePrice) => {
+        const payload = {
+            service: String(serviceName || '').trim() || 'Dịch vụ thú cưng',
+            price: String(servicePrice || 'Liên hệ').trim() || 'Liên hệ',
+            source: 'favorites_page',
+            timestamp: Date.now(),
+        };
+
+        localStorage.setItem('selectedServiceBooking', JSON.stringify(payload));
+        if (typeof window.openDatLichPopup === 'function') {
+            window.openDatLichPopup(payload);
+            return;
+        }
+
+        if (typeof window.openServiceBookingPopup === 'function') {
+            window.openServiceBookingPopup(payload);
+            return;
+        }
+
+        if (typeof window.loadPage === 'function') {
+            window.loadPage('services');
+            return;
+        }
+
+        if (typeof window.routeToPage === 'function') {
+            window.routeToPage('services');
+        }
+    };
+
+    window.bookServiceFromFavorites = bookServiceFromFavorites;
 
     // Initialize on page load
     renderFavoritesPage();

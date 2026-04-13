@@ -141,6 +141,63 @@ function app_booking_ensure_table(mysqli $conn): bool
     return true;
 }
 
+function app_sync_service_booking_counter(mysqli $conn, int $serviceId = 0): void
+{
+    if (!app_table_exists($conn, 'dichvu') || !app_table_exists($conn, 'lichhen')) {
+        return;
+    }
+
+    if (!function_exists('app_ensure_dichvu_booking_count_column')) {
+        return;
+    }
+
+    if (!app_ensure_dichvu_booking_count_column($conn)) {
+        return;
+    }
+
+    if ($serviceId > 0) {
+        $countStmt = $conn->prepare("SELECT COUNT(*) AS total FROM lichhen WHERE dichvu_id = ? AND COALESCE(trangthailichhen, '') <> 'huy'");
+        if (!$countStmt) {
+            return;
+        }
+
+        $countStmt->bind_param('i', $serviceId);
+        $countStmt->execute();
+        $countResult = $countStmt->get_result();
+        $countRow = $countResult ? $countResult->fetch_assoc() : null;
+        if ($countResult) {
+            $countResult->free();
+        }
+        $countStmt->close();
+
+        $total = (int) ($countRow['total'] ?? 0);
+        $updateStmt = $conn->prepare('UPDATE dichvu SET soluotdatdichvu = ? WHERE id = ? LIMIT 1');
+        if (!$updateStmt) {
+            return;
+        }
+
+        $updateStmt->bind_param('ii', $total, $serviceId);
+        $updateStmt->execute();
+        $updateStmt->close();
+        return;
+    }
+
+    $conn->query('UPDATE dichvu SET soluotdatdichvu = 0');
+    $conn->query(
+        "
+        UPDATE dichvu d
+        LEFT JOIN (
+            SELECT l.dichvu_id, COUNT(*) AS total
+            FROM lichhen l
+            WHERE l.dichvu_id IS NOT NULL
+              AND COALESCE(l.trangthailichhen, '') <> 'huy'
+            GROUP BY l.dichvu_id
+        ) t ON t.dichvu_id = d.id
+        SET d.soluotdatdichvu = COALESCE(t.total, 0)
+        "
+    );
+}
+
 function app_booking_decode_note(string $note): array
 {
     $parsed = json_decode($note, true);
@@ -303,7 +360,37 @@ function app_ensure_revenue_table(mysqli $conn): bool
 function app_ensure_favorites_extended(mysqli $conn): void
 {
     if (!app_table_exists($conn, 'yeuthich')) {
+        $conn->query(
+            "
+            CREATE TABLE IF NOT EXISTS yeuthich (
+                id INT NOT NULL AUTO_INCREMENT,
+                khachhang_id INT NULL,
+                nguoidung_id INT NULL,
+                sanpham_id INT NULL,
+                dichvu_id INT NULL,
+                thucung_id INT NULL,
+                ngaytao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_yeuthich_user (nguoidung_id),
+                KEY idx_yeuthich_customer (khachhang_id),
+                KEY idx_yeuthich_product (sanpham_id),
+                KEY idx_yeuthich_service (dichvu_id),
+                KEY idx_yeuthich_pet (thucung_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            "
+        );
+    }
+
+    if (!app_table_exists($conn, 'yeuthich')) {
         return;
+    }
+
+    if (!app_column_exists($conn, 'yeuthich', 'khachhang_id')) {
+        $conn->query('ALTER TABLE yeuthich ADD COLUMN khachhang_id INT NULL FIRST');
+    }
+
+    if (!app_column_exists($conn, 'yeuthich', 'nguoidung_id')) {
+        $conn->query('ALTER TABLE yeuthich ADD COLUMN nguoidung_id INT NULL AFTER khachhang_id');
     }
 
     if (!app_column_exists($conn, 'yeuthich', 'dichvu_id')) {
@@ -313,6 +400,88 @@ function app_ensure_favorites_extended(mysqli $conn): void
     if (!app_column_exists($conn, 'yeuthich', 'thucung_id')) {
         $conn->query('ALTER TABLE yeuthich ADD COLUMN thucung_id INT NULL AFTER dichvu_id');
     }
+
+    if (!app_column_exists($conn, 'yeuthich', 'ngaytao')) {
+        $conn->query('ALTER TABLE yeuthich ADD COLUMN ngaytao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER thucung_id');
+    }
+
+    if (!app_index_exists($conn, 'yeuthich', 'idx_yeuthich_user')) {
+        $conn->query('ALTER TABLE yeuthich ADD INDEX idx_yeuthich_user (nguoidung_id)');
+    }
+
+    if (!app_index_exists($conn, 'yeuthich', 'idx_yeuthich_product')) {
+        $conn->query('ALTER TABLE yeuthich ADD INDEX idx_yeuthich_product (sanpham_id)');
+    }
+
+    if (!app_index_exists($conn, 'yeuthich', 'uq_yeuthich_user_product')) {
+        $conn->query('ALTER TABLE yeuthich ADD UNIQUE KEY uq_yeuthich_user_product (nguoidung_id, sanpham_id)');
+    }
+}
+
+function app_sync_product_purchase_counter(mysqli $conn, int $productId = 0): void
+{
+    if (!app_table_exists($conn, 'sanpham') || !app_table_exists($conn, 'donhang') || !app_table_exists($conn, 'donhang_chitiet')) {
+        return;
+    }
+
+    if (!function_exists('app_ensure_sanpham_purchase_count_column')) {
+        return;
+    }
+
+    if (!app_ensure_sanpham_purchase_count_column($conn)) {
+        return;
+    }
+
+    if ($productId > 0) {
+        $countSql = "
+            SELECT COALESCE(SUM(COALESCE(ct.soluong, 1)), 0) AS total
+            FROM donhang_chitiet ct
+            INNER JOIN donhang dh ON dh.id = ct.donhang_id
+            WHERE ct.sanpham_id = ?
+              AND ct.sanpham_id > 0
+              AND COALESCE(dh.trangthaidonhang, '') <> 'huy'
+        ";
+        $countStmt = $conn->prepare($countSql);
+        if (!$countStmt) {
+            return;
+        }
+
+        $countStmt->bind_param('i', $productId);
+        $countStmt->execute();
+        $countResult = $countStmt->get_result();
+        $countRow = $countResult ? $countResult->fetch_assoc() : null;
+        if ($countResult) {
+            $countResult->free();
+        }
+        $countStmt->close();
+
+        $total = (int) ($countRow['total'] ?? 0);
+        $updateStmt = $conn->prepare('UPDATE sanpham SET soluotmuasanpham = ? WHERE id = ? LIMIT 1');
+        if (!$updateStmt) {
+            return;
+        }
+        $updateStmt->bind_param('ii', $total, $productId);
+        $updateStmt->execute();
+        $updateStmt->close();
+        return;
+    }
+
+    $conn->query('UPDATE sanpham SET soluotmuasanpham = 0');
+    $conn->query(
+        "
+        UPDATE sanpham s
+        LEFT JOIN (
+            SELECT ct.sanpham_id, COALESCE(SUM(COALESCE(ct.soluong, 1)), 0) AS total
+            FROM donhang_chitiet ct
+            INNER JOIN donhang dh ON dh.id = ct.donhang_id
+            WHERE ct.sanpham_id IS NOT NULL
+              AND ct.sanpham_id > 0
+              AND COALESCE(dh.trangthaidonhang, '') <> 'huy'
+            GROUP BY ct.sanpham_id
+        ) t ON t.sanpham_id = s.id
+        SET s.soluotmuasanpham = COALESCE(t.total, 0)
+        "
+    );
 }
 
 function app_sync_revenue_table(mysqli $conn): bool
@@ -522,6 +691,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         }
 
         app_ensure_favorites_extended($conn);
+    app_sync_product_purchase_counter($conn, 0);
 
         $months = [];
         $monthMap = [];
@@ -676,7 +846,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             $favoriteProductSql = "
                 SELECT
                     COALESCE(NULLIF(TRIM(s.tensanpham), ''), 'San pham') AS item_name,
-                    COUNT(*) AS like_count
+                    COUNT(DISTINCT COALESCE(NULLIF(y.nguoidung_id, 0), -y.id)) AS like_count
                 FROM yeuthich y
                 LEFT JOIN sanpham s ON s.id = y.sanpham_id
                 WHERE y.sanpham_id IS NOT NULL
@@ -1388,6 +1558,10 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             ], 500);
         }
 
+        if ($serviceId > 0) {
+            app_sync_service_booking_counter($conn, $serviceId);
+        }
+
         $conn->close();
         app_json_response([
             'ok' => true,
@@ -1594,7 +1768,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             ], 400);
         }
 
-        $currentStmt = $conn->prepare('SELECT ghichulichhen FROM lichhen WHERE id = ? LIMIT 1');
+        $currentStmt = $conn->prepare('SELECT ghichulichhen, dichvu_id, trangthailichhen FROM lichhen WHERE id = ? LIMIT 1');
         if (!$currentStmt) {
             $conn->close();
             app_json_response([
@@ -1673,6 +1847,11 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             ], 500);
         }
 
+        $serviceIdForCounter = (int) ($currentRow['dichvu_id'] ?? 0);
+        if ($serviceIdForCounter > 0) {
+            app_sync_service_booking_counter($conn, $serviceIdForCounter);
+        }
+
         $conn->close();
         app_json_response([
             'ok' => true,
@@ -1689,6 +1868,8 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         app_ensure_dichvu_info_column($conn);
         app_ensure_service_category_table($conn);
         app_ensure_dichvu_category_column($conn);
+        app_ensure_dichvu_booking_count_column($conn);
+        app_sync_service_booking_counter($conn, 0);
 
         $sql = "
             SELECT
@@ -1701,6 +1882,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 d.trangthaidichvu,
                 d.ngaytaodichvu,
                 COALESCE(d.thongtin, '') AS thongtin,
+                COALESCE(d.soluotdatdichvu, 0) AS soluotdatdichvu,
                 COALESCE(NULLIF(TRIM(d.hinhanhdichvu), ''), '') AS hinhanh
             FROM dichvu d
             LEFT JOIN danhmucdichvu dm ON dm.id = d.danhmucdichvu_id
@@ -1730,6 +1912,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'trangthaidichvu' => (string) $row['trangthaidichvu'],
                 'ngaytaodichvu' => (string) $row['ngaytaodichvu'],
                 'thongtin' => (string) ($row['thongtin'] ?? ''),
+                'soluotdatdichvu' => (int) ($row['soluotdatdichvu'] ?? 0),
                 'hinhanh' => app_to_public_image_url((string) ($row['hinhanh'] ?? '')),
             ];
         }
@@ -1757,10 +1940,76 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         ]);
     }
 
+    if ($api === 'get_featured_services') {
+        app_seed_dichvu_image_column($conn);
+        app_ensure_dichvu_info_column($conn);
+        app_ensure_service_category_table($conn);
+        app_ensure_dichvu_category_column($conn);
+        app_ensure_dichvu_booking_count_column($conn);
+        app_sync_service_booking_counter($conn, 0);
+
+        $sql = "
+            SELECT
+                d.id,
+                d.tendichvu,
+                d.giadichvu,
+                d.thoigiandichvu,
+                d.danhmucdichvu_id,
+                COALESCE(dm.tendanhmucdichvu, '') AS tendanhmucdichvu,
+                d.trangthaidichvu,
+                d.ngaytaodichvu,
+                COALESCE(d.thongtin, '') AS thongtin,
+                COALESCE(d.soluotdatdichvu, 0) AS soluotdatdichvu,
+                COALESCE(NULLIF(TRIM(d.hinhanhdichvu), ''), '') AS hinhanh
+            FROM dichvu d
+            LEFT JOIN danhmucdichvu dm ON dm.id = d.danhmucdichvu_id
+            WHERE COALESCE(d.trangthaidichvu, 'hoatdong') = 'hoatdong'
+            ORDER BY COALESCE(d.soluotdatdichvu, 0) DESC, d.id DESC
+            LIMIT 10
+        ";
+
+        $result = $conn->query($sql);
+        if (!$result) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the lay danh sach dich vu noi bat',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $data = [];
+        while ($row = $result->fetch_assoc()) {
+            $data[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'tendichvu' => (string) ($row['tendichvu'] ?? ''),
+                'giadichvu' => (float) ($row['giadichvu'] ?? 0),
+                'thoigiandichvu' => (int) ($row['thoigiandichvu'] ?? 0),
+                'danhmucdichvu_id' => (int) ($row['danhmucdichvu_id'] ?? 0),
+                'tendanhmucdichvu' => (string) ($row['tendanhmucdichvu'] ?? ''),
+                'trangthaidichvu' => (string) ($row['trangthaidichvu'] ?? ''),
+                'ngaytaodichvu' => (string) ($row['ngaytaodichvu'] ?? ''),
+                'thongtin' => (string) ($row['thongtin'] ?? ''),
+                'soluotdatdichvu' => (int) ($row['soluotdatdichvu'] ?? 0),
+                'hinhanh' => app_to_public_image_url((string) ($row['hinhanh'] ?? '')),
+            ];
+        }
+        $result->free();
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'count' => count($data),
+            'data' => $data,
+        ]);
+    }
+
     if ($api === 'get_products') {
         app_ensure_product_subcategory_column($conn);
         app_ensure_product_discount_columns($conn);
         app_ensure_product_info_column($conn);
+        app_ensure_sanpham_purchase_count_column($conn);
+        app_sync_product_purchase_counter($conn, 0);
 
         $sql = "
             SELECT
@@ -1775,6 +2024,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 s.thoigianbatdaugiam,
                 s.thoigianketthucgiam,
                 s.soluongsanpham,
+                COALESCE(s.soluotmuasanpham, 0) AS soluotmuasanpham,
                 s.trangthaisanpham,
                 s.hinhanhsanpham,
                 COALESCE(s.thongtin, '') AS thongtin
@@ -1817,6 +2067,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'thoigianbatdaugiam' => (string) ($row['thoigianbatdaugiam'] ?? ''),
                 'thoigianketthucgiam' => (string) ($row['thoigianketthucgiam'] ?? ''),
                 'soluongsanpham' => $qty,
+                'soluotmuasanpham' => (int) ($row['soluotmuasanpham'] ?? 0),
                 'trangthaisanpham' => (string) $row['trangthaisanpham'],
                 'hinhanhsanpham' => app_to_public_image_url((string) ($row['hinhanhsanpham'] ?? '')),
                 'thongtin' => (string) ($row['thongtin'] ?? ''),

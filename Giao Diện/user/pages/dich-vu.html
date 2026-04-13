@@ -55,15 +55,25 @@
 <div class="service-detail-modal" id="serviceDetailModal" aria-hidden="true">
     <div class="service-detail-backdrop" data-modal-close="true"></div>
     <div class="service-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="serviceDetailTitle">
-        <button type="button" class="service-detail-close" data-modal-close="true" aria-label="Đóng">&times;</button>
-        <div class="service-detail-image" id="serviceDetailImage"></div>
-        <div class="service-detail-content">
+        <div class="service-detail-header">
             <h3 id="serviceDetailTitle" class="service-detail-title">Chi tiết dịch vụ</h3>
-            <div class="service-detail-meta">
-                <span id="serviceDetailPrice">Liên hệ</span>
-                <span id="serviceDetailDuration">-- phút</span>
+            <button type="button" class="service-detail-close" data-modal-close="true" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="service-detail-body">
+            <div class="service-detail-image" id="serviceDetailImage"></div>
+            <div class="service-detail-content">
+                <div class="service-detail-grid">
+                    <div><b>Danh mục:</b> <span id="serviceDetailCategory">-</span></div>
+                    <div><b>Giá:</b> <span id="serviceDetailPrice">Liên hệ</span></div>
+                    <div><b>Thời gian:</b> <span id="serviceDetailDuration">-- phút</span></div>
+                    <div><b>Lượt đặt:</b> <span id="serviceDetailBookings">0 lượt đặt</span></div>
+                    <div><b>Mô tả:</b> <span id="serviceDetailInfo">Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.</span></div>
+                </div>
             </div>
-            <p id="serviceDetailInfo" class="service-detail-info mb-0">Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.</p>
+        </div>
+        <div class="service-detail-footer">
+            <button type="button" class="btn btn-outline-secondary" data-modal-close="true">Đóng</button>
+            <button type="button" class="btn service-detail-btn service-booking-btn" id="serviceDetailBookBtn">Đặt ngay</button>
         </div>
     </div>
 </div>
@@ -184,7 +194,7 @@
 .service-detail-modal {
     position: fixed;
     inset: 0;
-    z-index: 10050;
+    z-index: 200000;
     display: none;
 }
 .service-detail-modal.open {
@@ -197,61 +207,79 @@
 }
 .service-detail-dialog {
     position: relative;
-    width: min(720px, calc(100% - 28px));
-    margin: 40px auto;
+    width: min(1040px, calc(100% - 28px));
+    margin: 24px auto;
     background: #fff;
-    border-radius: 16px;
+    border-radius: 18px;
     overflow: hidden;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+}
+.service-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
 }
 .service-detail-close {
-    position: absolute;
-    top: 10px;
-    right: 12px;
     width: 34px;
     height: 34px;
-    border: none;
-    border-radius: 999px;
-    font-size: 26px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 24px;
     line-height: 1;
-    color: #fff;
-    background: rgba(17, 24, 39, 0.45);
-    z-index: 2;
+    color: #0f172a;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.service-detail-body {
+    display: grid;
+    grid-template-columns: minmax(280px, 44%) minmax(0, 56%);
+    gap: 16px;
+    padding: 14px 16px;
+    overflow: auto;
 }
 .service-detail-image {
-    height: 280px;
+    height: 100%;
+    min-height: 320px;
+    max-height: 420px;
     background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
     background-size: cover;
     background-position: center;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
 }
 .service-detail-content {
-    padding: 22px;
+    min-height: 0;
 }
 .service-detail-title {
-    margin: 0 0 10px;
+    margin: 0;
     font-size: 30px;
     font-weight: 800;
     color: #111827;
 }
-.service-detail-meta {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-}
-.service-detail-meta span {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 7px 12px;
-    background: #e8f7ee;
-    color: #1F8F4D;
-    font-weight: 700;
+.service-detail-grid {
+    display: grid;
+    gap: 10px;
+    color: #1e293b;
+    font-size: 16px;
 }
 .service-detail-info {
     color: #374151;
     line-height: 1.65;
     white-space: pre-line;
+}
+.service-detail-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 16px 16px;
+    border-top: 1px solid #e2e8f0;
 }
 
 @media (max-width: 768px) {
@@ -261,9 +289,15 @@
     .service-detail-dialog {
         margin: 16px auto;
         width: calc(100% - 16px);
+        max-height: calc(100vh - 24px);
+    }
+    .service-detail-body {
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
     .service-detail-image {
-        height: 220px;
+        min-height: 220px;
+        max-height: 320px;
     }
     .service-detail-title {
         font-size: 24px;
@@ -282,10 +316,70 @@
     let validCategories = [];
     const categoryLabelMap = { all: 'Tất cả dịch vụ' };
     const SERVICE_RT_EVENT_KEY = 'app_services_realtime_event';
+    const UNCATEGORIZED_CATEGORY_KEY = 'category-uncategorized';
     let servicesRealtimeTimer = null;
     let stopServiceRealtimeSubscribe = null;
     let lastServiceDataSignature = '';
     let isRefreshingServices = false;
+    const SERVICE_WISHLIST_KEY = 'wishlistServices';
+
+    const getServiceWishlist = () => {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(SERVICE_WISHLIST_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+            return [];
+        }
+    };
+
+    const setServiceWishlist = (items) => {
+        localStorage.setItem(SERVICE_WISHLIST_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+    };
+
+    const isServiceFavorite = (serviceName) => {
+        const name = String(serviceName || '').trim();
+        if (name === '') return false;
+        return getServiceWishlist().some((item) => String(item?.name || '').trim() === name);
+    };
+
+    const toggleServiceFavorite = (serviceName, serviceImage, servicePrice, button) => {
+        const name = String(serviceName || '').trim();
+        if (name === '') return;
+
+        const refreshFavoriteBadge = () => {
+            if (typeof updateWishlistIcons === 'function') {
+                updateWishlistIcons();
+                return;
+            }
+            if (typeof window.updateWishlistIcons === 'function') {
+                window.updateWishlistIcons();
+            }
+        };
+
+        const favorites = getServiceWishlist();
+        const index = favorites.findIndex((item) => String(item?.name || '').trim() === name);
+
+        if (index >= 0) {
+            favorites.splice(index, 1);
+            setServiceWishlist(favorites);
+            if (button) button.classList.remove('liked');
+            refreshFavoriteBadge();
+            alert('Đã xóa "' + name + '" khỏi danh sách yêu thích!');
+            return;
+        }
+
+        const serviceItem = {
+            type: 'service',
+            name,
+            image: String(serviceImage || '').trim(),
+            price: String(servicePrice || 'Liên hệ').trim() || 'Liên hệ',
+        };
+        favorites.push(serviceItem);
+        setServiceWishlist(favorites);
+        if (button) button.classList.add('liked');
+        refreshFavoriteBadge();
+        alert('Đã thêm "' + name + '" vào danh sách yêu thích!');
+    };
 
     const normalizeCategory = (category) => {
         if (!category || typeof category !== "string") return "all";
@@ -295,7 +389,7 @@
 
     const buildCategoryKey = (id) => `category-${Number(id || 0)}`;
 
-    const rebuildDynamicCategoryLayout = (categoryRows) => {
+    const rebuildDynamicCategoryLayout = (categoryRows, hasUncategorized = false) => {
         const page = document.querySelector('.unified-services-page');
         const filterWrap = page?.querySelector('.service-filter-wrap');
         const container = document.getElementById('serviceCategoryContainer');
@@ -308,6 +402,14 @@
                 label: String(row.tendanhmucdichvu || '').trim(),
             })).filter((row) => row.id > 0 && row.label !== '')
             : [];
+
+        if (hasUncategorized) {
+            normalizedCategories.push({
+                id: 0,
+                key: UNCATEGORIZED_CATEGORY_KEY,
+                label: 'Chưa phân loại'
+            });
+        }
 
         validCategories = normalizedCategories.map((row) => row.key);
 
@@ -325,7 +427,7 @@
 
         container.innerHTML = normalizedCategories.map((row) => `
             <section class="service-category-block" data-category="${row.key}">
-                <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">${row.label}</h2><p class="text-muted mb-0">Danh sách dịch vụ thuộc danh mục này.</p></div></div>
+                <div class="row mb-4"><div class="col-12"><h2 class="fw-bold mb-2">${row.label}</h2><p class="text-muted mb-0">${row.key === UNCATEGORIZED_CATEGORY_KEY ? 'Danh sách dịch vụ chưa gán danh mục.' : 'Danh sách dịch vụ thuộc danh mục này.'}</p></div></div>
                 <div class="row g-4 mb-4"></div>
             </section>
         `).join('');
@@ -442,31 +544,36 @@
             const categories = Array.isArray(payload?.categories) ? payload.categories : [];
             const emptyState = document.getElementById('serviceEmptyState');
 
+            const activeRows = rows.filter((row) => {
+                const status = String(row?.trangthaidichvu || '').trim().toLowerCase();
+                return status === '' || status === 'hoatdong';
+            });
+
+            const validCategoryIdSet = new Set(
+                categories
+                    .map((row) => Number(row?.id || 0))
+                    .filter((id) => id > 0)
+            );
+
+            const hasUncategorized = activeRows.some((row) => {
+                const dynamicCategoryId = Number(row?.danhmucdichvu_id || 0);
+                return dynamicCategoryId <= 0 || !validCategoryIdSet.has(dynamicCategoryId);
+            });
+
             const nextSignature = buildServiceDataSignature(rows, categories);
             if (!force && nextSignature === lastServiceDataSignature) {
                 return;
             }
             lastServiceDataSignature = nextSignature;
 
-            rebuildDynamicCategoryLayout(categories);
+            rebuildDynamicCategoryLayout(categories, hasUncategorized);
             setServiceFilterButtonLabels();
-
-            if (categories.length === 0) {
-                if (emptyState) emptyState.hidden = false;
-                applyCategory('all');
-                return;
-            }
 
             if (!Array.isArray(rows) || rows.length === 0) {
                 if (emptyState) emptyState.hidden = false;
                 applyCategory('all');
                 return;
             }
-
-            const activeRows = rows.filter((row) => {
-                const status = String(row?.trangthaidichvu || '').trim().toLowerCase();
-                return status === '' || status === 'hoatdong';
-            });
 
             if (activeRows.length === 0) {
                 if (emptyState) emptyState.hidden = false;
@@ -481,8 +588,11 @@
 
             activeRows.forEach((row) => {
                 const dynamicCategoryId = Number(row?.danhmucdichvu_id || 0);
-                const key = dynamicCategoryId > 0 ? buildCategoryKey(dynamicCategoryId) : '';
-                if (!key || !servicesByCategory[key]) return;
+                const categoryKey = dynamicCategoryId > 0 ? buildCategoryKey(dynamicCategoryId) : '';
+                const key = servicesByCategory[categoryKey]
+                    ? categoryKey
+                    : (servicesByCategory[UNCATEGORIZED_CATEGORY_KEY] ? UNCATEGORIZED_CATEGORY_KEY : '');
+                if (!key) return;
 
                 const normalized = {
                     ...row,
@@ -568,12 +678,16 @@
                 const servicePrice = formatCurrencyVND(service.giadichvu);
                 const dbInfo = toSafeText(service.thongtin);
                 const summary = extractSummaryFromInfo(dbInfo, '');
+                const serviceCategory = toSafeText(service?.tendanhmucdichvu || categoryLabelMap[category] || 'Chưa phân loại');
+                const bookingCount = Number(service?.soluotdatdichvu || 0);
+                const bookingText = `${new Intl.NumberFormat('vi-VN').format(Math.max(0, Math.round(bookingCount)))} lượt đặt`;
                 const duration = Number(service.thoigiandichvu || 0) > 0
                     ? `${Math.round(Number(service.thoigiandichvu || 0))} phút`
                     : 'Chưa cập nhật thời lượng';
                 const imageUrl = resolveMediaUrl(service.hinhanh);
                 const iconClass = imageUrl ? 'service-icon-bg has-photo' : 'service-icon-bg';
                 const iconStyle = imageUrl ? ` style="background-image:url('${toSafeCssUrl(imageUrl)}')"` : '';
+                const likedClass = isServiceFavorite(serviceName) ? 'liked' : '';
 
                 return `
                     <div class="col-lg-4 col-md-6">
@@ -582,9 +696,14 @@
                             data-service-name="${escapeHtml(serviceName)}"
                             data-service-price="${escapeHtml(servicePrice)}"
                             data-service-duration="${escapeHtml(duration)}"
+                            data-service-category="${escapeHtml(serviceCategory)}"
+                            data-service-bookings="${escapeHtml(bookingText)}"
                             data-service-info="${escapeHtml(dbInfo || summary || 'Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.')}"
                             data-service-image="${escapeHtml(String(imageUrl || ''))}"
                         >
+                            <button type="button" class="service-favorite-btn service-wishlist-btn ${likedClass}" data-service-name="${escapeHtml(serviceName)}" data-service-image="${escapeHtml(String(imageUrl || ''))}" data-service-price="${escapeHtml(servicePrice)}" aria-label="Thêm dịch vụ vào yêu thích">
+                                <i data-feather="heart"></i>
+                            </button>
                             <div class="${iconClass}"${iconStyle}><i data-feather="star"></i></div>
                             <div class="card-body p-4">
                                 <h5 class="card-title fw-bold mb-3">${escapeHtml(serviceName)}</h5>
@@ -676,36 +795,79 @@
     const serviceDetailModal = document.getElementById('serviceDetailModal');
     const serviceDetailTitle = document.getElementById('serviceDetailTitle');
     const serviceDetailPrice = document.getElementById('serviceDetailPrice');
+    const serviceDetailCategory = document.getElementById('serviceDetailCategory');
+    const serviceDetailBookings = document.getElementById('serviceDetailBookings');
     const serviceDetailDuration = document.getElementById('serviceDetailDuration');
     const serviceDetailInfo = document.getElementById('serviceDetailInfo');
     const serviceDetailImage = document.getElementById('serviceDetailImage');
+    const serviceDetailBookBtn = document.getElementById('serviceDetailBookBtn');
+    let activeServiceDetail = { name: 'Dịch vụ thú cưng', price: 'Liên hệ' };
+    let lastBodyOverflow = '';
+
+    const lockServicesPageBackground = () => {
+        lastBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        document.body.classList.add('app-popup-open');
+    };
+
+    const unlockServicesPageBackground = () => {
+        document.body.style.overflow = lastBodyOverflow;
+        document.body.classList.remove('app-popup-open');
+    };
 
     const closeServiceDetailModal = () => {
         if (!serviceDetailModal) return;
         serviceDetailModal.classList.remove('open');
         serviceDetailModal.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
+        unlockServicesPageBackground();
     };
 
     const openServiceDetailModal = (serviceCard) => {
         if (!serviceDetailModal || !serviceCard) return;
 
-        serviceDetailTitle.textContent = toSafeText(serviceCard.dataset.serviceName) || 'Chi tiết dịch vụ';
-        serviceDetailPrice.textContent = toSafeText(serviceCard.dataset.servicePrice) || 'Liên hệ';
-        serviceDetailDuration.textContent = toSafeText(serviceCard.dataset.serviceDuration) || 'Chưa cập nhật thời lượng';
-        serviceDetailInfo.textContent = toSafeText(serviceCard.dataset.serviceInfo) || 'Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.';
+        const serviceName = toSafeText(serviceCard.dataset.serviceName) || 'Chi tiết dịch vụ';
+        const servicePrice = toSafeText(serviceCard.dataset.servicePrice) || 'Liên hệ';
+        const serviceDuration = toSafeText(serviceCard.dataset.serviceDuration) || 'Chưa cập nhật thời lượng';
+        const serviceInfoText = toSafeText(serviceCard.dataset.serviceInfo) || 'Thông tin chi tiết dịch vụ sẽ được cập nhật sớm.';
+        const serviceCategory = toSafeText(serviceCard.dataset.serviceCategory) || 'Chưa phân loại';
+        const serviceBookings = toSafeText(serviceCard.dataset.serviceBookings) || '0 lượt đặt';
+
+        serviceDetailTitle.textContent = serviceName;
+        serviceDetailPrice.textContent = servicePrice;
+        serviceDetailDuration.textContent = serviceDuration;
+        serviceDetailInfo.textContent = serviceInfoText;
+        if (serviceDetailCategory) serviceDetailCategory.textContent = serviceCategory;
+        if (serviceDetailBookings) serviceDetailBookings.textContent = serviceBookings;
+        activeServiceDetail = { name: serviceName, price: servicePrice };
 
         const imageUrl = toSafeText(serviceCard.dataset.serviceImage);
         serviceDetailImage.style.backgroundImage = imageUrl
             ? `url('${toSafeCssUrl(imageUrl)}')`
             : 'linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%)';
 
+        if (serviceDetailModal.parentElement !== document.body) {
+            document.body.appendChild(serviceDetailModal);
+        }
+
         serviceDetailModal.classList.add('open');
         serviceDetailModal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
+        lockServicesPageBackground();
     };
 
     document.addEventListener('click', (event) => {
+        const serviceFavoriteBtn = event.target.closest('.service-wishlist-btn');
+        if (serviceFavoriteBtn) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleServiceFavorite(
+                serviceFavoriteBtn.dataset.serviceName,
+                serviceFavoriteBtn.dataset.serviceImage,
+                serviceFavoriteBtn.dataset.servicePrice,
+                serviceFavoriteBtn
+            );
+            return;
+        }
+
         const closeTarget = event.target.closest('[data-modal-close="true"]');
         if (closeTarget) {
             closeServiceDetailModal();
@@ -715,6 +877,7 @@
         const serviceCard = event.target.closest('.service-card');
         if (!serviceCard) return;
         if (event.target.closest('.service-booking-btn')) return;
+        if (event.target.closest('.service-wishlist-btn')) return;
 
         openServiceDetailModal(serviceCard);
     });
@@ -722,6 +885,28 @@
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && serviceDetailModal?.classList.contains('open')) {
             closeServiceDetailModal();
+        }
+    });
+
+    serviceDetailBookBtn?.addEventListener('click', () => {
+        closeServiceDetailModal();
+        const serviceName = String(activeServiceDetail?.name || 'Dịch vụ thú cưng').trim() || 'Dịch vụ thú cưng';
+        const servicePrice = String(activeServiceDetail?.price || 'Liên hệ').trim() || 'Liên hệ';
+
+        localStorage.setItem('selectedServiceBooking', JSON.stringify({
+            service: serviceName,
+            price: servicePrice,
+            source: 'services_detail_modal',
+            timestamp: Date.now()
+        }));
+
+        if (typeof window.openDatLichPopup === 'function') {
+            window.openDatLichPopup({ service: serviceName, price: servicePrice, source: 'services_detail_modal' });
+            return;
+        }
+
+        if (typeof window.openServiceBookingPopup === 'function') {
+            window.openServiceBookingPopup({ service: serviceName, price: servicePrice });
         }
     });
 

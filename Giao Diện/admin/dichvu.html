@@ -58,13 +58,6 @@
             display: none !important;
         }
 
-        #serviceEditModal .service-form-group.image-side #editServiceImageHint {
-            display: block;
-            text-align: center;
-            font-size: 11px;
-            line-height: 1.35;
-        }
-
         .module-card.is-clickable {
             cursor: pointer;
             transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -172,7 +165,20 @@
                     <div class="service-form-group full">
                         <label for="editServiceImage">Link ảnh dịch vụ</label>
                         <input class="service-form-control" id="editServiceImage" type="text" placeholder="Ví dụ: https://example.com/image.jpg hoặc anhdata/services/abc.jpg">
-                        <small id="editServiceImageHint" class="text-muted"></small>
+                    </div>
+
+                    <div class="service-form-group full">
+                        <label for="editServiceImageFile">Tải ảnh dịch vụ</label>
+                        <div class="upload-square-field">
+                            <input class="upload-square-input" id="editServiceImageFile" type="file" accept="image/*">
+                            <label for="editServiceImageFile" class="upload-square-box" aria-label="Tải ảnh dịch vụ">
+                                <i class="bi bi-plus-lg upload-square-plus"></i>
+                                <span class="upload-square-title">Kéo thả ảnh hoặc tệp vào đây để tải lên</span>
+                                <span class="upload-square-btn"><i class="bi bi-cloud-upload"></i> Tải lên</span>
+                                <small class="upload-square-types">Hỗ trợ: JPG, PNG, JPEG, BMP, WEBP</small>
+                            </label>
+                        </div>
+                        <small id="editServiceImageFileHint" class="text-muted"></small>
                     </div>
 
                     <div class="service-form-group full">
@@ -304,8 +310,8 @@
             return '../../' + value.replace(/^\/+/, '');
         }
 
-        function setServiceImageHint(text) {
-            const hintEl = document.getElementById('editServiceImageHint');
+        function setServiceImageFileHint(text) {
+            const hintEl = document.getElementById('editServiceImageFileHint');
             if (hintEl) hintEl.textContent = String(text || '');
         }
 
@@ -960,7 +966,8 @@
             document.getElementById('editServiceStatus').value = 'hoatdong';
             document.getElementById('editServiceInfo').value = '';
             document.getElementById('editServiceImage').value = '';
-            setServiceImageHint('Nhập link ảnh để lưu trực tiếp vào cột hình ảnh dịch vụ trong database.');
+            document.getElementById('editServiceImageFile').value = '';
+            setServiceImageFileHint('Chưa chọn tệp ảnh. Có thể tải lên trực tiếp từ máy tính.');
             openServiceModal();
         }
 
@@ -1013,7 +1020,8 @@
             document.getElementById('editServiceInfo').value = String(service.thongtin || '');
             const currentImage = String(service.hinhanhdichvu || '').trim();
             document.getElementById('editServiceImage').value = currentImage;
-            setServiceImageHint(currentImage ? 'Bạn có thể sửa link ảnh trực tiếp. Để giữ nguyên thì để nguyên giá trị hiện tại.' : 'Dịch vụ chưa có ảnh, hãy nhập link ảnh.');
+            document.getElementById('editServiceImageFile').value = '';
+            setServiceImageFileHint('Chưa chọn tệp ảnh mới. Nếu chọn tệp, ảnh mới sẽ ghi đè đường dẫn ảnh hiện tại.');
 
             openServiceModal();
         }
@@ -1131,12 +1139,16 @@
             const status = document.getElementById('editServiceStatus').value;
             const info = document.getElementById('editServiceInfo').value.trim();
             const imageLink = String(document.getElementById('editServiceImage').value || '').trim();
+            const imageFile = document.getElementById('editServiceImageFile').files?.[0] || null;
             const currentImagePath = String(document.getElementById('editServiceImagePath').value || '').trim();
 
             if (!name) return;
 
             try {
-                const uploadedImagePath = imageLink || currentImagePath;
+                let uploadedImagePath = imageLink || currentImagePath;
+                if (imageFile) {
+                    uploadedImagePath = await uploadImageFile(imageFile, 'services');
+                }
 
                 if (editMode === 'create') {
                     const res = await mutateService('create', {
@@ -1231,11 +1243,13 @@
             deleteServiceBySearch();
         });
 
-        document.getElementById('editServiceImage').addEventListener('input', (event) => {
-            const value = String(event.target.value || '').trim();
-            if (value) {
-                setServiceImageHint('Link ảnh sẽ được lưu trực tiếp vào database.');
+        document.getElementById('editServiceImageFile').addEventListener('change', (event) => {
+            const file = event.target.files?.[0] || null;
+            if (!file) {
+                setServiceImageFileHint('Chưa chọn tệp ảnh. Có thể tải lên trực tiếp từ máy tính.');
+                return;
             }
+            setServiceImageFileHint(`Đã chọn: ${file.name}`);
         });
 
         document.addEventListener('keydown', (event) => {

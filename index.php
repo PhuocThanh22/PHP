@@ -772,6 +772,34 @@ function app_ensure_dichvu_info_column(mysqli $conn): bool
     return (bool) $conn->query($alterSql);
 }
 
+function app_ensure_dichvu_booking_count_column(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'dichvu')) {
+        return false;
+    }
+
+    if (app_column_exists($conn, 'dichvu', 'soluotdatdichvu')) {
+        return true;
+    }
+
+    $alterSql = "ALTER TABLE dichvu ADD COLUMN soluotdatdichvu INT NOT NULL DEFAULT 0 AFTER thongtin";
+    return (bool) $conn->query($alterSql);
+}
+
+function app_ensure_sanpham_purchase_count_column(mysqli $conn): bool
+{
+    if (!app_table_exists($conn, 'sanpham')) {
+        return false;
+    }
+
+    if (app_column_exists($conn, 'sanpham', 'soluotmuasanpham')) {
+        return true;
+    }
+
+    $alterSql = "ALTER TABLE sanpham ADD COLUMN soluotmuasanpham INT NOT NULL DEFAULT 0 AFTER soluongsanpham";
+    return (bool) $conn->query($alterSql);
+}
+
 function app_ensure_service_category_table(mysqli $conn): bool
 {
     if (!app_table_exists($conn, 'danhmucdichvu')) {
@@ -995,6 +1023,8 @@ if ($api !== '') {
     app_ensure_pet_source_columns($conn);
     app_ensure_service_category_table($conn);
     app_ensure_dichvu_category_column($conn);
+    app_ensure_dichvu_booking_count_column($conn);
+    app_ensure_sanpham_purchase_count_column($conn);
 
     $handled = app_handle_admin_api($conn, $api)
         || app_handle_staff_api($conn, $api)

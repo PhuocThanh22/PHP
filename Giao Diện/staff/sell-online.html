@@ -318,12 +318,44 @@
 
     const getCandidates = (apiName, params = '') => {
         const suffix = params ? '&' + params : '';
-        return [
+        const encodedPath = String(window.location.pathname || '');
+        const decodedPath = decodeURIComponent(encodedPath);
+        const marker = '/Giao Diện/';
+        const markerIndex = decodedPath.indexOf(marker);
+        const projectBase = markerIndex > 0 ? decodedPath.slice(0, markerIndex) : '';
+
+        const list = [
             new URL('../../index.php?api=' + apiName + suffix, window.location.href).toString(),
             '/phuocthanh/PHPCHINH/index.php?api=' + apiName + suffix,
             '/PHPCHINH/index.php?api=' + apiName + suffix,
             '/index.php?api=' + apiName + suffix
         ];
+
+        if (projectBase) {
+            list.unshift(projectBase + '/index.php?api=' + apiName + suffix);
+            list.unshift(window.location.origin + projectBase + '/index.php?api=' + apiName + suffix);
+        }
+
+        return Array.from(new Set(list));
+    };
+
+    const parseApiJson = (rawText) => {
+        if (typeof rawText !== 'string') return null;
+        try {
+            return JSON.parse(rawText);
+        } catch (err) {
+            const start = rawText.indexOf('{');
+            const end = rawText.lastIndexOf('}');
+            if (start >= 0 && end > start) {
+                const candidate = rawText.slice(start, end + 1);
+                try {
+                    return JSON.parse(candidate);
+                } catch (_) {
+                    return null;
+                }
+            }
+            return null;
+        }
     };
 
     const getSalesCandidates = () => {
@@ -343,7 +375,12 @@
             try {
                 const sep = url.includes('?') ? '&' : '?';
                 const res = await fetch(url + sep + '_t=' + Date.now(), { cache: 'no-store' });
-                const data = await res.json();
+                const rawText = await res.text();
+                const data = parseApiJson(rawText);
+                if (!data) {
+                    lastError = new Error('API tra ve du lieu khong hop le tu ' + url);
+                    continue;
+                }
                 if (!res.ok || !data.ok) {
                     lastError = new Error(data.message || ('HTTP ' + res.status));
                     continue;
@@ -365,7 +402,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const data = await res.json();
+                const rawText = await res.text();
+                const data = parseApiJson(rawText);
+                if (!data) {
+                    lastError = new Error('API tra ve du lieu khong hop le tu ' + url);
+                    continue;
+                }
                 if (!res.ok || !data.ok) {
                     lastError = new Error(data.message || ('HTTP ' + res.status));
                     continue;

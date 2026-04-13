@@ -1302,8 +1302,11 @@
         });
         if (checkoutData.source === 'direct') {
           localStorage.removeItem(DIRECT_CHECKOUT_KEY);
-        } else {
-          localStorage.removeItem('cart');
+        }
+        localStorage.removeItem('cart');
+
+        if (typeof window.syncCollectionsToServerNow === 'function') {
+          window.syncCollectionsToServerNow().catch(() => {});
         }
         showSuccessPopup({
           id: createdCode,
