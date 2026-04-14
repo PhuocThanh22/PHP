@@ -11,6 +11,114 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="staff-style.css?v=20260403-1">
+    <style>
+        .home-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.46);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            z-index: 4000;
+        }
+
+        .home-overlay.show {
+            display: flex;
+        }
+
+        .home-overlay-dialog {
+            width: min(760px, 96vw);
+            max-height: 88vh;
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #dbe2ea;
+            box-shadow: 0 22px 56px rgba(15, 23, 42, 0.28);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .home-overlay-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .home-overlay-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .home-overlay-close {
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #e2e8f0;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .home-overlay-body {
+            padding: 12px 14px;
+            overflow: auto;
+            display: grid;
+            gap: 10px;
+        }
+
+        .home-overlay-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #ffffff;
+        }
+
+        .home-overlay-item h6 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .home-overlay-item p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: #475569;
+        }
+
+        .home-overlay-footer {
+            border-top: 1px solid #e2e8f0;
+            padding: 10px 14px 12px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .home-icon-dot {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            display: none;
+        }
+
+        .home-icon-btn.has-alert {
+            position: relative;
+        }
+
+        .home-icon-btn.has-alert .home-icon-dot {
+            display: block;
+        }
+    </style>
 </head>
 <body class="home-no-scroll">
     <div class="page-wrap">
@@ -21,8 +129,8 @@
             </div>
 
             <div class="home-toolbar">
-                <button class="home-icon-btn" type="button" aria-label="Thông báo"><i class="bi bi-bell"></i></button>
-                <button class="home-icon-btn" type="button" aria-label="Lịch"><i class="bi bi-calendar3"></i></button>
+                <button id="homeNotifyBtn" class="home-icon-btn" type="button" aria-label="Thông báo"><i class="bi bi-bell"></i><span class="home-icon-dot" aria-hidden="true"></span></button>
+                <button id="homeCalendarBtn" class="home-icon-btn" type="button" aria-label="Lịch"><i class="bi bi-calendar3"></i><span class="home-icon-dot" aria-hidden="true"></span></button>
 
                 <div class="home-account">
                     <div class="home-account-info">
@@ -35,10 +143,10 @@
         </div>
 
         <div class="stats-container">
-            <div class="stat-card green" data-metric="invoices" role="button" tabindex="0"><div class="icon"><i class="bi bi-receipt"></i></div><div class="label">Hóa Đơn</div><div><span class="value">70</span><span class="unit"> đơn</span></div></div>
-            <div class="stat-card orange" data-metric="products" role="button" tabindex="0"><div class="icon"><i class="bi bi-box-seam"></i></div><div class="label">Sản Phẩm</div><div><span class="value">159</span><span class="unit"> món</span></div></div>
-            <div class="stat-card lime" data-metric="customers" role="button" tabindex="0"><div class="icon"><i class="bi bi-people"></i></div><div class="label">Khách Hàng</div><div><span class="value">35</span><span class="unit"> khách</span></div></div>
-            <div class="stat-card blue" data-metric="pets" role="button" tabindex="0"><div class="icon"><i class="bi bi-heart"></i></div><div class="label">Thú Cưng</div><div><span class="value">50</span><span class="unit"> con</span></div></div>
+            <div class="stat-card green" data-metric="invoices" role="button" tabindex="0"><div class="icon"><i class="bi bi-receipt"></i></div><div class="label">Hóa Đơn</div><div><span id="homeStatInvoices" class="value">0</span><span class="unit"> đơn</span></div></div>
+            <div class="stat-card orange" data-metric="products" role="button" tabindex="0"><div class="icon"><i class="bi bi-box-seam"></i></div><div class="label">Sản Phẩm</div><div><span id="homeStatProducts" class="value">0</span><span class="unit"> món</span></div></div>
+            <div class="stat-card lime" data-metric="customers" role="button" tabindex="0"><div class="icon"><i class="bi bi-people"></i></div><div class="label">Khách Hàng</div><div><span id="homeStatCustomers" class="value">0</span><span class="unit"> khách</span></div></div>
+            <div class="stat-card blue" data-metric="pets" role="button" tabindex="0"><div class="icon"><i class="bi bi-heart"></i></div><div class="label">Thú Cưng</div><div><span id="homeStatPets" class="value">0</span><span class="unit"> con</span></div></div>
         </div>
 
         <div class="home-main-grid">
@@ -81,33 +189,42 @@
                 <section class="home-side-card">
                     <div class="home-side-header">
                         <h4>Việc Cần Làm Hôm Nay</h4>
-                        <span class="home-side-badge warning">3 mục</span>
+                        <span id="homeTodoBadge" class="home-side-badge warning">0 mục</span>
                     </div>
-                    <ul class="home-task-list">
-                        <li><i class="bi bi-cart-check"></i><span>12 đơn hàng chờ xác nhận</span></li>
-                        <li><i class="bi bi-scissors"></i><span>8 lịch grooming buổi chiều</span></li>
-                        <li><i class="bi bi-telephone"></i><span>4 khách cần gọi lại</span></li>
+                    <ul id="homeTodoList" class="home-task-list">
+                        <li><i class="bi bi-hourglass-split"></i><span>Đang tải dữ liệu...</span></li>
                     </ul>
                     <div class="home-quick-actions">
-                        <button type="button">Xác Nhận Đơn</button>
-                        <button type="button">Tạo Lịch Hẹn</button>
+                        <button id="homeConfirmOrderBtn" type="button">Xác Nhận Đơn</button>
                     </div>
                 </section>
 
                 <section class="home-side-card">
                     <div class="home-side-header">
                         <h4>Top Dịch Vụ Tuần</h4>
-                        <span class="home-side-badge success">Ổn định</span>
+                        <span id="homeTopServiceBadge" class="home-side-badge success">Đang tải</span>
                     </div>
-                    <ol class="home-top-service">
-                        <li><span>Tắm & Sấy</span><b>42 lịch</b></li>
-                        <li><span>Vệ sinh tai</span><b>31 lịch</b></li>
-                        <li><span>Cắt móng</span><b>28 lịch</b></li>
+                    <ol id="homeTopServiceList" class="home-top-service">
+                        <li><span>Đang tải dữ liệu...</span><b>--</b></li>
                     </ol>
                 </section>
             </aside>
         </div>
 
+    </div>
+
+    <div id="homeOverlay" class="home-overlay" aria-hidden="true">
+        <div class="home-overlay-dialog" role="dialog" aria-modal="true" aria-labelledby="homeOverlayTitle">
+            <div class="home-overlay-head">
+                <h4 id="homeOverlayTitle" class="home-overlay-title">Thông tin</h4>
+                <button id="homeOverlayClose" class="home-overlay-close" type="button" aria-label="Đóng">&times;</button>
+            </div>
+            <div id="homeOverlayBody" class="home-overlay-body"></div>
+            <div class="home-overlay-footer">
+                <button id="homeOverlaySecondaryBtn" type="button" class="btn btn-outline-secondary btn-sm" hidden>Đóng</button>
+                <button id="homeOverlayPrimaryBtn" type="button" class="btn btn-success btn-sm" hidden>Mở</button>
+            </div>
+        </div>
     </div>
 
     <div class="staff-chat-floating" id="staffChatFloating">
@@ -231,10 +348,47 @@
         const typeSwitch = document.getElementById('homeTypeSwitch');
         const categoryFilter = document.getElementById('homeCategoryFilter');
         const categorySelect = document.getElementById('productCategorySelect');
+        const notifyBtn = document.getElementById('homeNotifyBtn');
+        const calendarBtn = document.getElementById('homeCalendarBtn');
+        const homeOverlay = document.getElementById('homeOverlay');
+        const homeOverlayTitle = document.getElementById('homeOverlayTitle');
+        const homeOverlayBody = document.getElementById('homeOverlayBody');
+        const homeOverlayClose = document.getElementById('homeOverlayClose');
+        const homeOverlayPrimaryBtn = document.getElementById('homeOverlayPrimaryBtn');
+        const homeOverlaySecondaryBtn = document.getElementById('homeOverlaySecondaryBtn');
+        const homeStatInvoices = document.getElementById('homeStatInvoices');
+        const homeStatProducts = document.getElementById('homeStatProducts');
+        const homeStatCustomers = document.getElementById('homeStatCustomers');
+        const homeStatPets = document.getElementById('homeStatPets');
+        const homeTodoBadge = document.getElementById('homeTodoBadge');
+        const homeTodoList = document.getElementById('homeTodoList');
+        const homeTopServiceBadge = document.getElementById('homeTopServiceBadge');
+        const homeTopServiceList = document.getElementById('homeTopServiceList');
+        const homeConfirmOrderBtn = document.getElementById('homeConfirmOrderBtn');
 
         let currentMetric = 'invoices';
         let currentPeriod = 'week';
         let currentChartType = 'auto';
+        let homeOverviewData = {
+            invoices: 0,
+            products: 0,
+            customers: 0,
+            pets: 0,
+            notifications: [],
+            calendar: [],
+            todoItems: [],
+            todoTotal: 0,
+            topServices: []
+        };
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         function buildSegmentColors(metricKey, length) {
             const palettes = {
@@ -421,6 +575,190 @@
             });
         }
 
+        function formatNumber(value) {
+            return new Intl.NumberFormat('vi-VN').format(Number(value || 0));
+        }
+
+        function routeParentPage(page) {
+            const parentDoc = window.parent && window.parent.document;
+            if (!parentDoc) return;
+            const link = parentDoc.querySelector(`.sidebar-menu a[data-page="${page}"]`);
+            if (link) {
+                link.click();
+            }
+        }
+
+        function openOverlay() {
+            if (!homeOverlay) return;
+            homeOverlay.classList.add('show');
+            homeOverlay.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeOverlay() {
+            if (!homeOverlay) return;
+            homeOverlay.classList.remove('show');
+            homeOverlay.setAttribute('aria-hidden', 'true');
+            homeOverlayPrimaryBtn.hidden = true;
+            homeOverlaySecondaryBtn.hidden = true;
+            homeOverlayPrimaryBtn.onclick = null;
+            homeOverlaySecondaryBtn.onclick = null;
+        }
+
+        function renderNotificationsOverlay() {
+            const list = Array.isArray(homeOverviewData.notifications) ? homeOverviewData.notifications : [];
+            homeOverlayTitle.textContent = 'Thông báo hệ thống';
+            homeOverlayBody.innerHTML = list.map((item) => `
+                <article class="home-overlay-item">
+                    <h6>${item.title || 'Thông báo'}</h6>
+                    <p>${item.message || ''}</p>
+                </article>
+            `).join('');
+
+            const firstType = String(list[0]?.type || '').trim().toLowerCase();
+            let targetPage = 'donhang.html';
+            let actionLabel = 'Xem đơn hàng';
+            if (firstType === 'inventory') {
+                targetPage = 'sanpham.html';
+                actionLabel = 'Xem sản phẩm';
+            } else if (firstType === 'booking') {
+                targetPage = 'lichhen.html';
+                actionLabel = 'Xem lịch hẹn';
+            }
+
+            homeOverlayPrimaryBtn.hidden = false;
+            homeOverlaySecondaryBtn.hidden = false;
+            homeOverlayPrimaryBtn.textContent = actionLabel;
+            homeOverlaySecondaryBtn.textContent = 'Đóng';
+            homeOverlayPrimaryBtn.onclick = () => {
+                closeOverlay();
+                routeParentPage(targetPage);
+            };
+            homeOverlaySecondaryBtn.onclick = closeOverlay;
+            openOverlay();
+        }
+
+        function renderCalendarOverlay() {
+            const list = Array.isArray(homeOverviewData.calendar) ? homeOverviewData.calendar : [];
+            homeOverlayTitle.textContent = 'Lịch hẹn trong ngày';
+            homeOverlayBody.innerHTML = list.length
+                ? list.map((item) => `
+                    <article class="home-overlay-item">
+                        <h6>${item.service || 'Dịch vụ'}</h6>
+                        <p>Khách: ${item.customer || 'Khách hàng'}</p>
+                        <p>Thời gian: ${item.time || 'Chưa rõ'}</p>
+                    </article>
+                `).join('')
+                : '<article class="home-overlay-item"><h6>Chưa có lịch hẹn hôm nay</h6><p>Hiện tại chưa có lịch hẹn trong ngày.</p></article>';
+
+            homeOverlayPrimaryBtn.hidden = false;
+            homeOverlaySecondaryBtn.hidden = false;
+            homeOverlayPrimaryBtn.textContent = 'Xem lịch hẹn';
+            homeOverlaySecondaryBtn.textContent = 'Đóng';
+            homeOverlayPrimaryBtn.onclick = () => {
+                closeOverlay();
+                routeParentPage('lichhen.html');
+            };
+            homeOverlaySecondaryBtn.onclick = closeOverlay;
+            openOverlay();
+        }
+
+        function applyOverviewData(payload) {
+            const data = payload && payload.data ? payload.data : {};
+            homeOverviewData = {
+                invoices: Number(data.invoices || 0),
+                products: Number(data.products || 0),
+                customers: Number(data.customers || 0),
+                pets: Number(data.pets || 0),
+                notifications: Array.isArray(data.notifications) ? data.notifications : [],
+                calendar: Array.isArray(data.calendar) ? data.calendar : [],
+                todoItems: Array.isArray(data.todo_items) ? data.todo_items : [],
+                todoTotal: Number(data.todo_total || 0),
+                topServices: Array.isArray(data.top_services) ? data.top_services : []
+            };
+
+            homeStatInvoices.textContent = formatNumber(homeOverviewData.invoices);
+            homeStatProducts.textContent = formatNumber(homeOverviewData.products);
+            homeStatCustomers.textContent = formatNumber(homeOverviewData.customers);
+            homeStatPets.textContent = formatNumber(homeOverviewData.pets);
+
+            notifyBtn.classList.toggle('has-alert', homeOverviewData.notifications.length > 0);
+            calendarBtn.classList.toggle('has-alert', homeOverviewData.calendar.length > 0);
+
+            homeTodoBadge.textContent = `${formatNumber(homeOverviewData.todoTotal)} mục`;
+            const todoRows = homeOverviewData.todoItems.length
+                ? homeOverviewData.todoItems
+                : [
+                    { icon: 'bi-info-circle', count: 0, label: 'không có việc cần xử lý ngay' }
+                ];
+            homeTodoList.innerHTML = todoRows.map((item) => {
+                const icon = escapeHtml(item.icon || 'bi-dot');
+                const count = formatNumber(item.count || 0);
+                const label = escapeHtml(item.label || 'cập nhật');
+                return `<li><i class="bi ${icon}"></i><span>${count} ${label}</span></li>`;
+            }).join('');
+
+            const topRows = homeOverviewData.topServices;
+            homeTopServiceBadge.textContent = topRows.length > 0 ? 'Ổn định' : 'Chưa có';
+            homeTopServiceList.innerHTML = topRows.length
+                ? topRows.map((item, idx) => `
+                    <li><span>${idx + 1}. ${escapeHtml(item.name || 'Dịch vụ')}</span><b>${formatNumber(item.count || 0)} lịch</b></li>
+                `).join('')
+                : '<li><span>Chưa có dữ liệu tuần này</span><b>0 lịch</b></li>';
+        }
+
+        function getOverviewApiCandidates() {
+            const list = [];
+            list.push(new URL('../../index.php?api=get_home_overview', window.location.href).toString());
+            list.push('/PHPCHINH/index.php?api=get_home_overview');
+            list.push('/phuocthanh/PHPCHINH/index.php?api=get_home_overview');
+            list.push('/index.php?api=get_home_overview');
+            return Array.from(new Set(list));
+        }
+
+        async function loadHomeOverview() {
+            const candidates = getOverviewApiCandidates();
+            let lastError = null;
+
+            for (const baseUrl of candidates) {
+                const separator = baseUrl.includes('?') ? '&' : '?';
+                const url = `${baseUrl}${separator}_t=${Date.now()}`;
+                try {
+                    const response = await fetch(url, { cache: 'no-store' });
+                    if (!response.ok) {
+                        lastError = new Error('HTTP ' + response.status);
+                        continue;
+                    }
+
+                    const payload = await response.json();
+                    if (!payload || !payload.ok) {
+                        lastError = new Error(payload?.message || 'Khong the tai thong ke tong quan');
+                        continue;
+                    }
+
+                    applyOverviewData(payload);
+                    return;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            if (lastError) {
+                console.warn('Khong the tai du lieu trang chu staff:', lastError.message || lastError);
+            }
+        }
+
+        notifyBtn?.addEventListener('click', renderNotificationsOverlay);
+        calendarBtn?.addEventListener('click', renderCalendarOverlay);
+        homeOverlayClose?.addEventListener('click', closeOverlay);
+        homeOverlay?.addEventListener('click', (event) => {
+            if (event.target === homeOverlay) {
+                closeOverlay();
+            }
+        });
+        homeConfirmOrderBtn?.addEventListener('click', () => {
+            routeParentPage('sell-online.html');
+        });
+
         const roleDisplay = document.getElementById('homeRoleDisplay');
         const homeAvatar = document.getElementById('homeAvatar');
 
@@ -443,6 +781,7 @@
         }
 
         syncHomeRole();
+        loadHomeOverview();
 
         updateChart('invoices');
     </script>

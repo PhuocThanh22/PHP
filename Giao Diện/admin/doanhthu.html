@@ -8,59 +8,160 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="admin-style.css?v=20260412-3">
+    <style>
+        .revenue-top-grid {
+            grid-template-columns: repeat(4, minmax(220px, 1fr));
+            margin-bottom: 18px;
+        }
+
+        .revenue-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .revenue-value-money {
+            font-size: 44px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .revenue-value-name {
+            font-size: 26px;
+            font-weight: 700;
+            line-height: 1.25;
+            letter-spacing: 0;
+        }
+
+        .revenue-desc {
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .revenue-click-card {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+        }
+
+        .revenue-click-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        .revenue-click-card.active {
+            border-color: rgba(37, 99, 235, 0.6);
+            box-shadow: 0 14px 24px rgba(37, 99, 235, 0.16);
+        }
+
+        .revenue-chart-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .revenue-chart-head h3 {
+            margin: 0;
+        }
+
+        .revenue-period-control {
+            min-width: 190px;
+            max-width: 240px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1320px) {
+            .revenue-top-grid {
+                grid-template-columns: repeat(2, minmax(220px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .revenue-top-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .revenue-chart-head {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .revenue-period-control {
+                max-width: none;
+            }
+
+            .revenue-value-money {
+                font-size: 34px;
+            }
+
+            .revenue-value-name {
+                font-size: 22px;
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="page-wrap">
     <div class="top-header"><h2>Báo Cáo Doanh Thu</h2></div>
-    <div class="module-grid">
-        <div class="module-card"><div class="module-title"><i class="bi bi-cash-coin"></i><span>Doanh Thu Tháng</span></div><div class="module-value" id="monthRevenueValue">0 đ</div><div class="module-desc" id="monthRevenueDesc">Đang tải dữ liệu...</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-graph-up-arrow"></i><span>Doanh Thu Dịch Vụ</span></div><div class="module-value" id="monthServiceRevenueValue">0 đ</div><div class="module-desc">Lịch hẹn hoàn thành trong tháng</div></div>
-        <div class="module-card"><div class="module-title"><i class="bi bi-receipt"></i><span>Số Đơn Hàng</span></div><div class="module-value" id="monthCompletedOrdersValue">0</div><div class="module-desc">Đơn hoàn tất trong tháng</div></div>
+    <div class="module-grid revenue-top-grid">
+        <div class="module-card revenue-click-card" id="monthRevenueCard" title="Bấm để xem tổng doanh thu sản phẩm và dịch vụ">
+            <div class="module-title revenue-card-title"><i class="bi bi-cash-coin"></i><span>Doanh Thu Tháng</span></div>
+            <div class="module-value revenue-value-money" id="monthRevenueValue">0 đ</div>
+            <div class="module-desc revenue-desc" id="monthRevenueDesc">Đang tải dữ liệu...</div>
+        </div>
+        <div class="module-card revenue-click-card" id="bestProductCard" title="Bấm để xem top 10 sản phẩm bán chạy">
+            <div class="module-title revenue-card-title"><i class="bi bi-box-seam"></i><span>Sản phẩm bán chạy nhất</span></div>
+            <div class="module-value revenue-value-name" id="bestProductName">-</div>
+            <div class="module-desc revenue-desc" id="bestProductMeta">0 lượt bán</div>
+        </div>
+        <div class="module-card revenue-click-card" id="favoriteProductCard" title="Bấm để xem top 10 sản phẩm được yêu thích">
+            <div class="module-title revenue-card-title"><i class="bi bi-heart"></i><span>Sản phẩm yêu thích nhất</span></div>
+            <div class="module-value revenue-value-name" id="favoriteProductName">-</div>
+            <div class="module-desc revenue-desc" id="favoriteProductMeta">0 lượt yêu thích</div>
+        </div>
+        <div class="module-card revenue-click-card" id="favoriteServiceCard" title="Bấm để xem top 10 dịch vụ được đặt nhiều">
+            <div class="module-title revenue-card-title"><i class="bi bi-star"></i><span>Dịch vụ được đặt nhiều nhất</span></div>
+            <div class="module-value revenue-value-name" id="favoriteServiceName">-</div>
+            <div class="module-desc revenue-desc" id="favoriteServiceMeta">0 lượt đặt</div>
+        </div>
     </div>
 
     <div class="chart-card revenue-chart-card">
-        <h3>Biểu Đồ Doanh Thu Chi Tiết</h3>
+        <div class="revenue-chart-head">
+            <h3 id="revenueChartTitle">Biểu Đồ Doanh Thu Chi Tiết</h3>
+            <select id="revenuePeriodSelect" class="form-select revenue-period-control" aria-label="Chọn kỳ thống kê doanh thu">
+                <option value="day">Theo ngày</option>
+                <option value="week">Theo tuần</option>
+                <option value="month" selected>Theo tháng</option>
+                <option value="year">Theo năm</option>
+            </select>
+        </div>
         <div class="revenue-chart-wrap">
             <canvas id="revenueDetailChart"></canvas>
         </div>
     </div>
 
-    <div class="content-section">
-        <div class="section-header"><h3><i class="bi bi-trophy text-warning me-2"></i>Thống Kê Bán Chạy Và Yêu Thích</h3></div>
-        <div class="module-grid">
-            <div class="module-card">
-                <div class="module-title"><i class="bi bi-box-seam"></i><span>Sản phẩm bán chạy nhất</span></div>
-                <div class="module-value" id="bestProductName">-</div>
-                <div class="module-desc" id="bestProductMeta">0 lượt bán</div>
-            </div>
-            <div class="module-card">
-                <div class="module-title"><i class="bi bi-scissors"></i><span>Dịch vụ bán chạy nhất</span></div>
-                <div class="module-value" id="bestServiceName">-</div>
-                <div class="module-desc" id="bestServiceMeta">0 lượt hoàn thành</div>
-            </div>
-            <div class="module-card">
-                <div class="module-title"><i class="bi bi-heart"></i><span>Sản phẩm yêu thích nhất</span></div>
-                <div class="module-value" id="favoriteProductName">-</div>
-                <div class="module-desc" id="favoriteProductMeta">0 lượt yêu thích</div>
-            </div>
-            <div class="module-card">
-                <div class="module-title"><i class="bi bi-star"></i><span>Dịch vụ được đặt nhiều nhất</span></div>
-                <div class="module-value" id="favoriteServiceName">-</div>
-                <div class="module-desc" id="favoriteServiceMeta">0 lượt đặt</div>
-            </div>
-            <div class="module-card">
-                <div class="module-title"><i class="bi bi-emoji-smile"></i><span>Loài thú cưng nổi bật</span></div>
-                <div class="module-value" id="favoritePetName">-</div>
-                <div class="module-desc" id="favoritePetMeta">0 hồ sơ</div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
 Chart.defaults.font.family = 'Poppins, sans-serif';
 const ctx = document.getElementById('revenueDetailChart');
 let revenueChart = null;
+let dashboardPayload = null;
+let currentPeriod = 'month';
+let currentChartMode = 'revenue_detail';
+
+const chartTitleEl = document.getElementById('revenueChartTitle');
+const revenuePeriodSelectEl = document.getElementById('revenuePeriodSelect');
+const clickableCards = {
+    revenue_total: document.getElementById('monthRevenueCard'),
+    best_selling_products: document.getElementById('bestProductCard'),
+    favorite_products: document.getElementById('favoriteProductCard'),
+    favorite_services: document.getElementById('favoriteServiceCard')
+};
 
 function formatVnd(value) {
     return new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' đ';
@@ -81,13 +182,18 @@ function formatShortVnd(value) {
     return String(Math.round(amount));
 }
 
-function getApiCandidates(apiName) {
+function formatCount(value) {
+    return new Intl.NumberFormat('vi-VN').format(Number(value || 0));
+}
+
+function getApiCandidates(apiName, extraParams = {}) {
+    const query = new URLSearchParams({ api: apiName, ...extraParams }).toString();
     const candidates = [];
-    candidates.push(`get_services.php?api=${apiName}`);
-    candidates.push(new URL(`get_services.php?api=${apiName}`, window.location.href).toString());
-    candidates.push(new URL(`../../index.php?api=${apiName}`, window.location.href).toString());
-    candidates.push(`/phuocthanh/PHPCHINH/index.php?api=${apiName}`);
-    candidates.push(`/PHPCHINH/index.php?api=${apiName}`);
+    candidates.push(`get_services.php?${query}`);
+    candidates.push(new URL(`get_services.php?${query}`, window.location.href).toString());
+    candidates.push(new URL(`../../index.php?${query}`, window.location.href).toString());
+    candidates.push(`/phuocthanh/PHPCHINH/index.php?${query}`);
+    candidates.push(`/PHPCHINH/index.php?${query}`);
     return Array.from(new Set(candidates));
 }
 
@@ -130,8 +236,216 @@ function renderRevenueChart(labels, serviceRevenue, productRevenue) {
     });
 }
 
-async function fetchRevenueDashboard() {
-    const candidates = getApiCandidates('get_revenue_dashboard');
+function renderTop10Chart(labels, values, datasetLabel, color) {
+    if (!ctx) return;
+
+    if (revenueChart) {
+        revenueChart.destroy();
+    }
+
+    revenueChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: datasetLabel,
+                    data: values,
+                    backgroundColor: color,
+                    borderRadius: 8,
+                    maxBarThickness: 44
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { boxWidth: 20, font: { size: 13 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `${context.dataset.label}: ${formatCount(context.parsed.y)} lượt`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                        font: { size: 12 },
+                        callback: (value) => formatCount(value)
+                    }
+                },
+                x: { ticks: { font: { size: 12 } } }
+            }
+        }
+    });
+}
+
+function renderRevenueSplitChart(productRevenue, serviceRevenue) {
+    if (!ctx) return;
+
+    if (revenueChart) {
+        revenueChart.destroy();
+    }
+
+    revenueChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Sản phẩm', 'Dịch vụ'],
+            datasets: [
+                {
+                    label: 'Doanh thu tổng',
+                    data: [Number(productRevenue || 0), Number(serviceRevenue || 0)],
+                    backgroundColor: ['rgba(59,130,246,0.82)', 'rgba(248,117,55,0.82)'],
+                    borderRadius: 10,
+                    maxBarThickness: 58
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { boxWidth: 20, font: { size: 13 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `${context.label}: ${formatVnd(context.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: { size: 12 },
+                        callback: (value) => formatShortVnd(value)
+                    }
+                },
+                x: { ticks: { font: { size: 12 } } }
+            }
+        }
+    });
+}
+
+function setChartTitle(title) {
+    if (chartTitleEl) {
+        chartTitleEl.textContent = title;
+    }
+}
+
+function setActiveCard(modeKey) {
+    Object.entries(clickableCards).forEach(([key, element]) => {
+        if (!element) return;
+        if (key === modeKey) {
+            element.classList.add('active');
+        } else {
+            element.classList.remove('active');
+        }
+    });
+}
+
+function showDefaultRevenueChart() {
+    if (!dashboardPayload) return;
+    const chart = dashboardPayload.chart || {};
+    const labels = Array.isArray(chart.labels) && chart.labels.length ? chart.labels : ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
+    const serviceRevenue = Array.isArray(chart.service_revenue) ? chart.service_revenue : [0, 0, 0, 0, 0, 0];
+    const productRevenue = Array.isArray(chart.product_revenue) ? chart.product_revenue : [0, 0, 0, 0, 0, 0];
+    renderRevenueChart(labels, serviceRevenue, productRevenue);
+    const periodLabelMap = {
+        day: 'ngày',
+        week: 'tuần',
+        month: 'tháng',
+        year: 'năm'
+    };
+    const periodLabel = periodLabelMap[currentPeriod] || 'tháng';
+    setChartTitle(`Biểu Đồ Doanh Thu Theo ${periodLabel}`);
+    setActiveCard('');
+    currentChartMode = 'revenue_detail';
+}
+
+function showRevenueTotalChart() {
+    if (!dashboardPayload) return;
+    const summary = dashboardPayload.summary || {};
+    const totalRevenue = Number(summary.total_revenue || 0);
+    let totalProductRevenue = Number(summary.total_product_revenue || 0);
+    let totalServiceRevenue = Number(summary.total_service_revenue || 0);
+
+    if (!totalProductRevenue && !totalServiceRevenue) {
+        const currentMonthRevenue = Number(summary.current_month_revenue || 0);
+        const currentMonthServiceRevenue = Number(summary.current_month_service_revenue || 0);
+        totalServiceRevenue = currentMonthServiceRevenue;
+        totalProductRevenue = Math.max(0, currentMonthRevenue - currentMonthServiceRevenue);
+    }
+
+    renderRevenueSplitChart(totalProductRevenue, totalServiceRevenue);
+    if (totalRevenue > 0) {
+        setChartTitle(`Tổng Doanh Thu Sản Phẩm Và Dịch Vụ (${formatVnd(totalRevenue)})`);
+    } else {
+        setChartTitle('Tổng Doanh Thu Sản Phẩm Và Dịch Vụ');
+    }
+    setActiveCard('revenue_total');
+    currentChartMode = 'revenue_total';
+}
+
+function showTop10Chart(modeKey) {
+    if (!dashboardPayload) return;
+    const top10 = dashboardPayload.top10 || {};
+    const list = Array.isArray(top10[modeKey]) ? top10[modeKey] : [];
+
+    let title = 'Top 10';
+    let label = 'Lượt';
+    let color = 'rgba(59,130,246,0.82)';
+    const labels = list.length ? list.map((item) => String(item.name || '-')) : ['Chưa có dữ liệu'];
+    let values = [];
+
+    if (modeKey === 'best_selling_products') {
+        title = 'Top 10 Sản Phẩm Bán Chạy';
+        label = 'Lượt bán';
+        color = 'rgba(37, 99, 235, 0.82)';
+        values = list.length ? list.map((item) => Number(item.quantity || item.count || 0)) : [0];
+    } else if (modeKey === 'favorite_products') {
+        title = 'Top 10 Sản Phẩm Được Yêu Thích';
+        label = 'Lượt yêu thích';
+        color = 'rgba(244, 63, 94, 0.82)';
+        values = list.length ? list.map((item) => Number(item.count || 0)) : [0];
+    } else if (modeKey === 'favorite_services') {
+        title = 'Top 10 Dịch Vụ Được Đặt Nhiều';
+        label = 'Lượt đặt';
+        color = 'rgba(16, 185, 129, 0.82)';
+        values = list.length ? list.map((item) => Number(item.count || 0)) : [0];
+    }
+
+    renderTop10Chart(labels, values, label, color);
+    setChartTitle(title);
+    setActiveCard(modeKey);
+    currentChartMode = modeKey;
+}
+
+function attachCardEvents() {
+    if (clickableCards.revenue_total) {
+        clickableCards.revenue_total.onclick = () => showRevenueTotalChart();
+    }
+    if (clickableCards.best_selling_products) {
+        clickableCards.best_selling_products.onclick = () => showTop10Chart('best_selling_products');
+    }
+    if (clickableCards.favorite_products) {
+        clickableCards.favorite_products.onclick = () => showTop10Chart('favorite_products');
+    }
+    if (clickableCards.favorite_services) {
+        clickableCards.favorite_services.onclick = () => showTop10Chart('favorite_services');
+    }
+}
+
+async function fetchRevenueDashboard(period = 'month') {
+    const candidates = getApiCandidates('get_revenue_dashboard', { period });
     let lastError = null;
 
     for (const url of candidates) {
@@ -163,29 +477,25 @@ function setText(id, value) {
 }
 
 function applyDashboardData(payload) {
+    dashboardPayload = payload || {};
+    const chartPeriod = String((payload.chart || {}).period || 'month');
+    currentPeriod = chartPeriod;
+    if (revenuePeriodSelectEl && revenuePeriodSelectEl.value !== chartPeriod) {
+        revenuePeriodSelectEl.value = chartPeriod;
+    }
     const summary = payload.summary || {};
-    const chart = payload.chart || {};
     const highlights = payload.highlights || {};
 
     const growth = Number(summary.growth_percent || 0);
     const growthPrefix = growth > 0 ? '+' : '';
     setText('monthRevenueValue', formatVnd(summary.current_month_revenue || 0));
     setText('monthRevenueDesc', `So với tháng trước: ${growthPrefix}${growth.toFixed(2)}%`);
-    setText('monthServiceRevenueValue', formatVnd(summary.current_month_service_revenue || 0));
-    setText('monthCompletedOrdersValue', String(summary.completed_orders_this_month || 0));
 
-    const labels = Array.isArray(chart.labels) && chart.labels.length ? chart.labels : ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
-    const serviceRevenue = Array.isArray(chart.service_revenue) ? chart.service_revenue : [0, 0, 0, 0, 0, 0];
-    const productRevenue = Array.isArray(chart.product_revenue) ? chart.product_revenue : [0, 0, 0, 0, 0, 0];
-    renderRevenueChart(labels, serviceRevenue, productRevenue);
+    showDefaultRevenueChart();
 
     const bestProduct = highlights.best_selling_product || {};
     setText('bestProductName', bestProduct.name || '-');
     setText('bestProductMeta', `${Number(bestProduct.quantity || 0)} lượt bán • ${formatVnd(bestProduct.revenue || 0)}`);
-
-    const bestService = highlights.best_selling_service || {};
-    setText('bestServiceName', bestService.name || '-');
-    setText('bestServiceMeta', `${Number(bestService.count || 0)} lượt hoàn thành • ${formatVnd(bestService.revenue || 0)}`);
 
     const favoriteProduct = highlights.favorite_product || {};
     setText('favoriteProductName', favoriteProduct.name || '-');
@@ -195,19 +505,32 @@ function applyDashboardData(payload) {
     setText('favoriteServiceName', favoriteService.name || '-');
     setText('favoriteServiceMeta', `${Number(favoriteService.count || 0)} lượt đặt`);
 
-    const favoritePet = highlights.favorite_pet || {};
-    setText('favoritePetName', favoritePet.name || '-');
-    setText('favoritePetMeta', `${Number(favoritePet.count || 0)} hồ sơ`);
+}
+
+async function handleRevenuePeriodChange() {
+    if (!revenuePeriodSelectEl) return;
+    const selectedPeriod = String(revenuePeriodSelectEl.value || 'month');
+    try {
+        const payload = await fetchRevenueDashboard(selectedPeriod);
+        applyDashboardData(payload);
+    } catch (error) {
+        console.error(error);
+        setText('monthRevenueDesc', 'Không tải được dữ liệu thống kê từ CSDL');
+    }
 }
 
 async function initRevenueDashboard() {
+    attachCardEvents();
+    if (revenuePeriodSelectEl) {
+        revenuePeriodSelectEl.onchange = handleRevenuePeriodChange;
+    }
     try {
-        const payload = await fetchRevenueDashboard();
+        const payload = await fetchRevenueDashboard(currentPeriod);
         applyDashboardData(payload);
     } catch (error) {
         console.error(error);
         renderRevenueChart(['T1', 'T2', 'T3', 'T4', 'T5', 'T6'], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]);
-        setText('monthRevenueDesc', 'Khong tai duoc du lieu thong ke tu CSDL');
+        setText('monthRevenueDesc', 'Không tải được dữ liệu thống kê từ CSDL');
     }
 }
 

@@ -199,6 +199,21 @@
       transform: translateX(2px);
     }
 
+    .customer-menu-btn.logout-btn {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    .customer-menu-btn.logout-btn:hover,
+    .customer-menu-btn.logout-btn.active {
+      background: #fecaca;
+      color: #991b1b;
+      border-color: #fca5a5;
+      transform: translateX(2px);
+      box-shadow: 0 8px 16px rgba(220, 38, 38, 0.16);
+    }
+
     .customer-main {
       min-width: 0;
     }
@@ -707,6 +722,123 @@
       border-bottom-color: #2d3642;
       color: #e2e8f0;
     }
+
+    .customer-confirm-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1200;
+      padding: 16px;
+    }
+
+    .customer-confirm-backdrop.show {
+      display: flex;
+    }
+
+    .customer-confirm-dialog {
+      width: min(480px, 96vw);
+      border-radius: 16px;
+      border: 1px solid #d9eee1;
+      background: #ffffff;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+      overflow: hidden;
+    }
+
+    .customer-confirm-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    .customer-confirm-head h4 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .customer-confirm-close {
+      border: 0;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: #e2e8f0;
+      color: #1f2937;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .customer-confirm-body {
+      margin: 0;
+      padding: 16px;
+      color: #334155;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .customer-confirm-actions {
+      padding: 0 16px 16px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .customer-confirm-btn {
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 14px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .customer-confirm-btn.cancel {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      color: #475569;
+    }
+
+    .customer-confirm-btn.danger {
+      background: #dc2626;
+      border-color: #dc2626;
+      color: #ffffff;
+    }
+
+    .customer-module.dark-mode .customer-confirm-dialog {
+      background: #1b2026;
+      border-color: #2a313a;
+    }
+
+    .customer-module.dark-mode .customer-confirm-head {
+      background: #111827;
+      border-bottom-color: #2a313a;
+    }
+
+    .customer-module.dark-mode .customer-confirm-head h4 {
+      color: #f8fafc;
+    }
+
+    .customer-module.dark-mode .customer-confirm-close {
+      background: #334155;
+      color: #e2e8f0;
+    }
+
+    .customer-module.dark-mode .customer-confirm-body {
+      color: #cbd5e1;
+    }
+
+    .customer-module.dark-mode .customer-confirm-btn.cancel {
+      background: #111827;
+      border-color: #334155;
+      color: #e2e8f0;
+    }
   </style>
 
   <div class="customer-shell" id="customerShell">
@@ -736,9 +868,8 @@
         <button class="customer-menu-btn" data-pane="orders"><i data-feather="package"></i>Đơn hàng</button>
         <button class="customer-menu-btn" data-pane="service-bookings"><i data-feather="calendar"></i>Dịch vụ</button>
         <button class="customer-menu-btn" data-pane="vouchers"><i data-feather="gift"></i>Voucher</button>
-        <button class="customer-menu-btn" data-pane="support"><i data-feather="message-circle"></i>Hỗ trợ</button>
         <button class="customer-menu-btn" data-pane="security"><i data-feather="shield"></i>Bảo mật</button>
-        <button class="customer-menu-btn" data-action="logout"><i data-feather="log-out"></i>Đăng xuất</button>
+        <button class="customer-menu-btn logout-btn" data-action="logout"><i data-feather="log-out"></i>Đăng xuất</button>
       </div>
     </aside>
 
@@ -746,7 +877,7 @@
       <div class="customer-topbar">
         <div>
           <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #0f172a;">Trung tâm khách hàng</h1>
-          <p style="margin: 4px 0 0;" class="muted">Quản lý tài khoản, đơn hàng và hỗ trợ tại một nơi.</p>
+          <p style="margin: 4px 0 0;" class="muted">Quản lý tài khoản, đơn hàng và bảo mật tại một nơi.</p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
           <button id="markAllReadBtn" class="btn-ghost">Đánh dấu đã đọc</button>
@@ -948,27 +1079,6 @@
         </div>
       </section>
 
-      <section id="pane-support" class="customer-pane">
-        <div class="customer-grid-2">
-          <div class="customer-card">
-            <h3 style="margin-top:0;">Liên hệ / Chat hỗ trợ</h3>
-            <p class="muted">Hotline: <strong>1900 9999</strong> • Email: <strong>support@petshop.vn</strong></p>
-            <form id="supportForm" class="customer-form">
-              <select id="supportOrderSelect" class="customer-select">
-                <option value="">Yêu cầu chung (không gắn đơn)</option>
-              </select>
-              <input id="supportTitleInput" class="customer-input" placeholder="Tiêu đề yêu cầu" required>
-              <textarea id="supportMessageInput" class="customer-textarea" placeholder="Mô tả vấn đề..." required></textarea>
-              <button type="submit" class="btn-primary">Gửi yêu cầu hỗ trợ</button>
-            </form>
-          </div>
-          <div class="customer-card">
-            <h3 style="margin-top:0;">Yêu cầu đã gửi</h3>
-            <div id="supportTicketList"></div>
-          </div>
-        </div>
-      </section>
-
       <section id="pane-security" class="customer-pane">
         <div class="customer-grid-2">
           <div class="customer-card">
@@ -982,7 +1092,38 @@
           </div>
           <div class="customer-card">
             <h3 style="margin-top:0;">Bảo mật tài khoản</h3>
-            <p class="muted">Tính năng xác thực 2 lớp đã được tắt theo cấu hình mới.</p>
+            <div class="address-item" style="margin-bottom:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                <div>
+                  <strong>Cảnh báo đăng nhập mới</strong>
+                  <div class="muted">Gửi thông báo khi tài khoản đăng nhập trên thiết bị lạ.</div>
+                </div>
+                <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                  <input type="checkbox" id="securityAlertToggle">
+                  <span>Bật</span>
+                </label>
+              </div>
+            </div>
+            <div class="address-item" style="margin-bottom:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                <div>
+                  <strong>Yêu cầu xác minh khi đổi mật khẩu</strong>
+                  <div class="muted">Thêm bước xác minh trước khi cập nhật mật khẩu.</div>
+                </div>
+                <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                  <input type="checkbox" id="securityVerifyToggle">
+                  <span>Bật</span>
+                </label>
+              </div>
+            </div>
+            <div class="address-item" style="margin-bottom:10px;">
+              <strong>Thiết bị đang đăng nhập</strong>
+              <div class="muted" id="securityDeviceInfo" style="margin-top:6px;">Đang tải thông tin thiết bị...</div>
+            </div>
+            <div class="address-item" style="margin-bottom:0;">
+              <strong>Nhật ký bảo mật gần đây</strong>
+              <div id="securityActivityList" class="muted" style="margin-top:6px;">Chưa có hoạt động.</div>
+            </div>
             <p class="muted" style="margin-top:12px;">Lần đổi mật khẩu gần nhất: <span id="lastPasswordChange">Chưa có</span></p>
           </div>
         </div>
@@ -1008,6 +1149,20 @@
     </div>
   </div>
 
+  <div id="logoutConfirmBackdrop" class="customer-confirm-backdrop" hidden>
+    <div class="customer-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle">
+      <div class="customer-confirm-head">
+        <h4 id="logoutConfirmTitle">Xác nhận đăng xuất</h4>
+        <button id="logoutConfirmCloseBtn" type="button" class="customer-confirm-close" aria-label="Đóng">&times;</button>
+      </div>
+      <p class="customer-confirm-body">Bạn có chắc chắn muốn đăng xuất khỏi trung tâm khách hàng không?</p>
+      <div class="customer-confirm-actions">
+        <button id="logoutConfirmCancelBtn" type="button" class="customer-confirm-btn cancel">Hủy</button>
+        <button id="logoutConfirmOkBtn" type="button" class="customer-confirm-btn danger">Đăng xuất</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function () {
       const root = document.getElementById('customerShell');
@@ -1024,7 +1179,6 @@
         paymentMethods: 'userPaymentMethods',
         auth: 'userAuth',
         vouchers: 'userVouchers',
-        support: 'userSupportTickets',
         wishlist: 'wishlist',
         cart: 'cart'
       };
@@ -1053,6 +1207,47 @@
 
       const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
+      const renderGuestLockedState = () => {
+        root.innerHTML = `
+          <main class="customer-main">
+            <div class="customer-card" style="max-width: 760px; margin: 16px auto; text-align: center;">
+              <h2 style="margin: 0 0 8px;">Vui lòng đăng nhập</h2>
+              <p class="muted" style="margin: 0 0 14px;">Trung tâm khách hàng chỉ hiển thị dữ liệu khi bạn đã đăng nhập.</p>
+              <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+                <button type="button" class="btn-primary" id="guestLockedLoginBtn">Đăng nhập ngay</button>
+                <button type="button" class="btn-ghost" id="guestLockedBackHomeBtn">Về trang chủ</button>
+              </div>
+            </div>
+          </main>
+        `;
+
+        document.getElementById('guestLockedLoginBtn')?.addEventListener('click', () => {
+          if (typeof window.openAuthModal === 'function') {
+            window.openAuthModal('login', {
+              reason: 'Vui lòng đăng nhập để truy cập trang khách hàng',
+              postLoginAction: () => {
+                if (typeof window.routeToPage === 'function') {
+                  window.routeToPage('user');
+                }
+              }
+            });
+            return;
+          }
+
+          if (typeof window.routeToPage === 'function') {
+            window.routeToPage('home');
+          }
+        });
+
+        document.getElementById('guestLockedBackHomeBtn')?.addEventListener('click', () => {
+          if (typeof window.routeToPage === 'function') {
+            window.routeToPage('home');
+          } else if (typeof window.resetToHome === 'function') {
+            window.resetToHome();
+          }
+        });
+      };
+
       const getCurrentAuthUser = () => {
         try {
           const raw = sessionStorage.getItem('authUser') || localStorage.getItem('authUser');
@@ -1071,6 +1266,30 @@
         return 'user';
       };
 
+      const normalizeAvatarUrl = (value) => {
+        const raw = String(value || '').trim().replace(/\\/g, '/');
+        if (!raw) return '';
+        if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+
+        let normalized = raw;
+        const anhdataIndex = normalized.toLowerCase().indexOf('anhdata/');
+        if (anhdataIndex >= 0) {
+          normalized = normalized.slice(anhdataIndex);
+        }
+
+        normalized = normalized.replace(/^\/+/, '');
+        normalized = normalized.replace(/^phuocthanh\/phpchinh\//i, '');
+        normalized = normalized.replace(/^phpchinh\//i, '');
+        normalized = normalized.replace(/^giao diện\/user\//i, '');
+        normalized = normalized.replace(/^giao%20di%E1%BB%87n\/user\//i, '');
+        normalized = normalized.replace(/^user\//i, '');
+
+        const pathname = String(window.location.pathname || '');
+        const matched = pathname.match(/^(.*?\/PHPCHINH)(?:\/|$)/i);
+        const projectBase = matched ? matched[1] : '/phuocthanh/PHPCHINH';
+        return `${window.location.origin}${projectBase}/${normalized}`.replace(/ /g, '%20');
+      };
+
       const syncProfileFromAuthUser = () => {
         const authUser = getCurrentAuthUser();
         if (!authUser || Number(authUser.id || 0) <= 0) return;
@@ -1081,7 +1300,7 @@
         const currentProfile = store.get(KEYS.profile, {});
         const authName = String(authUser.fullName || authUser.tennguoidung || authUser.name || authUser.displayName || '').trim();
         const authEmail = String(authUser.email || authUser.emailnguoidung || authUser.identifier || '').trim();
-        const authAvatar = String(authUser.avatar || authUser.avatar_url || authUser.anhdaidiennguoidung_url || authUser.anhdaidiennguoidung || '').trim();
+        const authAvatar = normalizeAvatarUrl(authUser.avatar || authUser.avatar_url || authUser.anhdaidiennguoidung_url || authUser.anhdaidiennguoidung || '');
 
         const nextProfile = {
           ...(currentProfile && typeof currentProfile === 'object' ? currentProfile : {}),
@@ -1095,26 +1314,15 @@
         store.set(KEYS.profile, nextProfile);
       };
 
-      let authUserSnapshot = getCurrentAuthUser();
-      if (!authUserSnapshot) {
-        const nextProfile = {
-          name: 'Khach hang',
-          email: '',
-          phone: '',
-          address: '',
-          avatar: '',
-          role: 'user'
-        };
-        store.set(KEYS.profile, nextProfile);
-        authUserSnapshot = {
-          id: 0,
-          role: 'user',
-          fullName: nextProfile.name,
-          email: nextProfile.email || ''
-        };
+      const authUserSnapshot = getCurrentAuthUser();
+      const currentRole = normalizeRole(authUserSnapshot?.role || '');
+      const isAuthenticatedCustomer = !!authUserSnapshot && currentRole === 'user' && Number(authUserSnapshot?.id || 0) > 0;
+
+      if (!isAuthenticatedCustomer) {
+        renderGuestLockedState();
+        return;
       }
 
-      const currentRole = normalizeRole(authUserSnapshot?.role || '');
       if (currentRole !== 'user') {
         alert('Trang này chỉ dành cho tài khoản khách hàng.');
         if (typeof window.resetToHome === 'function') {
@@ -1138,7 +1346,7 @@
 
       const isOrderOwnedByCurrentUser = (order) => {
         const identity = getCurrentUserIdentity();
-        if (!identity.hasAuth) return true;
+        if (!identity.hasAuth) return false;
 
         const orderUserId = Number(order?.userId || 0);
         const orderEmail = normalizeText(order?.userEmail || '');
@@ -1675,7 +1883,10 @@
         const defaultAuth = {
           password: '123456',
           twoFactor: false,
-          lastPasswordChange: null
+          securityAlerts: true,
+          requireVerifyOnPasswordChange: false,
+          lastPasswordChange: null,
+          securityActivities: []
         };
 
         if (!localStorage.getItem(KEYS.profile)) store.set(KEYS.profile, defaultProfile);
@@ -1686,7 +1897,12 @@
         if (!localStorage.getItem(KEYS.paymentMethods)) store.set(KEYS.paymentMethods, defaultPaymentMethods);
         if (!localStorage.getItem(KEYS.auth)) store.set(KEYS.auth, defaultAuth);
         if (!localStorage.getItem(KEYS.vouchers)) store.set(KEYS.vouchers, defaultVouchers);
-        if (!localStorage.getItem(KEYS.support)) store.set(KEYS.support, []);
+
+        const currentAuth = store.get(KEYS.auth, defaultAuth);
+        store.set(KEYS.auth, {
+          ...defaultAuth,
+          ...(currentAuth && typeof currentAuth === 'object' ? currentAuth : {})
+        });
 
         const existingVouchers = store.get(KEYS.vouchers, []);
         if (Array.isArray(existingVouchers) && existingVouchers.length) {
@@ -1737,7 +1953,7 @@
         const avatarButton = document.getElementById('customerAvatar');
         const avatarText = document.getElementById('customerAvatarText');
         const avatarImage = document.getElementById('customerAvatarImage');
-        const avatarUrl = String(profile.avatar || '').trim();
+        const avatarUrl = normalizeAvatarUrl(profile.avatar || '');
 
         if (avatarText) {
           avatarText.textContent = initials || 'KH';
@@ -2211,35 +2427,60 @@
         `;
       };
 
-      const renderSupportOrders = () => {
-        const orders = getCurrentUserOrders();
-        const select = document.getElementById('supportOrderSelect');
-        select.innerHTML = '<option value="">Yêu cầu chung (không gắn đơn)</option>' + orders.map((o) => `<option value="${o.id}">#${o.id}</option>`).join('');
+      const getSecurityActivityLabel = (event) => {
+        if (event === 'password_changed') return 'Đổi mật khẩu thành công';
+        if (event === 'security_setting_changed') return 'Cập nhật thiết lập bảo mật';
+        return 'Hoạt động bảo mật';
       };
 
-      const renderSupportTickets = () => {
-        const tickets = store.get(KEYS.support, []);
-        const wrap = document.getElementById('supportTicketList');
-        if (!tickets.length) {
-          wrap.innerHTML = '<div class="muted">Chưa có yêu cầu hỗ trợ.</div>';
-          return;
-        }
-
-        wrap.innerHTML = tickets.map((t) => `
-          <div class="ticket-item">
-            <div style="display:flex;justify-content:space-between;gap:8px;">
-              <strong>${t.title}</strong>
-              <span class="status-chip chip-pending">${t.status}</span>
-            </div>
-            <div class="muted">${t.orderId ? `Đơn #${t.orderId}` : 'Yêu cầu chung'} • ${t.createdAt}</div>
-            <div style="margin-top:6px;">${t.message}</div>
-          </div>
-        `).join('');
+      const appendSecurityActivity = (eventType, detail = '') => {
+        const auth = store.get(KEYS.auth, {});
+        const list = Array.isArray(auth.securityActivities) ? auth.securityActivities : [];
+        list.unshift({
+          id: idGen('sec'),
+          event: eventType,
+          detail: String(detail || '').trim(),
+          createdAt: nowText()
+        });
+        auth.securityActivities = list.slice(0, 8);
+        store.set(KEYS.auth, auth);
       };
 
       const renderSecurity = () => {
         const auth = store.get(KEYS.auth, {});
         document.getElementById('lastPasswordChange').textContent = auth.lastPasswordChange || 'Chưa có';
+
+        const alertToggle = document.getElementById('securityAlertToggle');
+        const verifyToggle = document.getElementById('securityVerifyToggle');
+        const deviceInfo = document.getElementById('securityDeviceInfo');
+        const activityWrap = document.getElementById('securityActivityList');
+
+        if (alertToggle) {
+          alertToggle.checked = auth.securityAlerts !== false;
+        }
+
+        if (verifyToggle) {
+          verifyToggle.checked = auth.requireVerifyOnPasswordChange === true;
+        }
+
+        if (deviceInfo) {
+          const browser = String(navigator.userAgent || '').includes('Edg')
+            ? 'Microsoft Edge'
+            : (String(navigator.userAgent || '').includes('Chrome') ? 'Google Chrome' : 'Trình duyệt web');
+          deviceInfo.textContent = `${browser} • ${navigator.platform || 'Thiết bị'} • ${navigator.language || 'vi-VN'}`;
+        }
+
+        if (activityWrap) {
+          const activities = Array.isArray(auth.securityActivities) ? auth.securityActivities : [];
+          activityWrap.innerHTML = activities.length
+            ? activities.map((item) => `
+                <div style="padding:6px 0; border-bottom:1px dashed #e2e8f0;">
+                  <div><strong>${getSecurityActivityLabel(item.event)}</strong></div>
+                  <div class="muted">${item.detail || 'Không có chi tiết'} • ${item.createdAt || ''}</div>
+                </div>
+              `).join('')
+            : '<div class="muted">Chưa có hoạt động bảo mật nào gần đây.</div>';
+        }
       };
 
       const refreshGlobalBadges = () => {
@@ -2256,58 +2497,80 @@
         });
       };
 
+      const logoutConfirmBackdrop = document.getElementById('logoutConfirmBackdrop');
+      const logoutConfirmCloseBtn = document.getElementById('logoutConfirmCloseBtn');
+      const logoutConfirmCancelBtn = document.getElementById('logoutConfirmCancelBtn');
+      const logoutConfirmOkBtn = document.getElementById('logoutConfirmOkBtn');
+
+      const showLogoutConfirm = () => {
+        if (!logoutConfirmBackdrop) return;
+        logoutConfirmBackdrop.hidden = false;
+        logoutConfirmBackdrop.classList.add('show');
+      };
+
+      const closeLogoutConfirm = () => {
+        if (!logoutConfirmBackdrop) return;
+        logoutConfirmBackdrop.classList.remove('show');
+        logoutConfirmBackdrop.hidden = true;
+      };
+
+      const performLogout = () => {
+        closeLogoutConfirm();
+
+        sessionStorage.removeItem('authUser');
+        sessionStorage.removeItem('userSession');
+        sessionStorage.removeItem('customerPortalAuth');
+        sessionStorage.removeItem('pendingAuthPromptV2');
+        localStorage.removeItem('authUser');
+        localStorage.removeItem('userSession');
+        localStorage.removeItem('customerPortalAuth');
+        localStorage.removeItem('pendingAuthPromptV2');
+        sessionStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('isLoggedIn');
+        localStorage.setItem('isLoggedIn', 'false');
+        localStorage.setItem('wishlist', '[]');
+        localStorage.setItem('wishlistServices', '[]');
+        localStorage.setItem('cart', '[]');
+
+        if (typeof window.clearCollectionsForGuest === 'function') {
+          window.clearCollectionsForGuest();
+        }
+
+        const guestProfile = {
+          name: 'Khach hang',
+          email: '',
+          phone: '',
+          address: '',
+          avatar: '',
+          role: 'user'
+        };
+        localStorage.setItem(KEYS.profile, JSON.stringify(guestProfile));
+
+        const authState = store.get(KEYS.auth, {});
+        store.set(KEYS.auth, {
+          ...(authState && typeof authState === 'object' ? authState : {}),
+          twoFactor: false
+        });
+
+        if (window.AppSessionRealtime && typeof window.AppSessionRealtime.publish === 'function') {
+          window.AppSessionRealtime.publish('auth_logout', {});
+        }
+
+        alert('Đã đăng xuất.');
+        if (typeof window.resetToHome === 'function') {
+          window.resetToHome();
+        } else {
+          location.reload();
+        }
+      };
+
       const bindEvents = () => {
         document.getElementById('customerMenu').addEventListener('click', (e) => {
           const btn = e.target.closest('.customer-menu-btn');
           if (!btn) return;
 
           if (btn.dataset.action === 'logout') {
-            if (!confirm('Bạn có chắc chắn muốn đăng xuất?')) return;
-
-            sessionStorage.removeItem('authUser');
-            sessionStorage.removeItem('userSession');
-            sessionStorage.removeItem('customerPortalAuth');
-            sessionStorage.removeItem('pendingAuthPromptV2');
-            localStorage.removeItem('authUser');
-            localStorage.removeItem('userSession');
-            localStorage.removeItem('customerPortalAuth');
-            localStorage.removeItem('pendingAuthPromptV2');
-            sessionStorage.removeItem('isLoggedIn');
-            localStorage.removeItem('isLoggedIn');
-            localStorage.setItem('isLoggedIn', 'false');
-            localStorage.setItem('wishlist', '[]');
-            localStorage.setItem('cart', '[]');
-
-            if (typeof window.clearCollectionsForGuest === 'function') {
-              window.clearCollectionsForGuest();
-            }
-
-            const guestProfile = {
-              name: 'Khach hang',
-              email: '',
-              phone: '',
-              address: '',
-              avatar: '',
-              role: 'user'
-            };
-            localStorage.setItem(KEYS.profile, JSON.stringify(guestProfile));
-
-            const authState = store.get(KEYS.auth, {});
-            store.set(KEYS.auth, {
-              ...(authState && typeof authState === 'object' ? authState : {}),
-              twoFactor: false
-            });
-
-            if (window.AppSessionRealtime && typeof window.AppSessionRealtime.publish === 'function') {
-              window.AppSessionRealtime.publish('auth_logout', {});
-            }
-
-            alert('Đã đăng xuất.');
-            if (typeof window.resetToHome === 'function') {
-              window.resetToHome();
-            } else {
-              location.reload();
-            }
+            showLogoutConfirm();
             return;
           }
 
@@ -2743,30 +3006,6 @@
           }
         });
 
-        document.getElementById('supportForm').addEventListener('submit', (e) => {
-          e.preventDefault();
-          const ticket = {
-            id: idGen('t'),
-            orderId: document.getElementById('supportOrderSelect').value,
-            title: document.getElementById('supportTitleInput').value.trim(),
-            message: document.getElementById('supportMessageInput').value.trim(),
-            status: 'Mới tiếp nhận',
-            createdAt: nowText()
-          };
-
-          if (!ticket.title || !ticket.message) {
-            alert('Vui lòng nhập tiêu đề và nội dung yêu cầu.');
-            return;
-          }
-
-          const list = store.get(KEYS.support, []);
-          list.unshift(ticket);
-          store.set(KEYS.support, list);
-          document.getElementById('supportForm').reset();
-          renderSupportTickets();
-          pushNotification('Yêu cầu hỗ trợ của bạn đã được gửi thành công.', 'support');
-        });
-
         document.getElementById('passwordForm').addEventListener('submit', (e) => {
           e.preventDefault();
           const oldPw = document.getElementById('oldPasswordInput').value;
@@ -2790,10 +3029,27 @@
           auth.password = newPw;
           auth.lastPasswordChange = nowText();
           store.set(KEYS.auth, auth);
+          appendSecurityActivity('password_changed', 'Mật khẩu tài khoản đã được cập nhật');
           renderSecurity();
           document.getElementById('passwordForm').reset();
           pushNotification('Mật khẩu đã được thay đổi thành công.', 'security');
           alert('Đổi mật khẩu thành công.');
+        });
+
+        document.getElementById('securityAlertToggle')?.addEventListener('change', (e) => {
+          const auth = store.get(KEYS.auth, {});
+          auth.securityAlerts = !!e.target.checked;
+          store.set(KEYS.auth, auth);
+          appendSecurityActivity('security_setting_changed', auth.securityAlerts ? 'Đã bật cảnh báo đăng nhập mới' : 'Đã tắt cảnh báo đăng nhập mới');
+          renderSecurity();
+        });
+
+        document.getElementById('securityVerifyToggle')?.addEventListener('change', (e) => {
+          const auth = store.get(KEYS.auth, {});
+          auth.requireVerifyOnPasswordChange = !!e.target.checked;
+          store.set(KEYS.auth, auth);
+          appendSecurityActivity('security_setting_changed', auth.requireVerifyOnPasswordChange ? 'Đã bật xác minh khi đổi mật khẩu' : 'Đã tắt xác minh khi đổi mật khẩu');
+          renderSecurity();
         });
 
         document.getElementById('notificationBell').addEventListener('click', () => {
@@ -2814,6 +3070,15 @@
           list.forEach((n) => { n.read = true; });
           store.set(KEYS.notifications, list);
           renderNotifications();
+        });
+
+        logoutConfirmCloseBtn?.addEventListener('click', closeLogoutConfirm);
+        logoutConfirmCancelBtn?.addEventListener('click', closeLogoutConfirm);
+        logoutConfirmOkBtn?.addEventListener('click', performLogout);
+        logoutConfirmBackdrop?.addEventListener('click', (event) => {
+          if (event.target === logoutConfirmBackdrop) {
+            closeLogoutConfirm();
+          }
         });
 
         document.getElementById('notificationList').addEventListener('click', (e) => {
@@ -2843,8 +3108,6 @@
         renderPaymentHistory();
         renderVouchers();
         renderFavoritesCart();
-        renderSupportOrders();
-        renderSupportTickets();
         renderSecurity();
         renderNotifications();
         refreshGlobalBadges();

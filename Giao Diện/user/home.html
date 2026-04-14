@@ -817,6 +817,26 @@
             pageName = 'services';
           }
 
+                    if ((pageName === 'user' || pageName === 'favorites') && typeof hasCustomerSession === 'function' && !hasCustomerSession()) {
+                        const targetPage = pageName;
+                        const reason = targetPage === 'favorites'
+                            ? 'Vui lòng đăng nhập để truy cập danh sách yêu thích'
+                            : 'Vui lòng đăng nhập để truy cập trang khách hàng';
+
+                        openAuthModal('login', {
+                            reason,
+                            postLoginAction: () => {
+                                if (typeof window.routeToPage === 'function') {
+                                    window.routeToPage(targetPage);
+                                }
+                            }
+                        });
+                        if (typeof resetToHome === 'function') {
+                            resetToHome();
+                        }
+                        return;
+                    }
+
                     window.currentPage = pageName;
 
           if (pageName === 'services') {
@@ -1746,7 +1766,7 @@
             }
 
             const html = `
-                <div id="userNoticePopup" class="user-notice-overlay" role="dialog" aria-modal="true" aria-labelledby="userNoticeTitle">
+                <div id="userNoticePopup" class="user-notice-overlay" role="dialog" aria-modal="true" aria-labelledby="userNoticeTitle" data-app-popup-skip-auto-close="1">
                     <div class="user-notice-modal">
                         <div id="userNoticeTitle" class="user-notice-head">Thông báo</div>
                         <div id="userNoticeMessage" class="user-notice-body"></div>
@@ -2108,6 +2128,14 @@
 
         const clearCollectionsForGuest = () => {
             applyCollectionsToLocal([], []);
+            localStorage.setItem('wishlistServices', '[]');
+
+            if (typeof updateWishlistIcons === 'function') {
+                updateWishlistIcons();
+            }
+            if (typeof window.renderFavoritesPage === 'function') {
+                window.renderFavoritesPage();
+            }
         };
 
         const startCollectionsChangeWatcher = () => {
@@ -4206,10 +4234,23 @@
       userSession: 'userSession',
             customerPortalAuth: 'customerPortalAuth',
       isLoggedIn: 'isLoggedIn',
-      pendingAuthPrompt: 'pendingAuthPromptV2'
+            pendingAuthPrompt: 'pendingAuthPromptV2',
+            pendingSocialSetup: 'pendingSocialSetupV1'
     };
 
         const GUEST_BOOT_KEY = 'customerGuestBootAppliedV1';
+        const CUSTOMER_CENTER_DATA_KEYS = [
+            'userProfile',
+            'userOrders',
+            'userNotifications',
+            'userReviews',
+            'userAddresses',
+            'userPaymentMethods',
+            'userVouchers',
+            'userSupportTickets',
+            'serviceBookings',
+            'userAuth'
+        ];
 
     const AUTH_MODAL_ID = 'userInlineAuthModal';
     const AUTH_STYLE_ID = 'userInlineAuthStyle';
@@ -4234,19 +4275,12 @@
                     try { localStorage.removeItem(key); } catch (e) {}
                 });
 
-                try {
-                    localStorage.setItem(AUTH_STORAGE_KEYS.isLoggedIn, 'false');
-                } catch (e) {}
+                CUSTOMER_CENTER_DATA_KEYS.forEach((key) => {
+                    try { localStorage.removeItem(key); } catch (e) {}
+                });
 
                 try {
-                    localStorage.setItem('userProfile', JSON.stringify({
-                        name: 'Khach hang',
-                        email: '',
-                        phone: '',
-                        address: '',
-                        avatar: '',
-                        role: 'user'
-                    }));
+                    localStorage.setItem(AUTH_STORAGE_KEYS.isLoggedIn, 'false');
                 } catch (e) {}
             } catch (e) {}
         };
@@ -4294,14 +4328,40 @@
             return false;
     };
 
-    const saveCustomerSession = (payload) => {
-          const avatarValue = String(
+        const normalizePublicAvatarUrl = (value) => {
+            const raw = String(value || '').trim().replace(/\\/g, '/');
+            if (!raw) return '';
+            if (/^(?:https?:)?\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+
+            let normalized = raw;
+            const anhdataIndex = normalized.toLowerCase().indexOf('anhdata/');
+            if (anhdataIndex >= 0) {
+              normalized = normalized.slice(anhdataIndex);
+            }
+
+            normalized = normalized.replace(/^\/+/, '');
+            normalized = normalized.replace(/^phuocthanh\/phpchinh\//i, '');
+            normalized = normalized.replace(/^phpchinh\//i, '');
+            normalized = normalized.replace(/^giao diện\/user\//i, '');
+            normalized = normalized.replace(/^giao%20di%E1%BB%87n\/user\//i, '');
+            normalized = normalized.replace(/^user\//i, '');
+
+            const pathname = String(window.location.pathname || '');
+            const matched = pathname.match(/^(.*?\/PHPCHINH)(?:\/|$)/i);
+            const projectBase = matched ? matched[1] : '/phuocthanh/PHPCHINH';
+            return `${window.location.origin}${projectBase}/${normalized}`.replace(/ /g, '%20');
+        };
+
+        const saveCustomerSession = (payload) => {
+            const avatarRaw = String(
             payload.avatar ||
             payload.avatar_url ||
             payload.anhdaidiennguoidung_url ||
             payload.anhdaidiennguoidung ||
+            payload.avatar_path ||
             ''
             ).trim();
+            const avatarValue = normalizePublicAvatarUrl(avatarRaw);
       const basePayload = {
                 id: Number(payload.id || 0),
         role: 'user',
@@ -4351,14 +4411,35 @@
             const safeApi = encodeURIComponent(String(apiName || '').trim());
             return [
                 `home_api.php?api=${safeApi}`,
-                `../../index.php?api=${safeApi}`,
-                `/phuocthanh/PHPCHINH/index.php?api=${safeApi}`,
-                `/PHPCHINH/index.php?api=${safeApi}`
+                `../../index.php?api=${safeApi}`
             ];
         };
 
         const callAuthApi = async (apiName, payload) => {
             let lastMessage = 'Không thể kết nối máy chủ.';
+            const isGenericMessage = (message) => {
+                const normalized = String(message || '').trim().toLowerCase();
+                return (
+                    normalized === '' ||
+                    normalized === 'xử lý thất bại.' ||
+                    normalized === 'xu ly that bai.' ||
+                    normalized === 'không thể kết nối máy chủ.' ||
+                    normalized === 'khong the ket noi may chu.'
+                );
+            };
+
+            const pickBetterMessage = (current, candidate) => {
+                const currentText = String(current || '').trim();
+                const candidateText = String(candidate || '').trim();
+                if (!candidateText) {
+                    return currentText || 'Xử lý thất bại.';
+                }
+                if (isGenericMessage(candidateText) && !isGenericMessage(currentText)) {
+                    return currentText;
+                }
+                return candidateText;
+            };
+
             for (const url of getAuthApiCandidates(apiName)) {
                 try {
                     const response = await fetch(url, {
@@ -4369,17 +4450,227 @@
                         body: JSON.stringify(payload),
                         cache: 'no-store'
                     });
-                    const data = await response.json().catch(() => ({}));
+                    const responseText = await response.text();
+                    let data = {};
+                    try {
+                        data = responseText ? JSON.parse(responseText) : {};
+                    } catch (e) {
+                        data = {};
+                    }
+
                     if (response.ok && data && data.ok) {
                         return { ok: true, data };
                     }
-                    lastMessage = data?.message || 'Xử lý thất bại.';
+
+                    const fallbackMessage =
+                        (typeof responseText === 'string' && responseText.trim() !== ''
+                            ? responseText
+                            : `Yeu cau that bai (HTTP ${response.status})`);
+                    const candidateMessage = data?.message || fallbackMessage || 'Xử lý thất bại.';
+                    lastMessage = pickBetterMessage(lastMessage, candidateMessage);
+
+                    const hasStructuredError =
+                        data &&
+                        typeof data === 'object' &&
+                        (
+                            data.ok === false ||
+                            typeof data.message === 'string' ||
+                            typeof data.retry_after !== 'undefined'
+                        );
+
+                    if (hasStructuredError) {
+                        const statusCode = Number(response.status || 0);
+                        return {
+                            ok: false,
+                            message: lastMessage,
+                            status: statusCode,
+                            data
+                        };
+                    }
                 } catch (e) {
-                    lastMessage = 'Không thể kết nối máy chủ.';
+                    lastMessage = pickBetterMessage(lastMessage, 'Không thể kết nối máy chủ.');
                 }
             }
 
             return { ok: false, message: lastMessage };
+        };
+
+        const SOCIAL_PROFILE_STYLE_ID = 'socialProfileSetupStyle';
+        const SOCIAL_PROFILE_MODAL_ID = 'socialProfileSetupModal';
+
+        const ensureSocialProfileSetupStyle = () => {
+            if (document.getElementById(SOCIAL_PROFILE_STYLE_ID)) return;
+            const style = document.createElement('style');
+            style.id = SOCIAL_PROFILE_STYLE_ID;
+            style.textContent =
+                '.spu-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);display:none;align-items:center;justify-content:center;z-index:310000;padding:16px;}' +
+                '.spu-card{width:min(560px,100%);background:#fff;border-radius:16px;border:1px solid #d9e2ec;box-shadow:0 24px 68px rgba(0,0,0,.34);font-family:Poppins,Arial,sans-serif;}' +
+                '.spu-head{padding:14px 18px 10px;border-bottom:1px solid #edf2f7;}' +
+                '.spu-title{margin:0;font-size:22px;font-weight:700;color:#0f172a;}' +
+                '.spu-body{padding:14px 18px 18px;}' +
+                '.spu-msg{margin:0 0 12px;font-size:13px;color:#475569;line-height:1.45;}' +
+                '.spu-error{display:none;margin-bottom:10px;padding:9px 10px;border-radius:10px;background:#3a1218;color:#fecaca;font-size:13px;border:1px solid #7f1d1d;}' +
+                '.spu-group{margin:0 0 10px;}' +
+                '.spu-label{display:block;margin-bottom:6px;font-size:13px;color:#14532d;font-weight:700;}' +
+                '.spu-input{width:100%;height:46px;border:1px solid #cbd5e1;border-radius:11px;padding:0 12px;font-size:14px;background:#fff;color:#0f172a;outline:none;}' +
+                '.spu-input:focus{border-color:#2fcf72;box-shadow:0 0 0 3px rgba(47,207,114,.16);}' +
+                '.spu-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}' +
+                '.spu-meta-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;color:#334155;}' +
+                '.spu-avatar-preview{width:72px;height:72px;border-radius:999px;border:1px solid #cbd5e1;object-fit:cover;background:#f1f5f9;display:block;margin-top:6px;}' +
+                '.spu-submit{width:100%;height:48px;border:none;border-radius:11px;background:linear-gradient(135deg,#1f8f4d 0%,#36b86c 100%);color:#fff;font-weight:700;font-size:15px;cursor:pointer;margin-top:6px;}' +
+                '.spu-submit:disabled{opacity:.7;cursor:not-allowed;}';
+            document.head.appendChild(style);
+        };
+
+        const ensureSocialProfileSetupModal = () => {
+            if (document.getElementById(SOCIAL_PROFILE_MODAL_ID)) {
+                return document.getElementById(SOCIAL_PROFILE_MODAL_ID);
+            }
+
+            ensureSocialProfileSetupStyle();
+            const shell = document.createElement('div');
+            shell.id = SOCIAL_PROFILE_MODAL_ID;
+            shell.className = 'spu-overlay';
+            shell.innerHTML =
+                '<div class="spu-card" role="dialog" aria-modal="true" aria-labelledby="spuTitle">' +
+                    '<div class="spu-head"><h3 class="spu-title" id="spuTitle">Hoàn tất hồ sơ tài khoản</h3></div>' +
+                    '<div class="spu-body">' +
+                        '<p class="spu-msg">Để dùng đăng nhập Google/Facebook, vui lòng bổ sung thông tin tài khoản.</p>' +
+                        '<div id="spuError" class="spu-error"></div>' +
+                        '<div class="spu-meta">' +
+                            '<div class="spu-meta-item">Nhà cung cấp: <b id="spuProvider">-</b></div>' +
+                            '<div class="spu-meta-item">Email: <b id="spuEmail">-</b></div>' +
+                        '</div>' +
+                        '<div class="spu-group"><label class="spu-label" for="spuDisplayName">Họ và tên hiển thị</label><input id="spuDisplayName" class="spu-input" type="text" placeholder="Nguyễn Văn A"></div>' +
+                        '<div class="spu-group"><label class="spu-label" for="spuUsername">Tên tài khoản *</label><input id="spuUsername" class="spu-input" type="text" placeholder="thanhhuy123"></div>' +
+                        '<div class="spu-group"><label class="spu-label" for="spuPhone">Số điện thoại *</label><input id="spuPhone" class="spu-input" type="tel" placeholder="09xxxxxxxx"></div>' +
+                        '<div class="spu-group"><label class="spu-label" for="spuAvatar">Avatar (tùy chọn)</label><input id="spuAvatar" class="spu-input" type="file" accept="image/*"><img id="spuAvatarPreview" class="spu-avatar-preview" alt="Avatar preview"></div>' +
+                        '<button id="spuSubmit" type="button" class="spu-submit">Hoàn tất tạo tài khoản</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(shell);
+            return shell;
+        };
+
+        const readFileAsDataUrl = (file) => {
+            if (!file) return Promise.resolve('');
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(new Error('Khong the doc file avatar'));
+                reader.readAsDataURL(file);
+            });
+        };
+
+        const openSocialProfileSetupModal = async () => {
+            const markerRaw = localStorage.getItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+            if (!markerRaw) {
+                return;
+            }
+
+            const pendingResult = await callAuthApi('get_social_pending_profile', {});
+            if (!pendingResult?.ok) {
+                localStorage.removeItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+                return;
+            }
+
+            const pending = pendingResult.data?.data || {};
+            const shell = ensureSocialProfileSetupModal();
+            const providerEl = shell.querySelector('#spuProvider');
+            const emailEl = shell.querySelector('#spuEmail');
+            const displayNameInput = shell.querySelector('#spuDisplayName');
+            const usernameInput = shell.querySelector('#spuUsername');
+            const phoneInput = shell.querySelector('#spuPhone');
+            const avatarInput = shell.querySelector('#spuAvatar');
+            const avatarPreview = shell.querySelector('#spuAvatarPreview');
+            const submitBtn = shell.querySelector('#spuSubmit');
+            const errorEl = shell.querySelector('#spuError');
+
+            providerEl.textContent = String(pending.provider || '-');
+            emailEl.textContent = String(pending.email || '-');
+            displayNameInput.value = String(pending.name || '').trim();
+            usernameInput.value = String(pending.name || '').trim().toLowerCase().replace(/[^a-z0-9_\.]/g, '');
+            phoneInput.value = '';
+            avatarInput.value = '';
+            avatarPreview.src = String(pending.avatar_url || '').trim() || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMuL29yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjcyIiBoZWlnaHQ9IjcyIiByeD0iMzYiIGZpbGw9IiNFMkU4RjAiLz48Y2lyY2xlIGN4PSIzNiIgY3k9IjI5IiByPSIxMiIgZmlsbD0iIzk0QTNCOCIvPjxwYXRoIGQ9Ik0xNiA1OS4yQzE5Ljc2IDUwLjI5IDI3LjQ5IDQ0IDM2IDQ0QzQ0LjUxIDQ0IDUyLjI0IDUwLjI5IDU2IDU5LjIiIGZpbGw9IiM5NEEzQjgiLz48L3N2Zz4=';
+            errorEl.style.display = 'none';
+            errorEl.textContent = '';
+
+            avatarInput.onchange = async () => {
+                const file = avatarInput.files && avatarInput.files[0] ? avatarInput.files[0] : null;
+                if (!file) return;
+                try {
+                    const dataUrl = await readFileAsDataUrl(file);
+                    if (dataUrl) avatarPreview.src = dataUrl;
+                } catch (e) {}
+            };
+
+            submitBtn.onclick = async () => {
+                errorEl.style.display = 'none';
+                const username = usernameInput.value.trim();
+                const displayName = displayNameInput.value.trim();
+                const phone = phoneInput.value.replace(/\D/g, '').trim();
+                if (username.length < 3) {
+                    errorEl.textContent = 'Tên tài khoản phải từ 3 ký tự trở lên.';
+                    errorEl.style.display = 'block';
+                    usernameInput.focus();
+                    return;
+                }
+                if (phone.length < 9 || phone.length > 11) {
+                    errorEl.textContent = 'Số điện thoại không hợp lệ.';
+                    errorEl.style.display = 'block';
+                    phoneInput.focus();
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Đang hoàn tất...';
+                let avatarDataUrl = '';
+                try {
+                    const file = avatarInput.files && avatarInput.files[0] ? avatarInput.files[0] : null;
+                    avatarDataUrl = file ? await readFileAsDataUrl(file) : '';
+                } catch (e) {}
+
+                const completeResult = await callAuthApi('complete_social_signup', {
+                    username,
+                    display_name: displayName,
+                    phone,
+                    avatar_data_url: avatarDataUrl
+                });
+
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Hoàn tất tạo tài khoản';
+
+                if (!completeResult?.ok) {
+                    errorEl.textContent = completeResult?.message || 'Không thể hoàn tất tài khoản social.';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                const user = completeResult.data?.data || {};
+                saveCustomerSession({
+                    id: user.id || 0,
+                    fullName: user.tennguoidung || username,
+                    email: user.emailnguoidung || pending.email || '',
+                    identifier: user.emailnguoidung || pending.email || username,
+                    avatar: user.anhdaidiennguoidung_url || user.avatar_url || user.anhdaidiennguoidung || '',
+                    avatar_path: user.anhdaidiennguoidung || ''
+                });
+
+                localStorage.removeItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+                shell.style.display = 'none';
+                document.body.classList.remove('auth-modal-open');
+
+                if (typeof window.routeToPage === 'function') {
+                    window.routeToPage('user');
+                } else if (typeof window.loadPage === 'function') {
+                    window.loadPage('user');
+                }
+            };
+
+            shell.style.display = 'flex';
+            document.body.classList.add('auth-modal-open');
+            usernameInput.focus();
         };
 
     const ensureAuthStyle = () => {
@@ -4416,7 +4707,18 @@
                 '.u-auth-switch{margin-top:12px;font-size:13px;color:#64748b;text-align:center;}' +
                 '.u-auth-link{color:#1f8f4d;font-weight:700;cursor:pointer;text-decoration:none;}' +
                 '.u-auth-email-wrap{display:none;}' +
-                '.u-auth-email-wrap.show{display:block;}';
+                '.u-auth-email-wrap.show{display:block;}' +
+                '.u-auth-row{display:flex;gap:8px;align-items:center;}' +
+                '.u-auth-row .u-auth-input{flex:1;}' +
+                '.u-auth-send-code{height:42px;border:1px solid #16a34a;background:#f0fdf4;color:#166534;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;text-align:center;line-height:1;}' +
+                '.u-auth-send-code:disabled{opacity:.65;cursor:not-allowed;}' +
+                '.u-auth-verify-wrap{display:none;}' +
+                '.u-auth-verify-wrap.show{display:block;}' +
+                '.u-auth-code-status{display:none;margin-top:6px;font-size:12px;font-weight:600;line-height:1.35;}' +
+                '.u-auth-code-status.show{display:block;}' +
+                '.u-auth-code-status.valid{color:#166534;}' +
+                '.u-auth-code-status.invalid{color:#b91c1c;}' +
+                '.u-auth-code-status.checking{color:#475569;}';
       document.head.appendChild(style);
     };
 
@@ -4438,18 +4740,30 @@
             '<p class="u-auth-msg" id="uAuthReason">Vui lòng đăng nhập để tiếp tục.</p>' +
             '<div class="u-auth-error" id="uAuthError"></div>' +
             '<form id="uAuthForm">' +
-              '<div class="u-auth-group">' +
+                            '<div class="u-auth-group" id="uAuthNameWrap">' +
                                 '<label class="u-auth-label" for="uAuthName">Tên tài khoản</label>' +
                                 '<input class="u-auth-input" id="uAuthName" type="text" autocomplete="username" placeholder="Nhập tên tài khoản">' +
               '</div>' +
                             '<div class="u-auth-group u-auth-email-wrap" id="uAuthEmailWrap">' +
                 '<label class="u-auth-label" for="uAuthEmail">Email</label>' +
-                                '<input class="u-auth-input" id="uAuthEmail" type="email" autocomplete="email" placeholder="ban@example.com">' +
+                                                                '<div class="u-auth-row">' +
+                                                                        '<input class="u-auth-input" id="uAuthEmail" type="email" autocomplete="email" placeholder="ban@example.com">' +
+                                                                        '<button type="button" class="u-auth-send-code" id="uAuthSendCodeBtn">Gửi mã</button>' +
+                                                                '</div>' +
               '</div>' +
+                            '<div class="u-auth-group u-auth-verify-wrap" id="uAuthVerifyWrap">' +
+                                '<label class="u-auth-label" for="uAuthVerifyCode">Mã xác minh</label>' +
+                                '<input class="u-auth-input" id="uAuthVerifyCode" type="text" inputmode="numeric" maxlength="6" placeholder="Nhập 6 chữ số">' +
+                                '<div id="uAuthCodeStatus" class="u-auth-code-status"></div>' +
+                            '</div>' +
               '<div class="u-auth-group">' +
                 '<label class="u-auth-label" for="uAuthPassword">Mật khẩu</label>' +
                                 '<input class="u-auth-input" id="uAuthPassword" type="password" required minlength="6" autocomplete="current-password" placeholder="Nhập mật khẩu">' +
               '</div>' +
+                            '<div class="u-auth-group u-auth-verify-wrap" id="uAuthConfirmPasswordWrap">' +
+                                '<label class="u-auth-label" for="uAuthConfirmPassword">Nhập lại mật khẩu mới</label>' +
+                                '<input class="u-auth-input" id="uAuthConfirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới">' +
+                            '</div>' +
                             '<a href="#" class="u-auth-forgot" id="uAuthForgot">Quên mật khẩu?</a>' +
                             '<button type="submit" class="u-auth-submit" id="uAuthSubmit">Đăng nhập</button>' +
             '</form>' +
@@ -4497,11 +4811,20 @@
         reason: modal.querySelector('#uAuthReason'),
         error: modal.querySelector('#uAuthError'),
         form: modal.querySelector('#uAuthForm'),
+        nameWrap: modal.querySelector('#uAuthNameWrap'),
         name: modal.querySelector('#uAuthName'),
                 emailWrap: modal.querySelector('#uAuthEmailWrap'),
         email: modal.querySelector('#uAuthEmail'),
+        sendCode: modal.querySelector('#uAuthSendCodeBtn'),
+        verifyWrap: modal.querySelector('#uAuthVerifyWrap'),
+        verifyCode: modal.querySelector('#uAuthVerifyCode'),
+        codeStatus: modal.querySelector('#uAuthCodeStatus'),
         password: modal.querySelector('#uAuthPassword'),
+        confirmPasswordWrap: modal.querySelector('#uAuthConfirmPasswordWrap'),
+        confirmPassword: modal.querySelector('#uAuthConfirmPassword'),
                 forgot: modal.querySelector('#uAuthForgot'),
+            divider: modal.querySelector('.u-auth-divider'),
+            socialList: modal.querySelector('.u-auth-social-list'),
                 socialFacebook: modal.querySelector('#uAuthFacebookBtn'),
                 socialGoogle: modal.querySelector('#uAuthGoogleBtn'),
         submit: modal.querySelector('#uAuthSubmit'),
@@ -4519,17 +4842,112 @@
       refs.error.style.display = 'none';
     };
 
+    let authSendCodeTimer = null;
+    let authSendCodeRemain = 0;
+    let authSendCodeLockKey = '';
+    let authCodeVerified = false;
+    let authCodeVerifyNonce = 0;
+
+    const clearAuthSendCodeTimer = () => {
+        if (authSendCodeTimer) {
+            clearInterval(authSendCodeTimer);
+            authSendCodeTimer = null;
+        }
+        authSendCodeRemain = 0;
+        authSendCodeLockKey = '';
+    };
+
+    const getAuthSendCodeLockKey = (refs, modeValue = '', emailValue = '') => {
+        const mode = String(modeValue || refs.form.dataset.mode || 'login').trim().toLowerCase();
+        const email = String(emailValue || refs.email.value || '').trim().toLowerCase();
+        return `${mode}|${email}`;
+    };
+
+    const updateSendCodeButtonState = (refs, purposeMode) => {
+        const allowSend = purposeMode === 'register' || purposeMode === 'reset';
+        const currentLockKey = getAuthSendCodeLockKey(refs, purposeMode);
+        const hasActiveCode = authSendCodeRemain > 0 && authSendCodeLockKey !== '' && authSendCodeLockKey === currentLockKey;
+        refs.sendCode.style.display = allowSend && !hasActiveCode ? 'inline-flex' : 'none';
+        if (!allowSend) {
+            refs.sendCode.disabled = true;
+            refs.sendCode.textContent = 'Gửi mã';
+            return;
+        }
+
+        if (hasActiveCode) {
+            refs.sendCode.disabled = true;
+            refs.sendCode.textContent = 'Gửi mã';
+            return;
+        }
+
+        refs.sendCode.disabled = authSendCodeRemain > 0;
+        refs.sendCode.textContent = authSendCodeRemain > 0
+            ? `Gửi lại (${authSendCodeRemain}s)`
+            : 'Gửi mã';
+    };
+
+    const setAuthCodeStatus = (refs, message, statusClass) => {
+        if (!refs.codeStatus) {
+            return;
+        }
+
+        refs.codeStatus.textContent = message || '';
+        refs.codeStatus.className = 'u-auth-code-status';
+        if (message) {
+            refs.codeStatus.classList.add('show');
+        }
+        if (statusClass) {
+            refs.codeStatus.classList.add(statusClass);
+        }
+    };
+
+    const setResetPasswordInputsEnabled = (refs, enabled) => {
+        const allow = !!enabled;
+        refs.password.disabled = !allow;
+        refs.confirmPassword.disabled = !allow;
+    };
+
+    const resetCodeVerificationState = (refs, mode) => {
+        authCodeVerified = false;
+        authCodeVerifyNonce += 1;
+        setAuthCodeStatus(refs, '', '');
+        if (mode === 'reset') {
+            setResetPasswordInputsEnabled(refs, false);
+        } else {
+            setResetPasswordInputsEnabled(refs, true);
+        }
+    };
+
+    const startSendCodeCooldown = (refs, seconds, lockKey = '') => {
+        clearAuthSendCodeTimer();
+        authSendCodeRemain = Math.max(1, Number(seconds || 60) || 60);
+        authSendCodeLockKey = lockKey || getAuthSendCodeLockKey(refs);
+        updateSendCodeButtonState(refs, refs.form.dataset.mode || 'login');
+
+        authSendCodeTimer = setInterval(() => {
+            authSendCodeRemain = Math.max(0, authSendCodeRemain - 1);
+            updateSendCodeButtonState(refs, refs.form.dataset.mode || 'login');
+            if (authSendCodeRemain <= 0) {
+                clearAuthSendCodeTimer();
+                updateSendCodeButtonState(refs, refs.form.dataset.mode || 'login');
+            }
+        }, 1000);
+    };
+
     const openAuthModal = (mode, options) => {
       ensureAuthStyle();
       ensureAuthModal();
 
       const refs = getAuthRefs();
-      const authMode = mode === 'register' ? 'register' : 'login';
+      const authMode = mode === 'register' ? 'register' : (mode === 'reset' ? 'reset' : 'login');
             const normalizedOptions =
                 typeof options === 'string'
                     ? { reason: options }
                     : (options || {});
-            const reason = normalizedOptions.reason || 'Vui lòng đăng nhập để tiếp tục.';
+            const defaultReason = authMode === 'reset'
+                ? 'Nhập email để nhận mã xác minh và đặt lại mật khẩu.'
+                : 'Vui lòng đăng nhập để tiếp tục.';
+            const reason = normalizedOptions.reason || defaultReason;
             const postLoginAction = typeof normalizedOptions.postLoginAction === 'function' ? normalizedOptions.postLoginAction : null;
 
             const completeAuth = (payload) => {
@@ -4561,15 +4979,41 @@
                 }
             };
 
-            refs.title.textContent = authMode === 'register' ? 'Đăng ký' : 'Đăng nhập';
+            refs.title.textContent = authMode === 'register' ? 'Đăng ký' : (authMode === 'reset' ? 'Đặt lại mật khẩu' : 'Đăng nhập');
       refs.reason.textContent = reason;
-            refs.submit.textContent = authMode === 'register' ? 'Tạo tài khoản' : 'Đăng nhập';
-            refs.modeToggle.textContent = authMode === 'register' ? 'Đăng nhập' : 'Đăng ký';
-      refs.modeToggle.dataset.mode = authMode === 'register' ? 'login' : 'register';
-            refs.emailWrap.classList.toggle('show', authMode === 'register');
-            refs.forgot.style.display = authMode === 'register' ? 'none' : 'inline-block';
-            refs.email.required = authMode === 'register';
-            refs.email.disabled = authMode !== 'register';
+            refs.submit.textContent = authMode === 'register'
+                ? 'Tạo tài khoản'
+                : (authMode === 'reset' ? 'Đổi mật khẩu' : 'Đăng nhập');
+
+            if (authMode === 'register') {
+                refs.modeToggle.textContent = 'Đăng nhập';
+                refs.modeToggle.dataset.mode = 'login';
+            } else if (authMode === 'reset') {
+                refs.modeToggle.textContent = 'Đăng nhập';
+                refs.modeToggle.dataset.mode = 'login';
+            } else {
+                refs.modeToggle.textContent = 'Đăng ký';
+                refs.modeToggle.dataset.mode = 'register';
+            }
+
+            refs.nameWrap.style.display = authMode === 'reset' ? 'none' : 'block';
+            refs.emailWrap.classList.toggle('show', authMode === 'register' || authMode === 'reset');
+            refs.verifyWrap.classList.toggle('show', authMode === 'register' || authMode === 'reset');
+            refs.confirmPasswordWrap.classList.toggle('show', authMode === 'reset');
+            refs.forgot.style.display = authMode === 'login' ? 'inline-block' : 'none';
+            refs.divider.style.display = authMode === 'reset' ? 'none' : 'flex';
+            refs.socialList.style.display = authMode === 'reset' ? 'none' : 'grid';
+            refs.email.required = authMode === 'register' || authMode === 'reset';
+            refs.email.disabled = !(authMode === 'register' || authMode === 'reset');
+            refs.name.required = authMode === 'register' || authMode === 'login';
+            refs.verifyCode.required = authMode === 'register' || authMode === 'reset';
+            refs.confirmPassword.required = authMode === 'reset';
+            refs.password.autocomplete = authMode === 'login' ? 'current-password' : 'new-password';
+            refs.password.placeholder = authMode === 'reset' ? 'Nhập mật khẩu mới' : 'Nhập mật khẩu';
+            refs.name.placeholder = authMode === 'login' ? 'Nhập tên tài khoản' : 'Nhập tên tài khoản';
+            resetCodeVerificationState(refs, authMode);
+
+            updateSendCodeButtonState(refs, authMode);
 
             if (typeof refs.modal.setAuthModalVisibility === 'function') {
                 refs.modal.setAuthModalVisibility(true);
@@ -4580,7 +5024,85 @@
       refs.form.dataset.mode = authMode;
       clearAuthError(refs);
       refs.form.reset();
-      refs.name.focus();
+            resetCodeVerificationState(refs, authMode);
+            if (authMode === 'reset') {
+                refs.email.focus();
+            } else {
+                refs.name.focus();
+            }
+
+            refs.email.oninput = () => {
+                const currentMode = refs.form.dataset.mode || 'login';
+                if (currentMode === 'register' || currentMode === 'reset') {
+                    resetCodeVerificationState(refs, currentMode);
+                    updateSendCodeButtonState(refs, currentMode);
+                }
+            };
+
+            refs.verifyCode.oninput = async () => {
+                const currentMode = refs.form.dataset.mode || 'login';
+                if (currentMode !== 'register' && currentMode !== 'reset') {
+                    return;
+                }
+
+                const code = refs.verifyCode.value.replace(/\D/g, '').slice(0, 6);
+                if (refs.verifyCode.value !== code) {
+                    refs.verifyCode.value = code;
+                }
+
+                authCodeVerified = false;
+                if (currentMode === 'reset') {
+                    setResetPasswordInputsEnabled(refs, false);
+                }
+
+                if (!code) {
+                    setAuthCodeStatus(refs, '', '');
+                    return;
+                }
+
+                if (!/^\d{6}$/.test(code)) {
+                    setAuthCodeStatus(refs, 'Mã xác minh phải gồm đúng 6 chữ số.', 'invalid');
+                    return;
+                }
+
+                const email = refs.email.value.trim();
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    setAuthCodeStatus(refs, 'Vui lòng nhập email hợp lệ trước khi kiểm tra mã.', 'invalid');
+                    return;
+                }
+
+                const nonce = ++authCodeVerifyNonce;
+                setAuthCodeStatus(refs, 'Đang kiểm tra mã xác minh...', 'checking');
+                const purpose = currentMode === 'reset' ? 'reset_password' : 'register';
+                const verifyResult = await callAuthApi('verify_email_verification_code', {
+                    email,
+                    purpose,
+                    verification_code: code
+                });
+
+                if (nonce !== authCodeVerifyNonce) {
+                    return;
+                }
+
+                if (verifyResult?.ok && verifyResult?.data?.data?.verified) {
+                    const shouldFocusPassword = currentMode === 'reset' && refs.password.disabled;
+                    authCodeVerified = true;
+                    setAuthCodeStatus(refs, 'Mã xác minh hợp lệ.', 'valid');
+                    if (currentMode === 'reset') {
+                        setResetPasswordInputsEnabled(refs, true);
+                        if (shouldFocusPassword) {
+                            refs.password.focus();
+                        }
+                    }
+                    return;
+                }
+
+                authCodeVerified = false;
+                setAuthCodeStatus(refs, verifyResult?.message || 'Mã xác minh không hợp lệ hoặc đã hết hạn.', 'invalid');
+                if (currentMode === 'reset') {
+                    setResetPasswordInputsEnabled(refs, false);
+                }
+            };
 
             refs.socialFacebook.onclick = () => {
                 const returnUrl = encodeURIComponent(window.location.href);
@@ -4594,7 +5116,87 @@
 
             refs.forgot.onclick = (event) => {
                 event.preventDefault();
-                showAuthError(refs, 'Vui lòng liên hệ quản trị để cấp lại mật khẩu.');
+                openAuthModal('reset', {
+                    reason: 'Vui lòng nhập email để nhận mã xác minh đặt lại mật khẩu.'
+                });
+            };
+
+            refs.sendCode.onclick = async () => {
+                clearAuthError(refs);
+
+                const currentMode = refs.form.dataset.mode || 'login';
+                if (currentMode !== 'register' && currentMode !== 'reset') {
+                    return;
+                }
+
+                const email = refs.email.value.trim();
+                const username = refs.name.value.trim();
+                authCodeVerified = false;
+                authCodeVerifyNonce += 1;
+                setAuthCodeStatus(refs, '', '');
+                if (!email) {
+                    showAuthError(refs, 'Vui lòng nhập email trước khi gửi mã.');
+                    refs.email.focus();
+                    return;
+                }
+
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    showAuthError(refs, 'Email không hợp lệ.');
+                    refs.email.focus();
+                    return;
+                }
+
+                if (currentMode === 'register') {
+                    if (!username) {
+                        showAuthError(refs, 'Vui lòng nhập tên tài khoản trước khi gửi mã.');
+                        refs.name.focus();
+                        return;
+                    }
+
+                    const normalizedUsername = username.toLowerCase();
+                    const normalizedEmail = email.toLowerCase();
+                    if (normalizedUsername.includes('admin') || normalizedUsername.includes('staff') || normalizedEmail.includes('admin') || normalizedEmail.includes('staff')) {
+                        showAuthError(refs, 'Tài khoản admin/staff không thể đăng ký ở khu vực user.');
+                        return;
+                    }
+                }
+
+                refs.sendCode.disabled = true;
+                refs.sendCode.textContent = 'Đang gửi...';
+
+                const purpose = currentMode === 'reset' ? 'reset_password' : 'register';
+                const sendResult = await callAuthApi('send_email_verification_code', {
+                    email,
+                    purpose,
+                    name: username
+                });
+
+                if (!sendResult?.ok) {
+                    const rawMessage = String(sendResult?.message || '').trim();
+                    const lowerMessage = rawMessage.toLowerCase();
+                    const activeRemain = Number(sendResult?.data?.active_code_remaining || 0);
+                    const retryAfter = Number(sendResult?.data?.retry_after || 0);
+                    const blockedSeconds = activeRemain > 0 ? activeRemain : retryAfter;
+                    if (blockedSeconds > 0) {
+                        startSendCodeCooldown(refs, blockedSeconds, getAuthSendCodeLockKey(refs, currentMode, email));
+                    }
+                    if (currentMode === 'register' && (lowerMessage.includes('email da ton tai') || lowerMessage.includes('email đã tồn tại'))) {
+                        showAuthError(refs, 'Email đã tồn tại. Vui lòng bấm "Quên mật khẩu" để lấy lại tài khoản.');
+                    } else {
+                        showAuthError(refs, rawMessage || 'Không thể gửi mã xác minh.');
+                    }
+                    if (blockedSeconds <= 0) {
+                        refs.sendCode.disabled = false;
+                        refs.sendCode.textContent = 'Gửi mã';
+                    }
+                    return;
+                }
+
+                const activeCodeSeconds = Number(sendResult?.data?.data?.active_code_remaining || sendResult?.data?.data?.expires_in || 60);
+                startSendCodeCooldown(refs, activeCodeSeconds, getAuthSendCodeLockKey(refs, currentMode, email));
+                setAuthCodeStatus(refs, 'Mã vừa gửi vẫn còn hiệu lực. Vui lòng dùng mã trong email để xác minh.', 'checking');
+                refs.verifyCode.focus();
+                alert('Mã xác minh đã được gửi về email. Vui lòng kiểm tra hộp thư.');
             };
 
       refs.modeToggle.onclick = (event) => {
@@ -4622,17 +5224,21 @@
 
                 const username = refs.name.value.trim();
         const email = refs.email.value.trim();
+                const verificationCode = refs.verifyCode.value.trim();
         const password = refs.password.value;
+                const confirmPassword = refs.confirmPassword.value;
 
-                if (!username) {
+                if ((authMode === 'login' || authMode === 'register') && !username) {
                     showAuthError(refs, 'Vui lòng nhập tên tài khoản.');
           return;
         }
 
-                const normalizedUsername = username.toLowerCase();
-                if (normalizedUsername.includes('admin') || normalizedUsername.includes('staff')) {
-                    showAuthError(refs, 'Tài khoản admin/staff không thể đăng nhập vào trang user.');
-                    return;
+                if (authMode === 'login' || authMode === 'register') {
+                    const normalizedUsername = username.toLowerCase();
+                    if (normalizedUsername.includes('admin') || normalizedUsername.includes('staff')) {
+                        showAuthError(refs, 'Tài khoản admin/staff không thể đăng nhập vào trang user.');
+                        return;
+                    }
                 }
 
         if (password.length < 6) {
@@ -4640,28 +5246,64 @@
           return;
         }
 
-                if (authMode === 'register' && !email) {
-                    showAuthError(refs, 'Đăng ký tài khoản cần có email.');
+                if ((authMode === 'register' || authMode === 'reset') && !email) {
+                    showAuthError(refs, authMode === 'register' ? 'Đăng ký tài khoản cần có email.' : 'Vui lòng nhập email để đặt lại mật khẩu.');
                     return;
         }
 
-                if (authMode === 'register') {
+                if (authMode === 'register' || authMode === 'reset') {
                     const normalizedEmail = email.toLowerCase();
                     if (normalizedEmail.includes('admin') || normalizedEmail.includes('staff')) {
-                        showAuthError(refs, 'Email chứa admin/staff không được đăng ký tại khu vực user.');
+                        showAuthError(refs, authMode === 'register'
+                            ? 'Email chứa admin/staff không được đăng ký tại khu vực user.'
+                            : 'Email này không thể đặt lại mật khẩu tại khu vực user.');
+                        return;
+                    }
+                }
+
+                if ((authMode === 'register' || authMode === 'reset') && !/^\d{6}$/.test(verificationCode)) {
+                    showAuthError(refs, 'Vui lòng nhập mã xác minh gồm 6 chữ số.');
+                    refs.verifyCode.focus();
+                    return;
+                }
+
+                if ((authMode === 'register' || authMode === 'reset') && !authCodeVerified) {
+                    showAuthError(refs, 'Mã xác minh chưa hợp lệ. Vui lòng kiểm tra lại mã OTP.');
+                    refs.verifyCode.focus();
+                    return;
+                }
+
+                if (authMode === 'reset') {
+                    if (confirmPassword.length < 6) {
+                        showAuthError(refs, 'Vui lòng nhập lại mật khẩu mới (tối thiểu 6 ký tự).');
+                        refs.confirmPassword.focus();
+                        return;
+                    }
+                    if (password !== confirmPassword) {
+                        showAuthError(refs, 'Mật khẩu xác nhận không khớp.');
+                        refs.confirmPassword.focus();
                         return;
                     }
                 }
 
                 refs.submit.disabled = true;
-                refs.submit.textContent = authMode === 'register' ? 'Đang tạo tài khoản...' : 'Đang đăng nhập...';
+                refs.submit.textContent = authMode === 'register'
+                    ? 'Đang tạo tài khoản...'
+                    : (authMode === 'reset' ? 'Đang đổi mật khẩu...' : 'Đang đăng nhập...');
 
                 let result;
                 if (authMode === 'register') {
                     result = await callAuthApi('register_user', {
                         name: username,
                         email,
-                        password
+                        password,
+                        verification_code: verificationCode
+                    });
+                } else if (authMode === 'reset') {
+                    result = await callAuthApi('reset_password_with_code', {
+                        email,
+                        new_password: password,
+                        verification_code: verificationCode
                     });
                 } else {
                     result = await callAuthApi('login_user', {
@@ -4672,10 +5314,21 @@
                 }
 
                 refs.submit.disabled = false;
-                refs.submit.textContent = authMode === 'register' ? 'Tạo tài khoản' : 'Đăng nhập';
+                refs.submit.textContent = authMode === 'register'
+                    ? 'Tạo tài khoản'
+                    : (authMode === 'reset' ? 'Đổi mật khẩu' : 'Đăng nhập');
 
                 if (!result?.ok) {
                     showAuthError(refs, result?.message || 'Không thể xử lý yêu cầu.');
+                    return;
+                }
+
+                if (authMode === 'reset') {
+                    clearAuthSendCodeTimer();
+                    alert('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
+                    openAuthModal('login', {
+                        reason: 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.'
+                    });
                     return;
                 }
 
@@ -4742,22 +5395,10 @@
             });
         }, true);
 
-        const ensureGuestUserProfile = () => {
-            try {
-                const raw = localStorage.getItem('userProfile');
-                const parsed = raw ? JSON.parse(raw) : {};
-                const nextProfile = {
-                    ...(parsed && typeof parsed === 'object' ? parsed : {}),
-                    name: String(parsed?.name || 'Khach hang').trim() || 'Khach hang',
-                    role: 'user'
-                };
-                localStorage.setItem('userProfile', JSON.stringify(nextProfile));
-            } catch (e) {}
-        };
-
         const openUserCenterPage = () => {
             if (!hasCustomerSession()) {
-                ensureGuestUserProfile();
+                openInlineLogin('login');
+                return;
             }
 
             if (typeof window.routeToPage === 'function') {
@@ -4876,9 +5517,13 @@
     };
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', bindHeaderUserIcon);
+            document.addEventListener('DOMContentLoaded', () => {
+                    bindHeaderUserIcon();
+                    openSocialProfileSetupModal().catch(() => {});
+            });
     } else {
       bindHeaderUserIcon();
+            openSocialProfileSetupModal().catch(() => {});
     }
   })();
 </script>
@@ -6409,7 +7054,8 @@
         overflow: auto;
         border-radius: 20px;
         background: #fff;
-        box-shadow: 0 22px 60px rgba(0, 0, 0, .35);
+        border: 1px solid #dbe9df;
+        box-shadow: 0 22px 60px rgba(15, 23, 42, .3);
     }
 
     .voucher-hunt-head {
@@ -6417,7 +7063,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 14px 18px;
-        background: linear-gradient(135deg, #042f2e, #0f766e);
+        background: linear-gradient(135deg, #166534 0%, #1F8F4D 100%);
         color: #fff;
     }
 
@@ -6450,19 +7096,19 @@
     }
 
     .voucher-hunt-item.active {
-        border-color: #0f766e;
-        box-shadow: 0 0 0 2px rgba(15, 118, 110, .15);
-        background: #f0fdfa;
+        border-color: #1F8F4D;
+        box-shadow: 0 0 0 2px rgba(31, 143, 77, .16);
+        background: #edf9f1;
     }
 
     .voucher-hunt-item .code { font-weight: 800; color: #0f172a; }
     .voucher-hunt-item .meta { color: #475467; font-size: 13px; }
 
     .voucher-game-box {
-        border: 1px solid #dbe2ea;
+        border: 1px solid #dbe9df;
         border-radius: 14px;
         padding: 12px;
-        background: #f8fafc;
+        background: #f7faf8;
         min-height: 320px;
     }
 
@@ -6470,7 +7116,7 @@
         margin-top: 10px;
         border-radius: 12px;
         background: #fff;
-        border: 1px dashed #cbd5e1;
+        border: 1px dashed #c7d8cc;
         padding: 12px;
         min-height: 220px;
     }
@@ -6508,7 +7154,7 @@
         border-radius: 10px;
         padding: 8px 12px;
         font-size: 14px;
-        background: #0f766e;
+        background: #1F8F4D;
         color: #fff;
         font-weight: 600;
     }
@@ -7178,7 +7824,8 @@
 
     backdrop.addEventListener('click', (event) => {
         if (event.target === backdrop) {
-            closeVoucherModal();
+            event.preventDefault();
+            event.stopPropagation();
         }
     });
 
@@ -7197,6 +7844,8 @@
     });
 })();
 </script>
+<script src="../common/app-popup-policy.js"></script>
+<script src="../common/app-form-validation.js"></script>
 </body>
 </html>
 

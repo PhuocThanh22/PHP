@@ -146,7 +146,7 @@
             </div>
 
             <div style="display: flex; justify-content: flex-end; margin-top: auto;">
-                <button onclick="addToCartFromQV()" style="width: auto; min-width: 220px; background: #000; color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#000'">
+                <button id="qvAddCartBtn" onclick="addToCartFromQV()" style="width: auto; min-width: 220px; background: #000; color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="if(!this.disabled){this.style.background='#333'}" onmouseout="if(!this.disabled){this.style.background='#000'}">
                     <i data-feather="shopping-cart" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
                     Thêm vào giỏ
                 </button>
@@ -603,6 +603,10 @@
         background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
     }
 
+    .product-badge.out-stock {
+        background: linear-gradient(135deg, #dc2626 0%, #f97316 100%);
+    }
+
     .product-heart-btn {
         position: absolute;
         top: 10px;
@@ -682,6 +686,20 @@
         box-shadow: 0 10px 22px rgba(31, 143, 77, 0.2);
     }
 
+    .product-corner-btn[disabled],
+    .overlay-btn[disabled] {
+        cursor: not-allowed;
+        opacity: 0.55;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    .product-corner-btn.buy[disabled] {
+        background: #f3f4f6;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+    }
+
     .product-overlay {
         position: absolute;
         top: 0;
@@ -739,6 +757,11 @@
         transform: scale(1.08) translateY(0);
     }
 
+    .overlay-btn.add-cart[disabled]:hover {
+        background: #ffffff;
+        transform: none;
+    }
+
     .product-info {
         padding: 14px;
         background: linear-gradient(180deg, #fffdfb 0%, #fff7f0 100%);
@@ -761,6 +784,17 @@
         font-size: 12px;
         font-weight: 700;
         margin: 0 0 8px 0;
+    }
+
+    .product-stock-label {
+        margin: 4px 0 0;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .product-stock-label.out {
+        color: #b91c1c;
     }
 
     .product-price {
@@ -2386,6 +2420,12 @@
         const id = parseInt(item?.id, 10) || 0;
         const name = String(item?.tensanpham || '').trim() || `Sản phẩm #${id}`;
         const category = String(item?.tendanhmuc || '').trim() || 'Chưa phân loại';
+        const stockRaw = Number(item?.soluongsanpham ?? 0);
+        const stock = Number.isFinite(stockRaw) ? Math.max(0, Math.round(stockRaw)) : 0;
+        const statusKey = normalizeTextKey(String(item?.trangthaisanpham || ''));
+        const isOutOfStock = stock <= 0 || statusKey === 'hethang';
+        const purchaseCountRaw = Number(item?.soluotmuasanpham ?? item?.soluotmua ?? 0);
+        const purchaseCount = Number.isFinite(purchaseCountRaw) && purchaseCountRaw > 0 ? Math.round(purchaseCountRaw) : 0;
         const subcategory = detectProductSubcategory({
             category,
             name,
@@ -2403,6 +2443,8 @@
             id,
             name,
             category,
+            purchaseCount,
+            purchaseInfo: `${purchaseCount.toLocaleString('vi-VN')} lượt mua`,
             subcategory,
             productCode: String(item?.masanpham || '').trim(),
             price: formatMoneyNoSuffix(discountInfo.finalPrice),
@@ -2415,6 +2457,9 @@
             image: resolveProductImageUrl(dbImageRaw || item?.hinhanhsanpham),
             description: String(item?.thongtin || '').trim() || `Sản phẩm thuộc danh mục ${category}`,
             badge,
+            stock,
+            stockStatus: String(item?.trangthaisanpham || '').trim(),
+            isOutOfStock,
         };
     };
 
@@ -3174,11 +3219,11 @@
         }
         document.getElementById('qvName').textContent = item.name || '';
         document.getElementById('qvCategory').textContent = item.category || '';
-        document.getElementById('qvDescription').textContent = item.description || 'Thong tin san pham dang duoc cap nhat.';
+        document.getElementById('qvDescription').textContent = item.description || 'Thông tin sản phẩm đang được cập nhật.';
 
         const summaryNode = document.getElementById('qvReviewSummary');
         const listNode = document.getElementById('qvReviewList');
-        if (summaryNode) summaryNode.textContent = 'Dang tai danh gia...';
+        if (summaryNode) summaryNode.textContent = 'Đang tải đánh giá...';
         if (listNode) listNode.innerHTML = '';
 
         const qvPrice = document.getElementById('qvPrice');
@@ -3189,6 +3234,19 @@
                 qvPrice.textContent = formatModalPriceVnd(item.price || 'Liên hệ');
             }
         }
+
+        const qvAddCartBtn = document.getElementById('qvAddCartBtn');
+        if (qvAddCartBtn) {
+            const outOfStock = item.isOutOfStock === true;
+            const defaultHtml = qvAddCartBtn.dataset.defaultHtml || qvAddCartBtn.innerHTML;
+            qvAddCartBtn.dataset.defaultHtml = defaultHtml;
+            qvAddCartBtn.disabled = outOfStock;
+            qvAddCartBtn.innerHTML = outOfStock
+                ? 'Hết hàng'
+                : defaultHtml;
+            qvAddCartBtn.style.background = outOfStock ? '#9ca3af' : '#000';
+        }
+
         document.getElementById('quickViewModal').style.display = 'flex';
         document.body.style.overflow = 'hidden';
         document.documentElement.style.overflow = 'hidden';
@@ -3309,13 +3367,14 @@
             <div class="product-card">
                 <div class="product-image">
                     <img src="${product.image}" alt="${product.name}" onerror="handleShopImageFallback(this)">
+                    ${product.isOutOfStock ? `<div class="product-badge out-stock">Hết hàng</div>` : ''}
                     ${product.badge ? `<div class="product-badge ${product.badge === 'new' ? 'new' : ''}">${product.badge === 'sale' ? '🔥 Sale' : '✨ Mới'}</div>` : ''}
                     <button class="product-heart-btn ${wishlistNames.has(product.name) ? 'liked' : ''}" data-action="toggle-wishlist" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Yêu thích">
                         <i data-feather="heart" style="width: 18px; height: 18px;"></i>
                     </button>
 
                     <div class="product-overlay">
-                        <button class="overlay-btn add-cart" data-action="add-cart" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Thêm vào giỏ">
+                        <button class="overlay-btn add-cart" data-action="add-cart" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" data-out-of-stock="${product.isOutOfStock ? '1' : '0'}" title="${product.isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'}" ${product.isOutOfStock ? 'disabled' : ''}>
                             <i data-feather="shopping-cart" style="width: 20px; height: 20px;"></i>
                         </button>
                     </div>
@@ -3323,11 +3382,12 @@
 
                 <div class="product-info">
                     <h3 class="product-name">${product.name}</h3>
-                    <p class="product-category">${product.category}</p>
+                    <p class="product-category" style="font-style:italic;">${product.purchaseInfo}</p>
+                    ${product.isOutOfStock ? '<p class="product-stock-label out">Hết hàng</p>' : ''}
                     <p class="product-price">${product.price}₫${product.hasDiscount ? `<span class="product-price-old">${product.originalPrice}₫</span>` : ''}</p>
                     ${product.hasDiscount && product.discountPeriodText ? `<p class="product-discount-period">${product.discountPeriodText}</p>` : ''}
                     <div class="product-corner-actions">
-                        <button class="product-corner-btn buy" data-action="buy-now" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" title="Mua ngay">Mua</button>
+                        <button class="product-corner-btn buy" data-action="buy-now" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" data-out-of-stock="${product.isOutOfStock ? '1' : '0'}" title="${product.isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Mua ngay'}" ${product.isOutOfStock ? 'disabled' : ''}>${product.isOutOfStock ? 'Hết hàng' : 'Mua'}</button>
                         <button class="product-corner-btn detail" data-action="quick-view" data-product-id="${product.id}" title="Xem chi tiết">Chi tiết</button>
                     </div>
                 </div>
@@ -3939,6 +3999,10 @@
 
     const addToCartFromQV = () => {
         if (currentQVProduct) {
+            if (currentQVProduct.isOutOfStock) {
+                alert(`Sản phẩm "${currentQVProduct.name}" đã hết hàng, không thể thêm vào giỏ.`);
+                return;
+            }
             addToCart(currentQVProduct.name, currentQVProduct.price, currentQVProduct.image);
             closeQuickView();
         }
@@ -4125,6 +4189,12 @@
                 }
 
                 if (action === 'add-cart') {
+                    if (actionButton.dataset.outOfStock === '1' || actionButton.hasAttribute('disabled')) {
+                        const productName = actionButton.dataset.name || 'Sản phẩm này';
+                        alert(`${productName} đã hết hàng, không thể thêm vào giỏ.`);
+                        return;
+                    }
+
                     addToCart(
                         actionButton.dataset.name || '',
                         actionButton.dataset.price || '',
@@ -4135,6 +4205,12 @@
                 }
 
                 if (action === 'buy-now') {
+                    if (actionButton.dataset.outOfStock === '1' || actionButton.hasAttribute('disabled')) {
+                        const productName = actionButton.dataset.name || 'Sản phẩm này';
+                        alert(`${productName} đã hết hàng, không thể mua ngay.`);
+                        return;
+                    }
+
                     const cardImageEl = actionButton
                         .closest('.product-card, .breed-card, .puppy-card, .breed-detail-card')
                         ?.querySelector('img');

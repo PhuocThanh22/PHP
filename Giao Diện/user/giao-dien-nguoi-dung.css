@@ -1559,6 +1559,8 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    position: relative;
+    z-index: 1;
 }
 
 #homeFeaturedServicesGrid .featured-service-col {
@@ -2171,31 +2173,36 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     width: 34px;
     height: 34px;
     border: none;
-    border-radius: 999px;
+    border-radius: 50%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.92);
-    color: #4b5563;
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+    background: #ffffff;
+    color: #9ca3af;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
+    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    z-index: 4;
 }
 
-.service-favorite-btn i {
+.service-favorite-btn i,
+.service-favorite-btn svg {
     width: 16px;
     height: 16px;
+    pointer-events: none;
 }
 
 .service-favorite-btn:hover,
 .service-favorite-btn:focus-visible {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+    background: #ffffff;
     color: #ef4444;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(239, 68, 68, 0.22);
 }
 
 .service-favorite-btn.liked {
+    background: #ffffff;
     color: #ef4444;
-    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 10px 20px rgba(239, 68, 68, 0.22);
 }
 
 .service-favorite-btn.liked i,

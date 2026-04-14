@@ -22,7 +22,15 @@ function app_json_response(array $payload, int $statusCode = 200): void
 {
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=UTF-8');
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    if ($encoded === false) {
+        $fallback = [
+            'ok' => false,
+            'message' => 'Phan hoi JSON khong hop le',
+        ];
+        $encoded = json_encode($fallback, JSON_UNESCAPED_UNICODE);
+    }
+    echo $encoded;
     exit;
 }
 
@@ -59,6 +67,219 @@ function app_env_int(string $key, int $default = 0): int
 
     $intValue = (int) $value;
     return $intValue > 0 ? $intValue : $default;
+}
+
+function app_mail_read_reply($socket): string
+{
+    $reply = '';
+    $guard = 0;
+    while (!feof($socket) && $guard < 30) {
+        $line = fgets($socket, 1024);
+        if ($line === false) {
+            break;
+        }
+        $reply .= $line;
+        $guard++;
+        if (strlen($line) >= 4 && $line[3] === ' ') {
+            break;
+        }
+    }
+    return trim($reply);
+}
+
+function app_mail_expect_code($socket, array $acceptedCodes, string &$replyOut = ''): bool
+{
+    $reply = app_mail_read_reply($socket);
+    $replyOut = $reply;
+    if ($reply === '' || strlen($reply) < 3) {
+        return false;
+    }
+
+    $code = (int) substr($reply, 0, 3);
+    return in_array($code, $acceptedCodes, true);
+}
+
+function app_mail_send_line($socket, string $command): bool
+{
+    $written = @fwrite($socket, $command . "\r\n");
+    return is_int($written) && $written > 0;
+}
+
+function app_mail_encode_header(string $text): string
+{
+    $value = trim($text);
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/^[\x20-\x7E]+$/', $value) === 1) {
+        return $value;
+    }
+
+    if (function_exists('mb_encode_mimeheader')) {
+        $encoded = @mb_encode_mimeheader($value, 'UTF-8', 'B', "\r\n");
+        if (is_string($encoded) && $encoded !== '') {
+            return $encoded;
+        }
+    }
+
+    return '=?UTF-8?B?' . base64_encode($value) . '?=';
+}
+
+function app_send_email_smtp(string $toEmail, string $subject, string $htmlBody, string $textBody = ''): array
+{
+    $smtpHost = app_env_value('SMTP_HOST');
+    $smtpPort = app_env_int('SMTP_PORT', 587);
+    $smtpUser = app_env_value('SMTP_USERNAME');
+    $smtpPass = app_env_value('SMTP_PASSWORD');
+    $smtpSecure = app_lower(app_env_value('SMTP_SECURE', 'tls'));
+    $smtpTimeout = app_env_int('SMTP_TIMEOUT', 15);
+
+    $fromEmail = app_env_value('SMTP_FROM_EMAIL', $smtpUser);
+    $fromName = app_env_value('SMTP_FROM_NAME', '3 CHU CUN CON');
+
+    if ($smtpHost === '' || $smtpUser === '' || $smtpPass === '' || $fromEmail === '') {
+        return [false, 'Chua cau hinh SMTP_HOST/SMTP_USERNAME/SMTP_PASSWORD/SMTP_FROM_EMAIL'];
+    }
+
+    if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+        return [false, 'Email nguoi nhan khong hop le'];
+    }
+
+    if (!filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+        return [false, 'SMTP_FROM_EMAIL khong hop le'];
+    }
+
+    $remote = $smtpHost . ':' . $smtpPort;
+    if ($smtpSecure === 'ssl') {
+        $remote = 'ssl://' . $remote;
+    }
+
+    $errorNo = 0;
+    $errorText = '';
+    $socket = @stream_socket_client($remote, $errorNo, $errorText, max(5, $smtpTimeout));
+    if (!$socket) {
+        return [false, 'Khong ket noi duoc SMTP: ' . $errorText];
+    }
+
+    stream_set_timeout($socket, max(5, $smtpTimeout));
+    try {
+        $reply = '';
+        if (!app_mail_expect_code($socket, [220], $reply)) {
+            throw new RuntimeException('SMTP khong san sang: ' . $reply);
+        }
+
+        if (!app_mail_send_line($socket, 'EHLO localhost') || !app_mail_expect_code($socket, [250], $reply)) {
+            throw new RuntimeException('EHLO that bai: ' . $reply);
+        }
+
+        if ($smtpSecure === 'tls') {
+            if (!app_mail_send_line($socket, 'STARTTLS') || !app_mail_expect_code($socket, [220], $reply)) {
+                throw new RuntimeException('STARTTLS that bai: ' . $reply);
+            }
+
+            $cryptoOk = @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+            if ($cryptoOk !== true) {
+                throw new RuntimeException('Khong the bat ma hoa TLS cho SMTP');
+            }
+
+            if (!app_mail_send_line($socket, 'EHLO localhost') || !app_mail_expect_code($socket, [250], $reply)) {
+                throw new RuntimeException('EHLO sau STARTTLS that bai: ' . $reply);
+            }
+        }
+
+        if (!app_mail_send_line($socket, 'AUTH LOGIN') || !app_mail_expect_code($socket, [334], $reply)) {
+            throw new RuntimeException('AUTH LOGIN that bai: ' . $reply);
+        }
+
+        if (!app_mail_send_line($socket, base64_encode($smtpUser)) || !app_mail_expect_code($socket, [334], $reply)) {
+            throw new RuntimeException('SMTP username khong hop le: ' . $reply);
+        }
+
+        if (!app_mail_send_line($socket, base64_encode($smtpPass)) || !app_mail_expect_code($socket, [235], $reply)) {
+            throw new RuntimeException('SMTP password khong hop le: ' . $reply);
+        }
+
+        if (!app_mail_send_line($socket, 'MAIL FROM:<' . $fromEmail . '>') || !app_mail_expect_code($socket, [250], $reply)) {
+            throw new RuntimeException('MAIL FROM that bai: ' . $reply);
+        }
+
+        if (!app_mail_send_line($socket, 'RCPT TO:<' . $toEmail . '>') || !app_mail_expect_code($socket, [250, 251], $reply)) {
+            throw new RuntimeException('RCPT TO that bai: ' . $reply);
+        }
+
+        if (!app_mail_send_line($socket, 'DATA') || !app_mail_expect_code($socket, [354], $reply)) {
+            throw new RuntimeException('DATA that bai: ' . $reply);
+        }
+
+        $encodedFromName = app_mail_encode_header($fromName);
+        $encodedSubject = app_mail_encode_header($subject);
+        $boundary = 'b' . bin2hex(random_bytes(8));
+        $plain = trim($textBody) !== '' ? trim($textBody) : trim(strip_tags($htmlBody));
+        if ($plain === '') {
+            $plain = 'Ma xac minh cua ban da duoc tao.';
+        }
+
+        $message = '';
+        $message .= 'From: ' . ($encodedFromName !== '' ? $encodedFromName . ' ' : '') . '<' . $fromEmail . ">\r\n";
+        $message .= 'To: <' . $toEmail . ">\r\n";
+        $message .= 'Subject: ' . $encodedSubject . "\r\n";
+        $message .= "MIME-Version: 1.0\r\n";
+        $message .= 'Content-Type: multipart/alternative; boundary="' . $boundary . '"' . "\r\n";
+        $message .= "\r\n";
+        $message .= '--' . $boundary . "\r\n";
+        $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
+        $message .= "Content-Transfer-Encoding: base64\r\n\r\n";
+        $message .= chunk_split(base64_encode($plain), 76, "\r\n");
+        $message .= '--' . $boundary . "\r\n";
+        $message .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $message .= "Content-Transfer-Encoding: base64\r\n\r\n";
+        $message .= chunk_split(base64_encode($htmlBody), 76, "\r\n");
+        $message .= '--' . $boundary . "--\r\n";
+
+        $written = @fwrite($socket, $message . "\r\n.\r\n");
+        if (!is_int($written) || $written <= 0 || !app_mail_expect_code($socket, [250], $reply)) {
+            throw new RuntimeException('Gui noi dung email that bai: ' . $reply);
+        }
+
+        app_mail_send_line($socket, 'QUIT');
+        fclose($socket);
+        return [true, ''];
+    } catch (Throwable $e) {
+        @fclose($socket);
+        return [false, $e->getMessage()];
+    }
+}
+
+function app_send_email(string $toEmail, string $subject, string $htmlBody, string $textBody = ''): array
+{
+    $smtpHost = app_env_value('SMTP_HOST');
+    if ($smtpHost !== '') {
+        return app_send_email_smtp($toEmail, $subject, $htmlBody, $textBody);
+    }
+
+    $fromEmail = app_env_value('SMTP_FROM_EMAIL', app_env_value('SMTP_USERNAME'));
+    $fromName = app_env_value('SMTP_FROM_NAME', '3 CHU CUN CON');
+    $plain = trim($textBody) !== '' ? trim($textBody) : trim(strip_tags($htmlBody));
+    if ($plain === '') {
+        $plain = 'Ma xac minh cua ban da duoc tao.';
+    }
+
+    $encodedSubject = app_mail_encode_header($subject);
+    $headers = [];
+    $headers[] = 'MIME-Version: 1.0';
+    $headers[] = 'Content-Type: text/html; charset=UTF-8';
+    $headers[] = 'Content-Transfer-Encoding: 8bit';
+    if ($fromEmail !== '' && filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+        $headers[] = 'From: ' . app_mail_encode_header($fromName) . ' <' . $fromEmail . '>';
+    }
+
+    $ok = @mail($toEmail, $encodedSubject, $htmlBody, implode("\r\n", $headers));
+    if ($ok) {
+        return [true, ''];
+    }
+
+    return [false, 'Khong gui duoc email. Vui long cau hinh SMTP trong oauth-config.php'];
 }
 
 function app_detect_db_ports(): array
@@ -274,8 +495,6 @@ function app_ensure_voucher_tables(mysqli $conn): bool
     if (!app_column_exists($conn, 'magiamgia', 'minigame_level')) {
         $ok = (bool) $conn->query("ALTER TABLE magiamgia ADD COLUMN minigame_level VARCHAR(16) NOT NULL DEFAULT 'easy' AFTER minigame_key") && $ok;
     }
-
-    $ok = (bool) $conn->query("\n        CREATE TABLE IF NOT EXISTS magiamgia_sanpham (\n            id INT NOT NULL AUTO_INCREMENT,\n            magiamgia_id INT NOT NULL,\n            sanpham_id INT NOT NULL,\n            PRIMARY KEY (id),\n            UNIQUE KEY uk_magiamgia_sanpham (magiamgia_id, sanpham_id),\n            KEY idx_magiamgia_sanpham_sanpham (sanpham_id),\n            CONSTRAINT fk_magiamgia_sanpham_magiamgia\n                FOREIGN KEY (magiamgia_id) REFERENCES magiamgia (id)\n                ON DELETE CASCADE ON UPDATE CASCADE,\n            CONSTRAINT fk_magiamgia_sanpham_sanpham\n                FOREIGN KEY (sanpham_id) REFERENCES sanpham (id)\n                ON DELETE CASCADE ON UPDATE CASCADE\n        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4\n    ") && $ok;
 
     $ok = (bool) $conn->query("\n        CREATE TABLE IF NOT EXISTS magiamgia_nguoidung (\n            id INT NOT NULL AUTO_INCREMENT,\n            magiamgia_id INT NOT NULL,\n            nguoidung_id INT NOT NULL,\n            soluong_danhan INT NOT NULL DEFAULT 1,\n            diemgame_cao_nhat INT NOT NULL DEFAULT 0,\n            ngaynhan DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n            ngaycapnhat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            PRIMARY KEY (id),\n            UNIQUE KEY uk_magiamgia_nguoidung (magiamgia_id, nguoidung_id),\n            KEY idx_magiamgia_nguoidung_user (nguoidung_id),\n            CONSTRAINT fk_magiamgia_nguoidung_magiamgia\n                FOREIGN KEY (magiamgia_id) REFERENCES magiamgia (id)\n                ON DELETE CASCADE ON UPDATE CASCADE,\n            CONSTRAINT fk_magiamgia_nguoidung_nguoidung\n                FOREIGN KEY (nguoidung_id) REFERENCES nguoidung (id)\n                ON DELETE CASCADE ON UPDATE CASCADE\n        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4\n    ") && $ok;
 
@@ -506,7 +725,7 @@ function app_apply_stock_deduction(mysqli $conn, array &$items): array
     $stockByIdStmt = $conn->prepare('SELECT id, tensanpham, masanpham, giasanpham, soluongsanpham FROM sanpham WHERE id = ? LIMIT 1 FOR UPDATE');
     $stockByCodeStmt = $conn->prepare('SELECT id, tensanpham, masanpham, giasanpham, soluongsanpham FROM sanpham WHERE masanpham = ? LIMIT 1 FOR UPDATE');
     $stockByNameStmt = $conn->prepare('SELECT id, tensanpham, masanpham, giasanpham, soluongsanpham FROM sanpham WHERE LOWER(tensanpham) = LOWER(?) LIMIT 1 FOR UPDATE');
-    $updateStmt = $conn->prepare('UPDATE sanpham SET soluongsanpham = soluongsanpham - ? WHERE id = ? LIMIT 1');
+    $updateStmt = $conn->prepare("UPDATE sanpham SET soluongsanpham = GREATEST(COALESCE(soluongsanpham, 0) - ?, 0), trangthaisanpham = CASE WHEN GREATEST(COALESCE(soluongsanpham, 0) - ?, 0) <= 0 THEN 'hethang' WHEN GREATEST(COALESCE(soluongsanpham, 0) - ?, 0) <= 5 THEN 'saphet' ELSE 'conhang' END WHERE id = ? LIMIT 1");
     if (!$stockByIdStmt || !$stockByCodeStmt || !$stockByNameStmt || !$updateStmt) {
         if ($stockByIdStmt) {
             $stockByIdStmt->close();
@@ -522,6 +741,74 @@ function app_apply_stock_deduction(mysqli $conn, array &$items): array
         }
         return [false, 'Khong the khoa va cap nhat ton kho'];
     }
+
+    $petLookupStmt = null;
+    $petMarkSoldStmt = null;
+    $petSyncProductStmt = null;
+    if (app_table_exists($conn, 'thucung')) {
+        $petLookupSql = "
+            SELECT id, COALESCE(NULLIF(TRIM(tenthucung), ''), 'Thu cung') AS tenthucung, COALESCE(sanpham_id, 0) AS sanpham_id
+            FROM thucung
+            WHERE LOWER(TRIM(COALESCE(tenthucung, ''))) = LOWER(TRIM(?))
+              AND COALESCE(nguon_thucung, 'cua_hang') = 'cua_hang'
+              AND (
+                COALESCE(TRIM(trangthaithucung), '') = ''
+                OR LOWER(TRIM(COALESCE(trangthaithucung, ''))) IN ('dang ban', 'đang bán', 'con hang', 'còn hàng', 'conhang', 'available')
+              )
+            ORDER BY id ASC
+            LIMIT ?
+            FOR UPDATE
+        ";
+        $petLookupStmt = $conn->prepare($petLookupSql);
+        $petMarkSoldStmt = $conn->prepare("UPDATE thucung SET trangthaithucung = 'Đã bán' WHERE id = ? LIMIT 1");
+        $petSyncProductStmt = $conn->prepare("UPDATE sanpham SET soluongsanpham = GREATEST(COALESCE(soluongsanpham, 0) - ?, 0), trangthaisanpham = CASE WHEN GREATEST(COALESCE(soluongsanpham, 0) - ?, 0) <= 0 THEN 'hethang' WHEN GREATEST(COALESCE(soluongsanpham, 0) - ?, 0) <= 5 THEN 'saphet' ELSE 'conhang' END WHERE id = ? LIMIT 1");
+    }
+
+    $applyPetDeduction = static function (
+        ?mysqli_stmt $lookupStmt = null,
+        ?mysqli_stmt $markStmt = null,
+        ?mysqli_stmt $syncStmt = null,
+        string $petName = '',
+        int $qty = 0
+    ): array {
+        if (!$lookupStmt || !$markStmt || $qty <= 0 || trim($petName) === '') {
+            return [false, ''];
+        }
+
+        $lookupStmt->bind_param('si', $petName, $qty);
+        $lookupStmt->execute();
+        $petResult = $lookupStmt->get_result();
+        $petRows = [];
+        while ($petResult && ($petRow = $petResult->fetch_assoc())) {
+            $petRows[] = $petRow;
+        }
+        if ($petResult) {
+            $petResult->free();
+        }
+
+        if (count($petRows) < $qty) {
+            return [false, 'Khong du thu cung trong kho cua hang: ' . $petName];
+        }
+
+        foreach ($petRows as $petRow) {
+            $petId = (int) ($petRow['id'] ?? 0);
+            if ($petId <= 0) {
+                continue;
+            }
+
+            $markStmt->bind_param('i', $petId);
+            $markStmt->execute();
+
+            $linkedProductId = (int) ($petRow['sanpham_id'] ?? 0);
+            if ($syncStmt && $linkedProductId > 0) {
+                $minusOne = 1;
+                $syncStmt->bind_param('iiii', $minusOne, $minusOne, $minusOne, $linkedProductId);
+                $syncStmt->execute();
+            }
+        }
+
+        return [true, ''];
+    };
 
     foreach ($items as $index => $item) {
         $productId = (int) ($item['product_id'] ?? 0);
@@ -557,26 +844,96 @@ function app_apply_stock_deduction(mysqli $conn, array &$items): array
         }
 
         if (!is_array($row)) {
+            $canTryPetFallback = $productId <= 0 && $productCode === '' && $productName !== '';
+            if ($canTryPetFallback) {
+                [$petOk, $petMessage] = $applyPetDeduction($petLookupStmt, $petMarkSoldStmt, $petSyncProductStmt, $productName, $qty);
+                if ($petOk) {
+                    $items[$index]['product_id'] = 0;
+                    continue;
+                }
+
+                if ($petMessage !== '') {
+                    $stockByIdStmt->close();
+                    $stockByCodeStmt->close();
+                    $stockByNameStmt->close();
+                    $updateStmt->close();
+                    if ($petLookupStmt) {
+                        $petLookupStmt->close();
+                    }
+                    if ($petMarkSoldStmt) {
+                        $petMarkSoldStmt->close();
+                    }
+                    if ($petSyncProductStmt) {
+                        $petSyncProductStmt->close();
+                    }
+                    return [false, $petMessage];
+                }
+            }
+
             $itemLabel = $productName !== '' ? $productName : ($productCode !== '' ? $productCode : ('ID ' . $productId));
             $stockByIdStmt->close();
             $stockByCodeStmt->close();
             $stockByNameStmt->close();
             $updateStmt->close();
+            if ($petLookupStmt) {
+                $petLookupStmt->close();
+            }
+            if ($petMarkSoldStmt) {
+                $petMarkSoldStmt->close();
+            }
+            if ($petSyncProductStmt) {
+                $petSyncProductStmt->close();
+            }
             return [false, 'San pham khong ton tai: ' . $itemLabel];
         }
 
         $resolvedProductId = (int) ($row['id'] ?? 0);
         $currentStock = (int) ($row['soluongsanpham'] ?? 0);
         if ($currentStock < $qty) {
+            $canTryPetFallback = $productId <= 0 && $productCode === '' && $productName !== '';
+            if ($canTryPetFallback) {
+                [$petOk, $petMessage] = $applyPetDeduction($petLookupStmt, $petMarkSoldStmt, $petSyncProductStmt, $productName, $qty);
+                if ($petOk) {
+                    $items[$index]['product_id'] = 0;
+                    continue;
+                }
+
+                if ($petMessage !== '') {
+                    $stockByIdStmt->close();
+                    $stockByCodeStmt->close();
+                    $stockByNameStmt->close();
+                    $updateStmt->close();
+                    if ($petLookupStmt) {
+                        $petLookupStmt->close();
+                    }
+                    if ($petMarkSoldStmt) {
+                        $petMarkSoldStmt->close();
+                    }
+                    if ($petSyncProductStmt) {
+                        $petSyncProductStmt->close();
+                    }
+                    return [false, $petMessage];
+                }
+            }
+
             $name = (string) ($row['tensanpham'] ?? ('ID ' . $productId));
             $stockByIdStmt->close();
             $stockByCodeStmt->close();
             $stockByNameStmt->close();
             $updateStmt->close();
+            if ($petLookupStmt) {
+                $petLookupStmt->close();
+            }
+            if ($petMarkSoldStmt) {
+                $petMarkSoldStmt->close();
+            }
+            if ($petSyncProductStmt) {
+                $petSyncProductStmt->close();
+            }
             return [false, 'Khong du ton kho cho san pham: ' . $name];
         }
 
-        $updateStmt->bind_param('ii', $qty, $resolvedProductId);
+        $updateStmt->bind_param('iiii', $qty, $qty, $qty, $resolvedProductId);
         $updateStmt->execute();
 
         $items[$index]['product_id'] = $resolvedProductId;
@@ -593,6 +950,15 @@ function app_apply_stock_deduction(mysqli $conn, array &$items): array
     $stockByCodeStmt->close();
     $stockByNameStmt->close();
     $updateStmt->close();
+    if ($petLookupStmt) {
+        $petLookupStmt->close();
+    }
+    if ($petMarkSoldStmt) {
+        $petMarkSoldStmt->close();
+    }
+    if ($petSyncProductStmt) {
+        $petSyncProductStmt->close();
+    }
     return [true, ''];
 }
 

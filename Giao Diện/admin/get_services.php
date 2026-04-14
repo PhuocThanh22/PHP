@@ -449,40 +449,7 @@ function app_admin_parse_id_list($value): array
 
 function app_admin_sync_voucher_products(mysqli $conn, int $voucherId, array $productIds): bool
 {
-    $deleteStmt = $conn->prepare('DELETE FROM magiamgia_sanpham WHERE magiamgia_id = ?');
-    if (!$deleteStmt) {
-        return false;
-    }
-    $deleteStmt->bind_param('i', $voucherId);
-    $ok = $deleteStmt->execute();
-    $deleteStmt->close();
-    if (!$ok) {
-        return false;
-    }
-
-    if (count($productIds) === 0) {
-        return true;
-    }
-
-    $insertStmt = $conn->prepare('INSERT INTO magiamgia_sanpham (magiamgia_id, sanpham_id) VALUES (?, ?)');
-    if (!$insertStmt) {
-        return false;
-    }
-
-    foreach ($productIds as $productId) {
-        $pid = (int) $productId;
-        if ($pid <= 0) {
-            continue;
-        }
-        $insertStmt->bind_param('ii', $voucherId, $pid);
-        $ok = $insertStmt->execute();
-        if (!$ok) {
-            $insertStmt->close();
-            return false;
-        }
-    }
-
-    $insertStmt->close();
+    // Voucher is now global for all products/services, so product mapping table is deprecated.
     return true;
 }
 
@@ -674,6 +641,163 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
         ]);
     }
 
+    if ($api === 'get_home_overview') {
+        $countRows = static function (mysqli $connRef, string $table, string $whereSql = '1=1') : int {
+            if (!app_table_exists($connRef, $table)) {
+                return 0;
+            }
+
+            $result = $connRef->query("SELECT COUNT(*) AS total FROM {$table} WHERE {$whereSql}");
+            if (!$result) {
+                return 0;
+            }
+
+            $row = $result->fetch_assoc();
+            $result->free();
+            return (int) ($row['total'] ?? 0);
+        };
+
+        $invoiceCount = $countRows($conn, 'donhang');
+        $productCount = $countRows($conn, 'sanpham');
+        $customerCount = $countRows($conn, 'khachhang');
+        $petCount = $countRows($conn, 'thucung');
+
+        $pendingOrders = $countRows($conn, 'donhang', "LOWER(TRIM(COALESCE(trangthaidonhang, ''))) IN ('cho_duyet', 'choduyet', 'dang_xu_ly', 'dangxuly')");
+        $pendingBookings = $countRows($conn, 'lichhen', "LOWER(TRIM(COALESCE(trangthailichhen, ''))) = 'choduyet'");
+        $lowStockProducts = $countRows($conn, 'sanpham', 'COALESCE(soluongsanpham, 0) <= 5');
+        $todayAfternoonBookings = $countRows($conn, 'lichhen', "DATE(thoigianhen) = CURDATE() AND HOUR(thoigianhen) >= 12 AND LOWER(TRIM(COALESCE(trangthailichhen, ''))) <> 'huy'");
+        $callbackCustomers = $countRows($conn, 'donhang', "LOWER(TRIM(COALESCE(nguondonhang, ''))) = 'online' AND LOWER(TRIM(COALESCE(trangthaidonhang, ''))) IN ('cho_duyet', 'choduyet', 'dang_xu_ly', 'dangxuly')");
+
+        $todoItems = [
+            [
+                'icon' => 'bi-cart-check',
+                'label' => 'đơn hàng chờ xác nhận',
+                'count' => $pendingOrders,
+            ],
+            [
+                'icon' => 'bi-scissors',
+                'label' => 'lịch grooming buổi chiều',
+                'count' => $todayAfternoonBookings,
+            ],
+            [
+                'icon' => 'bi-telephone',
+                'label' => 'khách cần gọi lại',
+                'count' => $callbackCustomers,
+            ],
+        ];
+
+        $todoTotal = 0;
+        foreach ($todoItems as $todoItem) {
+            if ((int) ($todoItem['count'] ?? 0) > 0) {
+                $todoTotal++;
+            }
+        }
+
+        $notifications = [];
+        if ($pendingOrders > 0) {
+            $notifications[] = [
+                'type' => 'order',
+                'title' => 'Đơn hàng cần xử lý',
+                'message' => $pendingOrders . ' đơn đang chờ xác nhận hoặc xử lý',
+            ];
+        }
+        if ($pendingBookings > 0) {
+            $notifications[] = [
+                'type' => 'booking',
+                'title' => 'Lịch hẹn chờ duyệt',
+                'message' => $pendingBookings . ' lịch hẹn đang chờ duyệt',
+            ];
+        }
+        if ($lowStockProducts > 0) {
+            $notifications[] = [
+                'type' => 'inventory',
+                'title' => 'Cảnh báo tồn kho',
+                'message' => $lowStockProducts . ' sản phẩm đang ở ngưỡng sắp hết/hết hàng',
+            ];
+        }
+
+        if (count($notifications) === 0) {
+            $notifications[] = [
+                'type' => 'system',
+                'title' => 'Hệ thống ổn định',
+                'message' => 'Không có cảnh báo mới cần xử lý ngay',
+            ];
+        }
+
+        $calendar = [];
+        $topServices = [];
+        if (app_table_exists($conn, 'lichhen')) {
+            $topServiceSql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(COALESCE(l.tendichvu, d.tendichvu)), ''), 'Dịch vụ') AS service_name,
+                    COUNT(*) AS total_bookings
+                FROM lichhen l
+                LEFT JOIN dichvu d ON d.id = l.dichvu_id
+                WHERE YEARWEEK(l.thoigianhen, 1) = YEARWEEK(CURDATE(), 1)
+                  AND LOWER(TRIM(COALESCE(l.trangthailichhen, ''))) <> 'huy'
+                GROUP BY service_name
+                ORDER BY total_bookings DESC, service_name ASC
+                LIMIT 3
+            ";
+            $topServiceResult = $conn->query($topServiceSql);
+            if ($topServiceResult) {
+                while ($topRow = $topServiceResult->fetch_assoc()) {
+                    $topServices[] = [
+                        'name' => (string) ($topRow['service_name'] ?? 'Dịch vụ'),
+                        'count' => (int) ($topRow['total_bookings'] ?? 0),
+                    ];
+                }
+                $topServiceResult->free();
+            }
+        }
+
+        if (app_table_exists($conn, 'lichhen')) {
+            $calendarSql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(tendichvu), ''), 'Dịch vụ') AS tendichvu,
+                    COALESCE(NULLIF(TRIM(tenkhachhang), ''), 'Khách hàng') AS tenkhachhang,
+                    thoigianhen,
+                    COALESCE(NULLIF(TRIM(trangthailichhen), ''), 'choduyet') AS trangthailichhen
+                FROM lichhen
+                WHERE thoigianhen IS NOT NULL
+                                    AND DATE(thoigianhen) = CURDATE()
+                  AND LOWER(TRIM(COALESCE(trangthailichhen, ''))) <> 'huy'
+                ORDER BY thoigianhen ASC
+                LIMIT 8
+            ";
+            $calendarResult = $conn->query($calendarSql);
+            if ($calendarResult) {
+                while ($row = $calendarResult->fetch_assoc()) {
+                    $timeValue = (string) ($row['thoigianhen'] ?? '');
+                    $formattedTime = $timeValue !== '' ? date('d/m/Y H:i', strtotime($timeValue)) : 'Chưa rõ thời gian';
+                    $calendar[] = [
+                        'service' => (string) ($row['tendichvu'] ?? 'Dịch vụ'),
+                        'customer' => (string) ($row['tenkhachhang'] ?? 'Khách hàng'),
+                        'time' => $formattedTime,
+                        'status' => (string) ($row['trangthailichhen'] ?? 'choduyet'),
+                    ];
+                }
+                $calendarResult->free();
+            }
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'data' => [
+                'invoices' => $invoiceCount,
+                'products' => $productCount,
+                'customers' => $customerCount,
+                'pets' => $petCount,
+                'notifications' => $notifications,
+                'calendar' => $calendar,
+                'todo_items' => $todoItems,
+                'todo_total' => $todoTotal,
+                'top_services' => $topServices,
+            ],
+        ]);
+    }
+
     if ($api === 'get_voucher_games') {
         $conn->close();
         app_json_response([
@@ -709,12 +833,9 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 COALESCE(v.minigame_key, 'jigsaw_pet') AS minigame_key,
                 COALESCE(v.minigame_level, 'easy') AS minigame_level,
                 v.ngaytao,
-                COALESCE(GROUP_CONCAT(DISTINCT mgs.sanpham_id ORDER BY mgs.sanpham_id SEPARATOR ','), '') AS product_ids,
-                COALESCE(GROUP_CONCAT(DISTINCT s.tensanpham ORDER BY s.tensanpham SEPARATOR ' | '), '') AS product_names
+                '' AS product_ids,
+                '' AS product_names
             FROM magiamgia v
-            LEFT JOIN magiamgia_sanpham mgs ON mgs.magiamgia_id = v.id
-            LEFT JOIN sanpham s ON s.id = mgs.sanpham_id
-            GROUP BY v.id
             ORDER BY v.id DESC
             LIMIT 500
         ";
@@ -2424,12 +2545,16 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 }
 
                 if (count($stockItems) === 0) {
-                    throw new RuntimeException('Khong tim thay chi tiet san pham de tru kho cho don online nay');
+                    throw new RuntimeException('Không tìm thấy chi tiết sản phẩm để trừ kho cho đơn online này.');
                 }
 
                 [$stockOk, $stockMessage] = app_apply_stock_deduction($conn, $stockItems);
                 if (!$stockOk) {
-                    throw new RuntimeException($stockMessage !== '' ? $stockMessage : 'Khong the tru ton kho cho don online');
+                    $detail = trim((string) $stockMessage);
+                    if ($detail === '') {
+                        $detail = 'Không thể trừ tồn kho cho đơn online.';
+                    }
+                    throw new RuntimeException($detail);
                 }
             }
 
@@ -2514,13 +2639,52 @@ function app_handle_admin_api(mysqli $conn, string $api): bool
                 'message' => 'Cap nhat trang thai don online thanh cong',
             ]);
         } catch (Throwable $e) {
-            $stmt->close();
-            $conn->rollback();
+            try {
+                if ($stmt instanceof mysqli_stmt) {
+                    $stmt->close();
+                }
+            } catch (Throwable $_) {
+                // Keep error response path stable.
+            }
+
+            try {
+                if ($conn instanceof mysqli) {
+                    $conn->rollback();
+                }
+            } catch (Throwable $_) {
+                // Ignore rollback errors and continue returning JSON.
+            }
+
             $conn->close();
+
+            $detailReasonRaw = trim((string) $e->getMessage());
+            $detailReason = $detailReasonRaw;
+            if ($detailReason !== '') {
+                $sanitized = @iconv('UTF-8', 'UTF-8//IGNORE', $detailReason);
+                if (is_string($sanitized) && trim($sanitized) !== '') {
+                    $detailReason = trim($sanitized);
+                }
+            }
+
+            $reasonLower = app_lower($detailReasonRaw);
+            if (
+                $detailReason === '' ||
+                strpos($reasonLower, 'khong du ton kho') !== false ||
+                strpos($reasonLower, 'khong du thu cung') !== false ||
+                strpos($reasonLower, 'het hang') !== false
+            ) {
+                $detailReason = 'Sản phẩm đã hết hàng hoặc không đủ tồn kho để duyệt đơn.';
+            }
+
+            $userMessage = 'Cập nhật trạng thái đơn online thất bại.';
+            if ($detailReason !== '') {
+                $userMessage .= ' Lý do: ' . $detailReason;
+            }
+
             app_json_response([
                 'ok' => false,
-                'message' => 'Cap nhat trang thai don online that bai',
-                'error' => $e->getMessage(),
+                'message' => $userMessage,
+                'error' => $detailReason,
             ], 400);
         }
     }

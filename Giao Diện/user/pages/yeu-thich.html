@@ -51,6 +51,193 @@
     </div>
 </section>
 
+<div id="favoriteQuickViewModal" style="display:none; position:fixed; inset:0; z-index:1200; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:12px;">
+    <div style="background:#fff; border-radius:14px; width:min(860px, 96vw); max-height:calc(100vh - 24px); overflow:auto; position:relative; box-shadow:0 20px 44px rgba(0,0,0,.24);">
+        <button type="button" id="favoriteQuickViewClose" style="position:absolute; top:10px; right:12px; border:none; background:none; font-size:28px; color:#9ca3af; cursor:pointer;">×</button>
+        <div style="display:grid; grid-template-columns:minmax(260px, 1fr) minmax(0, 1fr); gap:18px; padding:18px;">
+            <div style="border-radius:12px; overflow:hidden; background:#f3f4f6; min-height:260px;">
+                <img id="favoriteQuickViewImage" src="" alt="Chi tiết yêu thích" style="width:100%; height:100%; object-fit:cover; display:block; min-height:260px;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <span id="favoriteQuickViewBadge" style="display:inline-flex; width:max-content; padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; background:#edf9ef; color:#1F8F4D;">Sản phẩm</span>
+                <h3 id="favoriteQuickViewName" style="margin:0; font-size:26px; font-weight:700; color:#0f172a;"></h3>
+                <div id="favoriteQuickViewPrice" style="font-size:28px; font-weight:800; color:#111827;"></div>
+                <p id="favoriteQuickViewDesc" style="margin:0; color:#64748b; line-height:1.6;"></p>
+                <div style="margin-top:auto; display:flex; gap:10px; flex-wrap:wrap;">
+                    <button type="button" id="favoriteQuickViewPrimaryBtn" style="height:42px; border:none; border-radius:999px; padding:0 18px; font-weight:700; color:#fff; background:linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);">Thao tác</button>
+                    <button type="button" id="favoriteQuickViewRemoveBtn" style="height:42px; border:1px solid #fecaca; border-radius:999px; padding:0 18px; font-weight:700; color:#b91c1c; background:#fee2e2;">Bỏ yêu thích</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .favorites-section {
+        background: linear-gradient(180deg, #f7faf8 0%, #f1f5f3 100%);
+    }
+
+    .favorite-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 18px;
+    }
+
+    .favorite-grid .product-card {
+        background: linear-gradient(180deg, #ffffff 0%, #fffaf6 100%);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        border: 1px solid #ecd8ca;
+        display: flex;
+        flex-direction: column;
+        transition: transform .25s ease, box-shadow .25s ease;
+    }
+
+    .favorite-grid .product-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
+    }
+
+    .favorite-grid .product-image {
+        position: relative;
+        width: 100%;
+        height: 250px;
+        background: #f5f5f5;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .favorite-grid .product-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform .3s ease;
+    }
+
+    .favorite-grid .product-card:hover .product-image img {
+        transform: scale(1.08);
+    }
+
+    .favorite-grid .product-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        z-index: 2;
+    }
+
+    .favorite-grid .product-badge.product {
+        background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
+    }
+
+    .favorite-grid .product-badge.service {
+        background: linear-gradient(135deg, #0891b2 0%, #22d3ee 100%);
+    }
+
+    .favorite-grid .product-heart-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 34px;
+        height: 34px;
+        border: none;
+        border-radius: 50%;
+        background: #ffffff;
+        color: #ef4444;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform .2s ease, background-color .2s ease;
+        z-index: 2;
+    }
+
+    .favorite-grid .product-heart-btn:hover {
+        background: #fff1f2;
+        transform: translateY(-2px);
+    }
+
+    .favorite-grid .product-info {
+        padding: 14px;
+        background: linear-gradient(180deg, #fffdfb 0%, #fff7f0 100%);
+        border-top: 1px solid #f0dfd3;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .favorite-grid .product-name {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 6px;
+        color: #1f2937;
+        line-height: 1.4;
+        cursor: pointer;
+    }
+
+    .favorite-grid .product-category {
+        color: #1F8F4D;
+        font-size: 12px;
+        font-weight: 700;
+        margin: 0 0 8px;
+    }
+
+    .favorite-grid .product-price {
+        color: #111827;
+        font-size: 22px;
+        font-weight: 800;
+        margin: 0;
+        line-height: 1.1;
+    }
+
+    .favorite-grid .product-corner-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: auto;
+        padding-top: 10px;
+    }
+
+    .favorite-grid .product-corner-btn {
+        border: none;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        min-width: 92px;
+        padding: 8px 12px;
+        line-height: 1;
+        transition: transform .2s ease, box-shadow .2s ease;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+    }
+
+    .favorite-grid .product-corner-btn.buy {
+        background: #edf9ef;
+        color: #1F8F4D;
+        border: 1px solid #b6dec5;
+    }
+
+    .favorite-grid .product-corner-btn.detail {
+        background: linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%);
+        color: #fff;
+    }
+
+    .favorite-grid .product-corner-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 900px) {
+        #favoriteQuickViewModal > div > div {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+
 <script>
     const getUserAppBasePath = () => {
         const path = String(window.location.pathname || '');
@@ -94,7 +281,14 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 
-    const escapeJsSingleQuote = (value) => String(value || '').replace(/'/g, "\\'");
+    const formatMoneyLabel = (price) => {
+        const raw = String(price || '').trim();
+        const numeric = Number(raw.replace(/[^0-9]/g, ''));
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+            return raw || 'Liên hệ';
+        }
+        return `${numeric.toLocaleString('vi-VN')}đ`;
+    };
 
     const normalizeLookupKey = (value) => String(value || '')
         .normalize('NFD')
@@ -141,7 +335,8 @@
                     const row = {
                         name: nameRaw,
                         image: normalizeAssetUrl(item?.hinhanhsanpham || item?.image || ''),
-                        price: String(item?.giasanpham || item?.price || '').trim()
+                        price: String(item?.giasanpham || item?.price || '').trim(),
+                        purchaseCount: Number(item?.soluotmuasanpham ?? item?.soluotmua ?? 0)
                     };
 
                     if (!lookup.has(name)) {
@@ -202,46 +397,95 @@
             return {
                 ...product,
                 image: resolvedImage,
-                price: resolvedPrice || product?.price || ''
+                price: resolvedPrice || product?.price || '',
+                purchaseCount: Number(fromDb?.purchaseCount ?? product?.purchaseCount ?? 0)
             };
         }).filter(Boolean);
     };
 
-    const renderFavoriteCard = (item) => {
+    let favoriteItemsCache = [];
+
+    const renderFavoriteCard = (item, index) => {
         const isService = item.kind === 'service';
         const safeName = escapeHtml(item.name || 'Mục yêu thích');
-        const safeNameJs = escapeJsSingleQuote(item.name || '');
-        const safePrice = escapeHtml(item.price || 'Liên hệ');
-        const safePriceJs = escapeJsSingleQuote(item.price || 'Liên hệ');
+        const safePrice = escapeHtml(formatMoneyLabel(item.price));
         const safeImage = escapeHtml(item.image || 'https://via.placeholder.com/400x300?text=No+Image');
-        const safeImageJs = escapeJsSingleQuote(item.image || '');
+        const purchaseCountRaw = Number(item?.purchaseCount || 0);
+        const purchaseCount = Number.isFinite(purchaseCountRaw) && purchaseCountRaw > 0 ? Math.round(purchaseCountRaw) : 0;
+        const purchaseInfo = isService
+            ? 'Lượt đặt: 0'
+            : `${purchaseCount.toLocaleString('vi-VN')} lượt mua`;
+        const safePurchaseInfo = escapeHtml(purchaseInfo);
         const badge = isService ? 'Dịch vụ' : 'Sản phẩm';
-        const badgeBg = isService ? '#e8f7ee' : '#eef3ff';
-        const badgeColor = isService ? '#1f8f4d' : '#3346b5';
+        const badgeClass = isService ? 'service' : 'product';
 
         return `
-            <div class="wishlist-card" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:all .3s ease;border:1px solid #f0f0f0;display:flex;flex-direction:column;" onmouseover="this.style.boxShadow='0 12px 24px rgba(0,0,0,0.15)'; this.style.transform='translateY(-8px)';" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)';">
-                <div style="position:relative;overflow:hidden;height:280px;background:#f8f9fa;">
-                    <img src="${safeImage}" alt="${safeName}" style="width:100%;height:100%;object-fit:cover;transition:transform .3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image';">
-                    <span style="position:absolute;left:12px;top:12px;background:${badgeBg};color:${badgeColor};font-size:12px;font-weight:700;border-radius:999px;padding:6px 10px;">${badge}</span>
-                    <button onclick="removeFavoriteItem('${isService ? 'service' : 'product'}','${safeNameJs}')" style="position:absolute;top:12px;right:12px;width:40px;height:40px;background:#fff;color:#111;border:1px solid #e5e5e5;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.12);transition:all .3s ease;font-size:20px;" onmouseover="this.style.background='#f4f4f4'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#fff'; this.style.transform='scale(1)';" title="Bỏ yêu thích">
-                        <i data-feather="x" style="width:20px;height:20px;"></i>
+            <article class="product-card">
+                <div class="product-image" data-action="open-detail" data-index="${index}">
+                    <img src="${safeImage}" alt="${safeName}" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image';">
+                    <span class="product-badge ${badgeClass}">${badge}</span>
+                    <button class="product-heart-btn" data-action="remove-favorite" data-index="${index}" title="Bỏ yêu thích">
+                        <i data-feather="x" style="width:18px;height:18px;"></i>
                     </button>
                 </div>
-
-                <div style="padding:20px;flex-grow:1;display:flex;flex-direction:column;">
-                    <h3 style="font-size:16px;font-weight:600;margin:0 0 10px 0;color:#333;line-height:1.4;">${safeName}</h3>
-                    <div style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                        <p style="color:#000;font-size:22px;font-weight:800;margin:0;">${safePrice}</p>
-                        ${isService
-                            ? `<button class="quick-book-btn" onclick="bookServiceFromFavorites('${safeNameJs}','${safePriceJs}')" style="height:44px;min-width:112px;background:#1F8F4D;color:#fff;border:none;border-radius:999px;cursor:pointer;padding:0 16px;font-weight:700;transition:all .25s ease;" onmouseover="this.style.background='#15703c'" onmouseout="this.style.background='#1F8F4D'">Đặt lịch</button>`
-                            : `<button class="quick-cart-btn" onclick="addToCartFromFavorites('${safeNameJs}','${safePriceJs}','${safeImageJs}')" style="width:52px;height:52px;min-width:52px;background:#000;color:#fff;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:none;transition:all .3s ease;" onmouseover="this.style.background='#222'; this.style.transform='scale(1.08)'; this.style.boxShadow='0 8px 18px rgba(0,0,0,0.35)'" onmouseout="this.style.background='#000'; this.style.transform='scale(1)'; this.style.boxShadow='none';" title="Thêm vào giỏ">
-                                <i data-feather="shopping-cart" style="width:22px;height:22px;"></i>
-                            </button>`}
+                <div class="product-info">
+                    <h3 class="product-name" data-action="open-detail" data-index="${index}">${safeName}</h3>
+                    <p class="product-category" style="font-style:italic;">${safePurchaseInfo}</p>
+                    <p class="product-price">${safePrice}</p>
+                    <div class="product-corner-actions">
+                        <button class="product-corner-btn buy" data-action="primary" data-index="${index}">${isService ? 'Đặt lịch' : 'Mua'}</button>
+                        <button class="product-corner-btn detail" data-action="open-detail" data-index="${index}">Chi tiết</button>
                     </div>
                 </div>
-            </div>
+            </article>
         `;
+    };
+
+    const openFavoriteQuickView = (index) => {
+        const item = favoriteItemsCache[index];
+        if (!item) return;
+
+        const modal = document.getElementById('favoriteQuickViewModal');
+        const imageEl = document.getElementById('favoriteQuickViewImage');
+        const badgeEl = document.getElementById('favoriteQuickViewBadge');
+        const nameEl = document.getElementById('favoriteQuickViewName');
+        const priceEl = document.getElementById('favoriteQuickViewPrice');
+        const descEl = document.getElementById('favoriteQuickViewDesc');
+        const primaryBtn = document.getElementById('favoriteQuickViewPrimaryBtn');
+        const removeBtn = document.getElementById('favoriteQuickViewRemoveBtn');
+
+        const isService = item.kind === 'service';
+        imageEl.src = item.image || 'https://via.placeholder.com/400x300?text=No+Image';
+        imageEl.alt = item.name || 'Chi tiết yêu thích';
+        badgeEl.textContent = isService ? 'Dịch vụ' : 'Sản phẩm';
+        badgeEl.style.background = isService ? 'linear-gradient(135deg, #0891b2 0%, #22d3ee 100%)' : 'linear-gradient(135deg, #1F8F4D 0%, #6FCF5F 100%)';
+        badgeEl.style.color = '#fff';
+        nameEl.textContent = item.name || 'Mục yêu thích';
+        priceEl.textContent = formatMoneyLabel(item.price);
+        descEl.textContent = String(item.description || (isService
+            ? 'Dịch vụ chăm sóc thú cưng chất lượng cao với đội ngũ nhiều kinh nghiệm.'
+            : 'Sản phẩm dành cho thú cưng, thông tin chi tiết đang được cập nhật.')).trim();
+
+        primaryBtn.textContent = isService ? 'Đặt lịch ngay' : 'Thêm vào giỏ';
+        primaryBtn.onclick = () => {
+            if (isService) {
+                bookServiceFromFavorites(item.name || '', item.price || '');
+            } else {
+                addToCartFromFavorites(item.name || '', item.price || '', item.image || '');
+            }
+        };
+
+        removeBtn.onclick = () => {
+            removeFavoriteItem(isService ? 'service' : 'product', item.name || '');
+            closeFavoriteQuickView();
+        };
+
+        modal.style.display = 'flex';
+    };
+
+    const closeFavoriteQuickView = () => {
+        const modal = document.getElementById('favoriteQuickViewModal');
+        if (modal) modal.style.display = 'none';
     };
 
     const renderFavoritesPage = async () => {
@@ -279,21 +523,57 @@
                     kind: 'product',
                     name: String(product?.name || '').trim(),
                     image: normalizeAssetUrl(product?.image || ''),
-                    price: String(product?.price || '').trim() || 'Liên hệ'
+                    price: String(product?.price || '').trim() || 'Liên hệ',
+                    purchaseCount: Number(product?.purchaseCount || 0),
+                    description: String(product?.description || product?.mota || '').trim()
                 })),
                 ...serviceWishlist.map((service) => ({
                     kind: 'service',
                     name: String(service?.name || '').trim(),
                     image: normalizeAssetUrl(service?.image || ''),
-                    price: String(service?.price || '').trim() || 'Liên hệ'
+                    price: String(service?.price || '').trim() || 'Liên hệ',
+                    description: String(service?.description || '').trim()
                 }))
             ].filter((item) => item.name !== '');
 
+            favoriteItemsCache = unifiedItems;
+
             contentArea.innerHTML = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px;">
-                    ${unifiedItems.map(renderFavoriteCard).join('')}
+                <div class="favorite-grid">
+                    ${unifiedItems.map((item, index) => renderFavoriteCard(item, index)).join('')}
                 </div>
             `;
+
+            if (contentArea && contentArea.dataset.bound !== '1') {
+                contentArea.addEventListener('click', (event) => {
+                    const actionTarget = event.target.closest('[data-action]');
+                    if (!actionTarget) return;
+
+                    const action = String(actionTarget.dataset.action || '').trim();
+                    const index = Number(actionTarget.dataset.index || -1);
+                    const item = favoriteItemsCache[index];
+                    if (!item) return;
+
+                    if (action === 'open-detail') {
+                        openFavoriteQuickView(index);
+                        return;
+                    }
+
+                    if (action === 'primary') {
+                        if (item.kind === 'service') {
+                            bookServiceFromFavorites(item.name || '', item.price || '');
+                        } else {
+                            addToCartFromFavorites(item.name || '', item.price || '', item.image || '');
+                        }
+                        return;
+                    }
+
+                    if (action === 'remove-favorite') {
+                        removeFavoriteItem(item.kind === 'service' ? 'service' : 'product', item.name || '');
+                    }
+                });
+                contentArea.dataset.bound = '1';
+            }
         }
 
         if (typeof feather !== 'undefined') {
@@ -383,6 +663,20 @@
     };
 
     window.bookServiceFromFavorites = bookServiceFromFavorites;
+
+    const favoriteModal = document.getElementById('favoriteQuickViewModal');
+    document.getElementById('favoriteQuickViewClose')?.addEventListener('click', closeFavoriteQuickView);
+    favoriteModal?.addEventListener('click', (event) => {
+        if (event.target === favoriteModal) {
+            closeFavoriteQuickView();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeFavoriteQuickView();
+        }
+    });
 
     // Initialize on page load
     renderFavoritesPage();

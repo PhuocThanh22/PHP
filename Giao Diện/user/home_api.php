@@ -284,6 +284,181 @@ function app_user_save_avatar_data_url(string $dataUrl): array
     return [true, $relativeDir . '/' . $fileName, ''];
 }
 
+function app_user_ensure_email_otp_table(mysqli $conn): bool
+{
+    $sql = "
+        CREATE TABLE IF NOT EXISTS email_verification_tokens (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            email VARCHAR(190) NOT NULL,
+            purpose VARCHAR(40) NOT NULL,
+            otp_hash CHAR(64) NOT NULL,
+            expires_at DATETIME NOT NULL,
+            verified_at DATETIME NULL,
+            consumed_at DATETIME NULL,
+            attempt_count INT NOT NULL DEFAULT 0,
+            max_attempts INT NOT NULL DEFAULT 8,
+            request_ip VARCHAR(64) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_email_otp_lookup (email, purpose, created_at),
+            KEY idx_email_otp_expire (expires_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ";
+
+    return (bool) $conn->query($sql);
+}
+
+function app_user_generate_otp_code(): string
+{
+    try {
+        return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    } catch (Throwable $e) {
+        return str_pad((string) mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+    }
+}
+
+function app_user_store_email_otp(mysqli $conn, string $email, string $purpose, string $requestIp = ''): array
+{
+    if (!app_user_ensure_email_otp_table($conn)) {
+        return ['ok' => false, 'message' => 'Khong the tao bang luu ma xac minh'];
+    }
+
+    $cleanEmail = trim($email);
+    $cleanPurpose = trim($purpose);
+    if ($cleanEmail === '' || $cleanPurpose === '') {
+        return ['ok' => false, 'message' => 'Du lieu tao ma xac minh khong hop le'];
+    }
+
+    $consumeOldStmt = $conn->prepare("UPDATE email_verification_tokens SET consumed_at = NOW() WHERE LOWER(email) = LOWER(?) AND purpose = ? AND consumed_at IS NULL");
+    if ($consumeOldStmt) {
+        $consumeOldStmt->bind_param('ss', $cleanEmail, $cleanPurpose);
+        $consumeOldStmt->execute();
+        $consumeOldStmt->close();
+    }
+
+    $code = app_user_generate_otp_code();
+    $hash = hash('sha256', $code);
+    $expiresMinutes = 1;
+    $ip = trim($requestIp);
+    if ($ip === '') {
+        $ip = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+    }
+
+    $insertStmt = $conn->prepare('INSERT INTO email_verification_tokens (email, purpose, otp_hash, expires_at, request_ip) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?)');
+    if (!$insertStmt) {
+        return ['ok' => false, 'message' => 'Khong the luu ma xac minh'];
+    }
+
+    $insertStmt->bind_param('sssis', $cleanEmail, $cleanPurpose, $hash, $expiresMinutes, $ip);
+    $ok = $insertStmt->execute();
+    $insertStmt->close();
+    if (!$ok) {
+        return ['ok' => false, 'message' => 'Khong the luu ma xac minh'];
+    }
+
+    return [
+        'ok' => true,
+        'code' => $code,
+        'expires_in' => $expiresMinutes * 60,
+    ];
+}
+
+function app_user_verify_email_otp(mysqli $conn, string $email, string $purpose, string $otpCode, bool $consumeOnSuccess = true): array
+{
+    if (!app_user_ensure_email_otp_table($conn)) {
+        return ['ok' => false, 'message' => 'He thong ma xac minh chua san sang'];
+    }
+
+    $cleanEmail = trim($email);
+    $cleanPurpose = trim($purpose);
+    $cleanCode = trim($otpCode);
+    if ($cleanEmail === '' || $cleanPurpose === '' || $cleanCode === '') {
+        return ['ok' => false, 'message' => 'Vui long nhap day du email va ma xac minh'];
+    }
+
+    $selectStmt = $conn->prepare("SELECT id, otp_hash, expires_at, attempt_count, max_attempts FROM email_verification_tokens WHERE LOWER(email) = LOWER(?) AND purpose = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1");
+    if (!$selectStmt) {
+        return ['ok' => false, 'message' => 'Khong the kiem tra ma xac minh'];
+    }
+
+    $selectStmt->bind_param('ss', $cleanEmail, $cleanPurpose);
+    $selectStmt->execute();
+    $result = $selectStmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    if ($result) {
+        $result->free();
+    }
+    $selectStmt->close();
+
+    if (!is_array($row)) {
+        return ['ok' => false, 'message' => 'Ma xac minh khong ton tai hoac da het han'];
+    }
+
+    $tokenId = (int) ($row['id'] ?? 0);
+    $expiresAt = strtotime((string) ($row['expires_at'] ?? ''));
+    $attemptCount = (int) ($row['attempt_count'] ?? 0);
+    $maxAttempts = max(1, (int) ($row['max_attempts'] ?? 8));
+
+    if ($expiresAt !== false && $expiresAt < time()) {
+        $expireStmt = $conn->prepare('UPDATE email_verification_tokens SET consumed_at = NOW() WHERE id = ? LIMIT 1');
+        if ($expireStmt) {
+            $expireStmt->bind_param('i', $tokenId);
+            $expireStmt->execute();
+            $expireStmt->close();
+        }
+        return ['ok' => false, 'message' => 'Ma xac minh da het han. Vui long gui ma moi'];
+    }
+
+    if ($attemptCount >= $maxAttempts) {
+        return ['ok' => false, 'message' => 'Ma xac minh da bi khoa do nhap sai qua nhieu lan'];
+    }
+
+    $inputHash = hash('sha256', $cleanCode);
+    $storedHash = (string) ($row['otp_hash'] ?? '');
+    $matched = $storedHash !== '' && hash_equals($storedHash, $inputHash);
+
+    if (!$matched) {
+        $updateFailStmt = $conn->prepare('UPDATE email_verification_tokens SET attempt_count = attempt_count + 1 WHERE id = ? LIMIT 1');
+        if ($updateFailStmt) {
+            $updateFailStmt->bind_param('i', $tokenId);
+            $updateFailStmt->execute();
+            $updateFailStmt->close();
+        }
+        return ['ok' => false, 'message' => 'Ma xac minh khong dung'];
+    }
+
+    if ($consumeOnSuccess) {
+        $updateSuccessStmt = $conn->prepare('UPDATE email_verification_tokens SET verified_at = NOW(), consumed_at = NOW() WHERE id = ? LIMIT 1');
+    } else {
+        $updateSuccessStmt = $conn->prepare('UPDATE email_verification_tokens SET verified_at = NOW() WHERE id = ? LIMIT 1');
+    }
+
+    if ($updateSuccessStmt) {
+        $updateSuccessStmt->bind_param('i', $tokenId);
+        $updateSuccessStmt->execute();
+        $updateSuccessStmt->close();
+    }
+
+    return ['ok' => true, 'message' => 'Xac minh thanh cong'];
+}
+
+function app_user_build_otp_email_html(string $otpCode, string $purposeLabel, int $expiresMinutes): string
+{
+    $safeCode = htmlspecialchars($otpCode, ENT_QUOTES, 'UTF-8');
+    $safePurpose = htmlspecialchars($purposeLabel, ENT_QUOTES, 'UTF-8');
+    $safeMinutes = max(1, (int) $expiresMinutes);
+
+    return '<div style="font-family:Arial,sans-serif;background:#f4f7fb;padding:20px;">'
+        . '<div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #dbe4ee;border-radius:14px;overflow:hidden;">'
+        . '<div style="padding:14px 18px;background:linear-gradient(135deg,#128a4b,#2dbf6a);color:#fff;font-weight:700;font-size:18px;">3 CHU CUN CON</div>'
+        . '<div style="padding:16px 18px;color:#0f172a;line-height:1.6;font-size:14px;">'
+        . '<p style="margin:0 0 10px;"><b>Yeu cau:</b> ' . $safePurpose . '</p>'
+        . '<p style="margin:0 0 10px;">Ma xac minh cua ban la:</p>'
+        . '<div style="display:inline-block;padding:10px 16px;border-radius:10px;background:#0f172a;color:#fff;font-size:28px;letter-spacing:4px;font-weight:700;">' . $safeCode . '</div>'
+        . '<p style="margin:12px 0 0;color:#475569;">Ma co hieu luc trong ' . $safeMinutes . ' phut. Vui long khong chia se ma nay cho bat ky ai.</p>'
+        . '</div></div></div>';
+}
+
 function app_user_ensure_favorites_table(mysqli $conn): bool
 {
     $createSql = "
@@ -1612,6 +1787,402 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         }
     }
 
+    if ($api === 'send_email_verification_code') {
+        if (!app_table_exists($conn, 'nguoidung')) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay bang nguoidung',
+            ], 500);
+        }
+
+        $input = app_input_payload();
+        $email = trim((string) ($input['email'] ?? ''));
+        $purpose = app_lower(trim((string) ($input['purpose'] ?? 'register')));
+        $name = trim((string) ($input['name'] ?? ''));
+
+        if (!in_array($purpose, ['register', 'reset_password'], true)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Muc dich gui ma khong hop le',
+            ], 400);
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Email khong hop le',
+            ], 400);
+        }
+
+        $emailLower = app_lower($email);
+        if ($purpose === 'register') {
+            if (app_contains_reserved_account_keyword($email) || app_contains_reserved_account_keyword($name)) {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Tai khoan chua tu khoa admin/staff khong duoc dang ky tai khu vuc user',
+                ], 403);
+            }
+
+            $checkStmt = $conn->prepare("SELECT id FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? LIMIT 1");
+            if (!$checkStmt) {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Khong the kiem tra email',
+                ], 500);
+            }
+            $checkStmt->bind_param('s', $emailLower);
+            $checkStmt->execute();
+            $checkResult = $checkStmt->get_result();
+            $exists = $checkResult ? $checkResult->fetch_assoc() : null;
+            if ($checkResult) {
+                $checkResult->free();
+            }
+            $checkStmt->close();
+
+            if (is_array($exists)) {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Email da ton tai',
+                ], 409);
+            }
+        }
+
+        if ($purpose === 'reset_password') {
+            $checkStmt = $conn->prepare("SELECT id, vaitronguoidung FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? LIMIT 1");
+            if (!$checkStmt) {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Khong the kiem tra email',
+                ], 500);
+            }
+            $checkStmt->bind_param('s', $emailLower);
+            $checkStmt->execute();
+            $checkResult = $checkStmt->get_result();
+            $row = $checkResult ? $checkResult->fetch_assoc() : null;
+            if ($checkResult) {
+                $checkResult->free();
+            }
+            $checkStmt->close();
+
+            if (!is_array($row) || app_normalize_role((string) ($row['vaitronguoidung'] ?? 'user')) !== 'user') {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Khong tim thay tai khoan user voi email nay',
+                ], 404);
+            }
+        }
+
+        if (!app_user_ensure_email_otp_table($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao he thong ma xac minh',
+            ], 500);
+        }
+
+        $latestStmt = $conn->prepare('SELECT consumed_at, GREATEST(TIMESTAMPDIFF(SECOND, NOW(), expires_at), 0) AS remaining_seconds FROM email_verification_tokens WHERE LOWER(email) = LOWER(?) AND purpose = ? ORDER BY id DESC LIMIT 1');
+        if ($latestStmt) {
+            $latestStmt->bind_param('ss', $email, $purpose);
+            $latestStmt->execute();
+            $latestResult = $latestStmt->get_result();
+            $latestRow = $latestResult ? $latestResult->fetch_assoc() : null;
+            if ($latestResult) {
+                $latestResult->free();
+            }
+            $latestStmt->close();
+
+            if (is_array($latestRow)) {
+                $consumedAt = trim((string) ($latestRow['consumed_at'] ?? ''));
+                $remain = max(0, (int) ($latestRow['remaining_seconds'] ?? 0));
+                if ($consumedAt === '' && $remain > 0) {
+                    $minutes = (int) floor($remain / 60);
+                    $seconds = (int) ($remain % 60);
+                    $remainText = $minutes > 0
+                        ? ($minutes . ' phut ' . $seconds . ' giay')
+                        : ($seconds . ' giay');
+
+                    $conn->close();
+                    app_json_response([
+                        'ok' => false,
+                        'message' => 'Ma vua gui van con hieu luc. Vui long dung ma hien tai (' . $remainText . ')',
+                        'active_code_remaining' => $remain,
+                    ], 409);
+                }
+            }
+        }
+
+        $storeResult = app_user_store_email_otp($conn, $email, $purpose, trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
+        if (!$storeResult['ok']) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => (string) ($storeResult['message'] ?? 'Khong tao duoc ma xac minh'),
+            ], 500);
+        }
+
+        $otpCode = (string) ($storeResult['code'] ?? '');
+        $expiresIn = (int) ($storeResult['expires_in'] ?? 60);
+        $expiresMinutes = max(1, (int) floor($expiresIn / 60));
+        $purposeLabel = $purpose === 'register' ? 'Dang ky tai khoan moi' : 'Dat lai mat khau';
+        $subject = $purpose === 'register'
+            ? 'Ma xac minh dang ky tai khoan - 3 CHU CUN CON'
+            : 'Ma xac minh dat lai mat khau - 3 CHU CUN CON';
+        $htmlBody = app_user_build_otp_email_html($otpCode, $purposeLabel, $expiresMinutes);
+        $textBody = 'Ma xac minh cua ban la: ' . $otpCode . '. Ma co hieu luc trong ' . $expiresMinutes . ' phut.';
+
+        [$sent, $sendMessage] = app_send_email($email, $subject, $htmlBody, $textBody);
+        if (!$sent) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Gui email that bai: ' . $sendMessage,
+            ], 500);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'message' => 'Da gui ma xac minh ve email',
+            'data' => [
+                'expires_in' => $expiresIn,
+                    'active_code_remaining' => $expiresIn,
+            ],
+        ]);
+    }
+
+    if ($api === 'verify_email_verification_code') {
+        if (!app_table_exists($conn, 'nguoidung')) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay bang nguoidung',
+            ], 500);
+        }
+
+        $input = app_input_payload();
+        $email = trim((string) ($input['email'] ?? ''));
+        $purpose = app_lower(trim((string) ($input['purpose'] ?? 'reset_password')));
+        $code = trim((string) ($input['verification_code'] ?? $input['otp'] ?? ''));
+        $name = trim((string) ($input['name'] ?? ''));
+
+        if (!in_array($purpose, ['register', 'reset_password'], true)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Muc dich xac minh khong hop le',
+            ], 400);
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Email khong hop le',
+            ], 400);
+        }
+
+        if (preg_match('/^\d{6}$/', $code) !== 1) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Ma xac minh phai gom 6 chu so',
+            ], 400);
+        }
+
+        $emailLower = app_lower($email);
+        if ($purpose === 'register') {
+            if (app_contains_reserved_account_keyword($email) || app_contains_reserved_account_keyword($name)) {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Tai khoan chua tu khoa admin/staff khong duoc dang ky tai khu vuc user',
+                ], 403);
+            }
+
+            $existsStmt = $conn->prepare("SELECT id FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? LIMIT 1");
+            if ($existsStmt) {
+                $existsStmt->bind_param('s', $emailLower);
+                $existsStmt->execute();
+                $existsResult = $existsStmt->get_result();
+                $existsRow = $existsResult ? $existsResult->fetch_assoc() : null;
+                if ($existsResult) {
+                    $existsResult->free();
+                }
+                $existsStmt->close();
+
+                if (is_array($existsRow)) {
+                    $conn->close();
+                    app_json_response([
+                        'ok' => false,
+                        'message' => 'Email da ton tai',
+                    ], 409);
+                }
+            }
+        }
+
+        if ($purpose === 'reset_password') {
+            $findStmt = $conn->prepare("SELECT id, vaitronguoidung FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? LIMIT 1");
+            if (!$findStmt) {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Khong the kiem tra tai khoan',
+                ], 500);
+            }
+
+            $findStmt->bind_param('s', $emailLower);
+            $findStmt->execute();
+            $findResult = $findStmt->get_result();
+            $foundUser = $findResult ? $findResult->fetch_assoc() : null;
+            if ($findResult) {
+                $findResult->free();
+            }
+            $findStmt->close();
+
+            if (!is_array($foundUser) || app_normalize_role((string) ($foundUser['vaitronguoidung'] ?? 'user')) !== 'user') {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'message' => 'Khong tim thay tai khoan user voi email nay',
+                ], 404);
+            }
+        }
+
+        $verifyResult = app_user_verify_email_otp($conn, $email, $purpose, $code, false);
+        if (!$verifyResult['ok']) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => (string) ($verifyResult['message'] ?? 'Ma xac minh khong hop le'),
+                'data' => [
+                    'verified' => false,
+                ],
+            ], 400);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'message' => 'Ma xac minh hop le',
+            'data' => [
+                'verified' => true,
+            ],
+        ]);
+    }
+
+    if ($api === 'reset_password_with_code') {
+        if (!app_table_exists($conn, 'nguoidung')) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay bang nguoidung',
+            ], 500);
+        }
+
+        $input = app_input_payload();
+        $email = trim((string) ($input['email'] ?? ''));
+        $code = trim((string) ($input['verification_code'] ?? $input['otp'] ?? ''));
+        $newPassword = (string) ($input['new_password'] ?? $input['password'] ?? '');
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Email khong hop le',
+            ], 400);
+        }
+
+        if (preg_match('/^\d{6}$/', $code) !== 1) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Ma xac minh phai gom 6 chu so',
+            ], 400);
+        }
+
+        if (strlen($newPassword) < 6) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Mat khau moi phai co it nhat 6 ky tu',
+            ], 400);
+        }
+
+        $emailLower = app_lower($email);
+        $findStmt = $conn->prepare("SELECT id, vaitronguoidung FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? LIMIT 1");
+        if (!$findStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the tim tai khoan',
+            ], 500);
+        }
+
+        $findStmt->bind_param('s', $emailLower);
+        $findStmt->execute();
+        $findResult = $findStmt->get_result();
+        $userRow = $findResult ? $findResult->fetch_assoc() : null;
+        if ($findResult) {
+            $findResult->free();
+        }
+        $findStmt->close();
+
+        if (!is_array($userRow) || app_normalize_role((string) ($userRow['vaitronguoidung'] ?? 'user')) !== 'user') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay tai khoan user voi email nay',
+            ], 404);
+        }
+
+        $verifyResult = app_user_verify_email_otp($conn, $email, 'reset_password', $code, true);
+        if (!$verifyResult['ok']) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => (string) ($verifyResult['message'] ?? 'Ma xac minh khong hop le'),
+            ], 400);
+        }
+
+        $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+        $updateStmt = $conn->prepare('UPDATE nguoidung SET matkhaunguoidung = ? WHERE id = ? LIMIT 1');
+        if (!$updateStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the cap nhat mat khau',
+            ], 500);
+        }
+
+        $userId = (int) ($userRow['id'] ?? 0);
+        $updateStmt->bind_param('si', $passwordHash, $userId);
+        $ok = $updateStmt->execute();
+        $affected = (int) $updateStmt->affected_rows;
+        $updateStmt->close();
+
+        if (!$ok || $affected < 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Cap nhat mat khau that bai',
+            ], 500);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'message' => 'Dat lai mat khau thanh cong',
+        ]);
+    }
+
     if ($api === 'register_user') {
         if (!app_table_exists($conn, 'nguoidung')) {
             $conn->close();
@@ -1626,6 +2197,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         $email = trim((string) ($input['email'] ?? $input['emailnguoidung'] ?? ''));
         $phone = trim((string) ($input['phone'] ?? $input['sodienthoai'] ?? ''));
         $password = (string) ($input['password'] ?? '');
+        $verificationCode = trim((string) ($input['verification_code'] ?? $input['otp'] ?? ''));
 
         if (app_contains_reserved_account_keyword($name) || app_contains_reserved_account_keyword($email)) {
             $conn->close();
@@ -1656,6 +2228,14 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             app_json_response([
                 'ok' => false,
                 'message' => 'Mat khau phai co it nhat 6 ky tu',
+            ], 400);
+        }
+
+        if (preg_match('/^\d{6}$/', $verificationCode) !== 1) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Vui long nhap ma xac minh 6 chu so',
             ], 400);
         }
 
@@ -1691,6 +2271,23 @@ function app_handle_user_api(mysqli $conn, string $api): bool
                 'ok' => false,
                 'message' => 'Email hoac ten dang nhap da ton tai',
             ], 409);
+        }
+
+        if ($phone !== '' && app_user_phone_exists($conn, $phone)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'So dien thoai da duoc dang ky',
+            ], 409);
+        }
+
+        $verifyResult = app_user_verify_email_otp($conn, $email, 'register', $verificationCode, true);
+        if (!$verifyResult['ok']) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => (string) ($verifyResult['message'] ?? 'Ma xac minh khong hop le'),
+            ], 400);
         }
 
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
@@ -1887,6 +2484,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         $state = bin2hex(random_bytes(16));
         $_SESSION['oauth_state_' . $provider] = $state;
         $_SESSION['oauth_return_' . $provider] = $returnUrl;
+        $_SESSION['oauth_provider_active'] = $provider;
 
         $redirectUri = app_social_callback_url($provider);
         $authUrl = app_social_build_auth_url($provider, $providerConfig['client_id'], $redirectUri, $state);
@@ -1899,7 +2497,12 @@ function app_handle_user_api(mysqli $conn, string $api): bool
     }
 
     if ($api === 'social_oauth_callback') {
+        app_social_start_session();
+
         $provider = app_lower(trim((string) ($_GET['provider'] ?? '')));
+        if ($provider === '') {
+            $provider = app_lower(trim((string) ($_SESSION['oauth_provider_active'] ?? '')));
+        }
         if (!in_array($provider, ['google', 'facebook'], true)) {
             $conn->close();
             app_json_response([
@@ -1908,15 +2511,13 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             ], 400);
         }
 
-        app_social_start_session();
-
         $state = trim((string) ($_GET['state'] ?? ''));
         $code = trim((string) ($_GET['code'] ?? ''));
         $error = trim((string) ($_GET['error'] ?? ''));
         $savedState = (string) ($_SESSION['oauth_state_' . $provider] ?? '');
         $returnUrl = (string) ($_SESSION['oauth_return_' . $provider] ?? app_social_default_return_url());
 
-        unset($_SESSION['oauth_state_' . $provider], $_SESSION['oauth_return_' . $provider]);
+        unset($_SESSION['oauth_state_' . $provider], $_SESSION['oauth_return_' . $provider], $_SESSION['oauth_provider_active']);
 
         if ($error !== '' || $code === '' || $state === '' || !hash_equals($savedState, $state)) {
             $conn->close();
@@ -1949,7 +2550,204 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             app_social_render_bridge(null, $returnUrl, $userPayload['message']);
         }
 
+        if (isset($userPayload['pending']) && is_array($userPayload['pending'])) {
+            app_social_start_session();
+            $_SESSION['oauth_pending_profile'] = $userPayload['pending'];
+            app_social_render_bridge(null, $returnUrl, '', $userPayload['pending']);
+        }
+
         app_social_render_bridge($userPayload['user'], $returnUrl, '');
+    }
+
+    if ($api === 'get_social_pending_profile') {
+        app_social_start_session();
+        $pending = $_SESSION['oauth_pending_profile'] ?? null;
+        if (!is_array($pending)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong co ho so social cho bo sung',
+            ], 404);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'data' => [
+                'provider' => (string) ($pending['provider'] ?? ''),
+                'email' => (string) ($pending['email'] ?? ''),
+                'name' => (string) ($pending['name'] ?? ''),
+                'avatar_url' => (string) ($pending['avatar_url'] ?? ''),
+            ],
+        ]);
+    }
+
+    if ($api === 'complete_social_signup') {
+        if (!app_table_exists($conn, 'nguoidung')) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay bang nguoidung',
+            ], 500);
+        }
+
+        app_social_start_session();
+        $pending = $_SESSION['oauth_pending_profile'] ?? null;
+        if (!is_array($pending)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong co du lieu social de hoan tat tai khoan',
+            ], 400);
+        }
+
+        $input = app_input_payload();
+        $username = trim((string) ($input['username'] ?? $input['name'] ?? ''));
+        $displayName = trim((string) ($input['display_name'] ?? $pending['name'] ?? $username));
+        $phone = app_digits_only((string) ($input['phone'] ?? $input['sodienthoai'] ?? ''));
+        $avatarDataUrl = trim((string) ($input['avatar_data_url'] ?? ''));
+        $email = trim((string) ($pending['email'] ?? ''));
+
+        if ($username === '') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Vui long nhap ten tai khoan',
+            ], 400);
+        }
+
+        if (strlen($username) < 3) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Ten tai khoan phai tu 3 ky tu tro len',
+            ], 400);
+        }
+
+        if ($phone === '' || strlen($phone) < 9 || strlen($phone) > 11) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'So dien thoai khong hop le',
+            ], 400);
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Email social khong hop le',
+            ], 400);
+        }
+
+        if (app_contains_reserved_account_keyword($username) || app_contains_reserved_account_keyword($displayName) || app_contains_reserved_account_keyword($email)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Tai khoan admin/staff khong duoc tao o khu vuc user',
+            ], 403);
+        }
+
+        $emailLower = app_lower($email);
+        $usernameLower = app_lower($username);
+        $existStmt = $conn->prepare("SELECT id FROM nguoidung WHERE LOWER(COALESCE(emailnguoidung, '')) = ? OR LOWER(COALESCE(tennguoidung, '')) = ? LIMIT 1");
+        if (!$existStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the kiem tra du lieu tai khoan',
+            ], 500);
+        }
+
+        $existStmt->bind_param('ss', $emailLower, $usernameLower);
+        $existStmt->execute();
+        $existResult = $existStmt->get_result();
+        $exists = $existResult ? $existResult->fetch_assoc() : null;
+        if ($existResult) {
+            $existResult->free();
+        }
+        $existStmt->close();
+
+        if (is_array($exists)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Email hoac ten tai khoan da ton tai',
+            ], 409);
+        }
+
+        if (app_user_phone_exists($conn, $phone)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'So dien thoai da duoc dang ky',
+            ], 409);
+        }
+
+        if (!app_column_exists($conn, 'nguoidung', 'sodienthoainguoidung')) {
+            $conn->query("ALTER TABLE nguoidung ADD COLUMN sodienthoainguoidung VARCHAR(20) NULL AFTER emailnguoidung");
+        }
+
+        $passwordHash = password_hash(bin2hex(random_bytes(18)), PASSWORD_BCRYPT);
+        $insertStmt = $conn->prepare("INSERT INTO nguoidung (tennguoidung, emailnguoidung, sodienthoainguoidung, matkhaunguoidung, vaitronguoidung) VALUES (?, ?, ?, ?, 'user')");
+        if (!$insertStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the tao tai khoan social',
+            ], 500);
+        }
+
+        $insertStmt->bind_param('ssss', $username, $email, $phone, $passwordHash);
+        $okInsert = $insertStmt->execute();
+        $newUserId = (int) $insertStmt->insert_id;
+        $insertStmt->close();
+
+        if (!$okInsert || $newUserId <= 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Tao tai khoan social that bai',
+            ], 500);
+        }
+
+        $avatarPath = '';
+        if ($avatarDataUrl !== '') {
+            [$savedOk, $relativePath] = app_user_save_avatar_data_url($avatarDataUrl);
+            if ($savedOk && $relativePath !== '') {
+                $avatarPath = $relativePath;
+                $avatarStmt = $conn->prepare('UPDATE nguoidung SET anhdaidiennguoidung = ? WHERE id = ? LIMIT 1');
+                if ($avatarStmt) {
+                    $avatarStmt->bind_param('si', $avatarPath, $newUserId);
+                    $avatarStmt->execute();
+                    $avatarStmt->close();
+                }
+            }
+        }
+
+        if (app_table_exists($conn, 'khachhang')) {
+            $customerId = app_find_or_create_customer_for_identity($conn, $newUserId, $email, $phone);
+            if ($customerId > 0) {
+                app_sync_customer_identity($conn, $customerId, $displayName !== '' ? $displayName : $username, $email, $phone);
+            }
+        }
+
+        unset($_SESSION['oauth_pending_profile']);
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'message' => 'Hoan tat ho so social thanh cong',
+            'data' => [
+                'id' => $newUserId,
+                'tennguoidung' => $username,
+                'emailnguoidung' => $email,
+                'sodienthoainguoidung' => $phone,
+                'vaitronguoidung' => 'user',
+                'anhdaidiennguoidung' => $avatarPath,
+                'anhdaidiennguoidung_url' => $avatarPath !== '' ? app_to_public_image_url($avatarPath) : '',
+            ],
+        ]);
     }
 
     if ($api === 'login_user' || $api === 'login_admin_staff') {
@@ -2201,7 +2999,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             $accountEmail = trim((string) ($userRow['emailnguoidung'] ?? ''));
             $accountPhone = app_digits_only((string) ($userRow['sodienthoainguoidung'] ?? ''));
 
-            if ($accountName !== '') {
+            if ($accountName !== '' && $customerName === '') {
                 $customerName = $accountName;
             }
             if ($accountEmail !== '' && $customerEmail === '') {
@@ -2248,9 +3046,10 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             if ($accountUserId > 0) {
                 $identityEmail = $accountEmail !== '' ? $accountEmail : $customerEmail;
                 $identityPhone = $accountPhone;
+                $identityName = $accountName !== '' ? $accountName : $customerName;
                 $customerId = app_find_or_create_customer_for_identity($conn, $accountUserId, $identityEmail, $identityPhone);
                 if ($customerId > 0) {
-                    app_sync_customer_identity($conn, $customerId, $customerName, $identityEmail, $identityPhone);
+                    app_sync_customer_identity($conn, $customerId, $identityName, $identityEmail, $identityPhone);
                 }
             } else {
                 $findCustomerSql = "
@@ -2692,6 +3491,51 @@ function app_handle_user_api(mysqli $conn, string $api): bool
 function app_digits_only(string $value): string
 {
     return preg_replace('/[^0-9]/', '', $value) ?? '';
+}
+
+function app_user_phone_exists(mysqli $conn, string $phone, int $excludeUserId = 0): bool
+{
+    $digits = app_digits_only($phone);
+    if ($digits === '') {
+        return false;
+    }
+
+    if (!app_column_exists($conn, 'nguoidung', 'sodienthoainguoidung')) {
+        return false;
+    }
+
+    $sql = "
+        SELECT id
+        FROM nguoidung
+        WHERE REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(sodienthoainguoidung, ''), ' ', ''), '.', ''), '-', ''), '+', '') = ?
+    ";
+
+    if ($excludeUserId > 0) {
+        $sql .= ' AND id <> ?';
+    }
+
+    $sql .= ' LIMIT 1';
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return false;
+    }
+
+    if ($excludeUserId > 0) {
+        $stmt->bind_param('si', $digits, $excludeUserId);
+    } else {
+        $stmt->bind_param('s', $digits);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    if ($result) {
+        $result->free();
+    }
+    $stmt->close();
+
+    return is_array($row);
 }
 
 function app_index_exists(mysqli $conn, string $table, string $indexName): bool
@@ -3171,6 +4015,21 @@ function app_social_get_provider_config(string $provider): array
 
 function app_social_callback_url(string $provider): string
 {
+    $provider = app_lower(trim($provider));
+    if ($provider === 'google') {
+        $configured = trim(app_env_value('GOOGLE_OAUTH_REDIRECT_URI', ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+    }
+
+    if ($provider === 'facebook') {
+        $configured = trim(app_env_value('FACEBOOK_OAUTH_REDIRECT_URI', ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+    }
+
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     return $scheme . '://' . $host . app_base_path() . '/index.php?api=social_oauth_callback&provider=' . rawurlencode($provider);
@@ -3371,50 +4230,29 @@ function app_social_upsert_user(mysqli $conn, string $provider, array $profile):
         return ['ok' => true, 'user' => $user];
     }
 
-    $username = $name;
-    $passwordHash = password_hash(bin2hex(random_bytes(18)), PASSWORD_BCRYPT);
-    $insertSql = "INSERT INTO nguoidung (tennguoidung, emailnguoidung, matkhaunguoidung, vaitronguoidung) VALUES (?, ?, ?, 'user')";
-    $insertStmt = $conn->prepare($insertSql);
-    if (!$insertStmt) {
-        return ['ok' => false, 'message' => 'Khong the tao tai khoan moi'];
-    }
-    $insertStmt->bind_param('sss', $username, $email, $passwordHash);
-    $ok = $insertStmt->execute();
-    $newId = (int) $insertStmt->insert_id;
-    $insertStmt->close();
-
-    if (!$ok || $newId <= 0) {
-        return ['ok' => false, 'message' => 'Tao tai khoan bang social that bai'];
-    }
-
-    $user = [
-        'id' => $newId,
-        'tennguoidung' => $username,
-        'emailnguoidung' => $email,
-        'vaitronguoidung' => 'user',
-        'ngaytaonguoidung' => '',
+    return [
+        'ok' => true,
+        'pending' => [
+            'provider' => $provider,
+            'provider_id' => $providerId,
+            'email' => $email,
+            'name' => $name,
+            'avatar_url' => trim((string) ($profile['picture'] ?? '')),
+        ],
     ];
-
-    if (app_table_exists($conn, 'khachhang')) {
-        $customerId = app_find_or_create_customer_for_identity($conn, $newId, $email, '');
-        if ($customerId > 0) {
-            app_sync_customer_identity($conn, $customerId, $username, $email, '');
-        }
-    }
-
-    return ['ok' => true, 'user' => $user];
 }
 
-function app_social_render_bridge(?array $user, string $returnUrl, string $errorMessage): void
+function app_social_render_bridge(?array $user, string $returnUrl, string $errorMessage, ?array $pendingSocial = null): void
 {
     $safeReturnUrl = app_social_sanitize_return_url($returnUrl);
     $userJson = json_encode($user, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $pendingJson = json_encode($pendingSocial, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $returnJson = json_encode($safeReturnUrl, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $errorJson = json_encode($errorMessage, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
     header('Content-Type: text/html; charset=UTF-8');
     echo '<!doctype html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đang hoàn tất đăng nhập...</title></head><body>';
-    echo '<script>(function(){var user=' . $userJson . ';var returnUrl=' . $returnJson . ';var error=' . $errorJson . ';if(user&&user.id){var avatarPath=String(user.anhdaidiennguoidung||"").trim();var avatarUrl=avatarPath!==""?String((window.location.origin||"")+"/phuocthanh/PHPCHINH/"+avatarPath).replace(/([^:]\/)\/+?/g,"$1"):"";var sessionPayload={id:Number(user.id||0),role:"user",fullName:user.tennguoidung||"Khach hang",email:user.emailnguoidung||"",identifier:user.emailnguoidung||user.tennguoidung||"",avatar:avatarUrl,avatar_path:avatarPath,createdAt:new Date().toISOString()};try{sessionStorage.setItem("authUser",JSON.stringify(sessionPayload));sessionStorage.setItem("customerPortalAuth","1");}catch(e){};try{localStorage.setItem("userSession",JSON.stringify(sessionPayload));localStorage.setItem("authUser",JSON.stringify(sessionPayload));localStorage.setItem("customerPortalAuth","1");}catch(e){};try{var oldProfileRaw=localStorage.getItem("userProfile");var oldProfile=oldProfileRaw?JSON.parse(oldProfileRaw):{};var nextProfile=Object.assign({},(oldProfile&&typeof oldProfile==="object")?oldProfile:{},{name:sessionPayload.fullName,email:sessionPayload.email,role:"user"});if(avatarUrl){nextProfile.avatar=avatarUrl;}localStorage.setItem("userProfile",JSON.stringify(nextProfile));}catch(e){};try{localStorage.setItem("isLoggedIn","true");}catch(e){};}if(error){try{localStorage.setItem("pendingAuthPromptV2",JSON.stringify({error:error,createdAt:new Date().toISOString()}));}catch(e){}}window.location.replace(returnUrl);})();</script>';
+    echo '<script>(function(){var user=' . $userJson . ';var pendingSocial=' . $pendingJson . ';var returnUrl=' . $returnJson . ';var error=' . $errorJson . ';if(user&&user.id){var avatarPath=String(user.anhdaidiennguoidung||"").trim();var avatarUrl=avatarPath!==""?String((window.location.origin||"")+"/phuocthanh/PHPCHINH/"+avatarPath).replace(/([^:]\/)\/+?/g,"$1"):"";var sessionPayload={id:Number(user.id||0),role:"user",fullName:user.tennguoidung||"Khach hang",email:user.emailnguoidung||"",identifier:user.emailnguoidung||user.tennguoidung||"",avatar:avatarUrl,avatar_path:avatarPath,createdAt:new Date().toISOString()};try{sessionStorage.setItem("authUser",JSON.stringify(sessionPayload));sessionStorage.setItem("customerPortalAuth","1");}catch(e){};try{localStorage.setItem("userSession",JSON.stringify(sessionPayload));localStorage.setItem("authUser",JSON.stringify(sessionPayload));localStorage.setItem("customerPortalAuth","1");}catch(e){};try{var oldProfileRaw=localStorage.getItem("userProfile");var oldProfile=oldProfileRaw?JSON.parse(oldProfileRaw):{};var nextProfile=Object.assign({},(oldProfile&&typeof oldProfile==="object")?oldProfile:{},{name:sessionPayload.fullName,email:sessionPayload.email,role:"user"});if(avatarUrl){nextProfile.avatar=avatarUrl;}localStorage.setItem("userProfile",JSON.stringify(nextProfile));}catch(e){};try{localStorage.setItem("isLoggedIn","true");}catch(e){}}if(pendingSocial&&pendingSocial.email){try{localStorage.setItem("pendingSocialSetupV1",JSON.stringify({required:true,email:String(pendingSocial.email||""),provider:String(pendingSocial.provider||""),createdAt:new Date().toISOString()}));}catch(e){}}if(error){try{localStorage.setItem("pendingAuthPromptV2",JSON.stringify({error:error,createdAt:new Date().toISOString()}));}catch(e){}}window.location.replace(returnUrl);})();</script>';
     echo '</body></html>';
     exit;
 }

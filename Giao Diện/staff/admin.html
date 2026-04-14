@@ -40,6 +40,118 @@
             color: inherit;
             text-decoration: none;
         }
+
+        .host-popup-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.42);
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 14px;
+        }
+
+        .host-popup-backdrop.show {
+            display: flex;
+        }
+
+        .host-popup {
+            width: min(520px, 96vw);
+            background: #fff;
+            border: 1px solid #dbe2ea;
+            border-radius: 14px;
+            box-shadow: 0 24px 56px rgba(15, 23, 42, 0.26);
+            overflow: hidden;
+        }
+
+        .host-popup-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .host-popup-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .host-popup-close {
+            border: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #e2e8f0;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .host-popup-body {
+            padding: 14px;
+            color: #334155;
+            font-size: 14px;
+            line-height: 1.55;
+            white-space: pre-line;
+        }
+
+        .host-popup-footer {
+            padding: 10px 14px 14px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .host-confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .logout-confirm-card {
+            width: min(480px, 96vw);
+            border-radius: 16px;
+            border: 1px solid #d9eee1;
+            background: #ffffff;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+        }
+
+        .logout-confirm-body {
+            margin: 0;
+            padding: 16px;
+            color: #334155;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .host-confirm-actions {
+            padding: 0 16px 16px;
+            border-top: 0;
+        }
+
+        .host-confirm-btn {
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 14px;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .host-confirm-btn.cancel {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+
+        .host-confirm-btn.danger {
+            background: #dc2626;
+            border-color: #dc2626;
+            color: #ffffff;
+        }
     </style>
 </head>
 <body>
@@ -66,7 +178,7 @@
                         <li><a href="#" data-page="sell-online.html"><i class="bi bi-dot"></i><span>Bán Hàng Online</span></a></li>
                     </ul>
                 </li>
-                <li><a href="#" data-app-action="logout"><i class="bi bi-box-arrow-right"></i><span>Đăng Xuất</span></a></li>
+                <li><a href="#" data-local-action="logout"><i class="bi bi-box-arrow-right"></i><span>Đăng Xuất</span></a></li>
             </ul>
         </aside>
 
@@ -75,6 +187,35 @@
         </main>
     </div>
 
+    <div id="hostPopupBackdrop" class="host-popup-backdrop" hidden>
+        <div class="host-popup" role="alertdialog" aria-modal="true" aria-labelledby="hostPopupTitle">
+            <div class="host-popup-head">
+                <h5 id="hostPopupTitle" class="host-popup-title">Thông báo</h5>
+                <button id="hostPopupCloseBtn" type="button" class="host-popup-close" aria-label="Đóng">&times;</button>
+            </div>
+            <div id="hostPopupMessage" class="host-popup-body">-</div>
+            <div class="host-popup-footer">
+                <button id="hostPopupOkBtn" type="button" class="btn btn-primary btn-sm">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logoutConfirmBackdrop" class="host-popup-backdrop" hidden>
+        <div class="host-popup logout-confirm-card" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle">
+            <div class="host-popup-head">
+                <h5 id="logoutConfirmTitle" class="host-popup-title">Xác nhận đăng xuất</h5>
+                <button id="logoutConfirmCloseBtn" type="button" class="host-popup-close" aria-label="Đóng">&times;</button>
+            </div>
+            <p class="logout-confirm-body">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống nhân viên không?</p>
+            <div class="host-popup-footer host-confirm-actions">
+                <button id="logoutConfirmCancelBtn" type="button" class="host-confirm-btn cancel">Hủy</button>
+                <button id="logoutConfirmOkBtn" type="button" class="host-confirm-btn danger">Đăng xuất</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../common/app-popup-policy.js"></script>
+    <script src="../common/app-form-validation.js"></script>
     <script src="../common/app-session-realtime.js"></script>
     <script>
         if (window.AppSessionRealtime) {
@@ -85,6 +226,74 @@
         const sidebar = document.getElementById('sidebar');
         const desktopMenuBtn = document.getElementById('desktopMenuBtn');
         const menuToggleBtn = document.getElementById('menuToggleBtn');
+        const hostPopupBackdrop = document.getElementById('hostPopupBackdrop');
+        const hostPopupTitle = document.getElementById('hostPopupTitle');
+        const hostPopupMessage = document.getElementById('hostPopupMessage');
+        const hostPopupCloseBtn = document.getElementById('hostPopupCloseBtn');
+        const hostPopupOkBtn = document.getElementById('hostPopupOkBtn');
+        const logoutConfirmBackdrop = document.getElementById('logoutConfirmBackdrop');
+        const logoutConfirmCloseBtn = document.getElementById('logoutConfirmCloseBtn');
+        const logoutConfirmCancelBtn = document.getElementById('logoutConfirmCancelBtn');
+        const logoutConfirmOkBtn = document.getElementById('logoutConfirmOkBtn');
+        const logoutLink = document.querySelector('[data-local-action="logout"]');
+
+        function showHostPopup(title, message) {
+            if (hostPopupTitle) hostPopupTitle.textContent = title || 'Thông báo';
+            if (hostPopupMessage) hostPopupMessage.textContent = message || '';
+            if (hostPopupBackdrop) {
+                hostPopupBackdrop.hidden = false;
+                hostPopupBackdrop.classList.add('show');
+            }
+        }
+
+        function closeHostPopup() {
+            if (!hostPopupBackdrop) return;
+            hostPopupBackdrop.classList.remove('show');
+            hostPopupBackdrop.hidden = true;
+        }
+
+        hostPopupCloseBtn?.addEventListener('click', closeHostPopup);
+        hostPopupOkBtn?.addEventListener('click', closeHostPopup);
+        hostPopupBackdrop?.addEventListener('click', (event) => {
+            if (event.target === hostPopupBackdrop) {
+                closeHostPopup();
+            }
+        });
+
+        function showLogoutConfirm() {
+            if (!logoutConfirmBackdrop) return;
+            logoutConfirmBackdrop.hidden = false;
+            logoutConfirmBackdrop.classList.add('show');
+        }
+
+        function closeLogoutConfirm() {
+            if (!logoutConfirmBackdrop) return;
+            logoutConfirmBackdrop.classList.remove('show');
+            logoutConfirmBackdrop.hidden = true;
+        }
+
+        function performLogout() {
+            closeLogoutConfirm();
+            if (window.AppSessionRealtime && typeof window.AppSessionRealtime.logout === 'function') {
+                window.AppSessionRealtime.logout();
+                return;
+            }
+            window.location.href = '../dang-nhap.html';
+        }
+
+        logoutLink?.addEventListener('click', (event) => {
+            event.preventDefault();
+            showLogoutConfirm();
+        });
+
+        logoutConfirmCloseBtn?.addEventListener('click', closeLogoutConfirm);
+        logoutConfirmCancelBtn?.addEventListener('click', closeLogoutConfirm);
+        logoutConfirmOkBtn?.addEventListener('click', performLogout);
+        logoutConfirmBackdrop?.addEventListener('click', (event) => {
+            if (event.target === logoutConfirmBackdrop) {
+                closeLogoutConfirm();
+            }
+        });
 
         function syncMenuButtons() {
             if (!sidebar || !desktopMenuBtn || !menuToggleBtn) return;
@@ -173,6 +382,30 @@
             };
 
             frameWin.__realtimeFetchPatched = true;
+
+            try {
+                frameWin.alert = (msg) => {
+                    showHostPopup('Thông báo hệ thống', String(msg || ''));
+                };
+            } catch (e) {
+                // ignore alert patch failures
+            }
+
+            try {
+                if (window.AppPopupPolicy && frameWin.document) {
+                    window.AppPopupPolicy.attachToDocument(frameWin.document);
+                }
+            } catch (e) {
+                // ignore popup policy bridge errors
+            }
+
+            try {
+                if (window.AppFormValidator && frameWin.document) {
+                    window.AppFormValidator.attachToDocument(frameWin.document);
+                }
+            } catch (e) {
+                // ignore validator bridge errors
+            }
         }
 
         links.forEach((link) => {

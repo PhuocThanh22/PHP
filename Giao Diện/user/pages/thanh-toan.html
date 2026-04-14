@@ -449,7 +449,7 @@
   </div>
 </section>
 
-<div id="checkoutSuccessModal" class="checkout-success-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutSuccessTitle">
+<div id="checkoutSuccessModal" class="checkout-success-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutSuccessTitle" data-app-popup-skip-auto-close="1">
   <div class="checkout-success-card">
     <div id="checkoutSuccessTitle" class="checkout-success-head">Đặt hàng thành công</div>
     <div class="checkout-success-body">
@@ -1150,8 +1150,13 @@
         const profileRaw = localStorage.getItem(userProfileKey);
         const profile = profileRaw ? JSON.parse(profileRaw) : {};
         const info = customerInfo || {};
-        profile.name = (String(info.lastName || '') + ' ' + String(info.firstName || '')).trim() || profile.name || 'Khách hàng';
-        profile.email = String(info.email || '') || profile.email || '';
+        const authUser = getCurrentAuthUser();
+        const accountName = String(authUser?.tennguoidung || '').trim();
+        const accountEmail = String(authUser?.emailnguoidung || authUser?.identifier || '').trim();
+        const orderDisplayName = (String(info.lastName || '') + ' ' + String(info.firstName || '')).trim();
+
+        profile.name = accountName || orderDisplayName || profile.name || 'Khách hàng';
+        profile.email = accountEmail || String(info.email || '') || profile.email || '';
         profile.phone = String(info.phone || '') || profile.phone || '';
         profile.address = [
           String(info.addressDetail || ''),

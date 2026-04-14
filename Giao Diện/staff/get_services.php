@@ -198,6 +198,41 @@ function app_sync_service_booking_counter(mysqli $conn, int $serviceId = 0): voi
     );
 }
 
+function app_staff_effective_product_status(string $status, int $qty): string
+{
+    if ($qty <= 0) {
+        return 'hethang';
+    }
+    if ($qty <= 5) {
+        return 'saphet';
+    }
+
+    $normalized = app_lower(trim($status));
+    if ($normalized === 'hethang' || $normalized === 'saphet' || $normalized === 'conhang') {
+        return $normalized;
+    }
+
+    return 'conhang';
+}
+
+function app_staff_normalize_pet_status_label(string $status): string
+{
+    $value = trim($status);
+    $normalized = app_lower($value);
+
+    if ($normalized === 'da ban' || $normalized === 'đã bán') {
+        return 'Đã bán';
+    }
+    if ($normalized === 'dang ban' || $normalized === 'đang bán') {
+        return 'Đang bán';
+    }
+    if ($normalized === 'con hang' || $normalized === 'còn hàng' || $normalized === 'conhang') {
+        return 'Còn hàng';
+    }
+
+    return $value;
+}
+
 function app_booking_decode_note(string $note): array
 {
     $parsed = json_decode($note, true);
@@ -680,6 +715,163 @@ function app_prepare_pos_service_items(mysqli $conn, array $items): array
 
 function app_handle_staff_api(mysqli $conn, string $api): bool
 {
+    if ($api === 'get_home_overview') {
+        $countRows = static function (mysqli $connRef, string $table, string $whereSql = '1=1') : int {
+            if (!app_table_exists($connRef, $table)) {
+                return 0;
+            }
+
+            $result = $connRef->query("SELECT COUNT(*) AS total FROM {$table} WHERE {$whereSql}");
+            if (!$result) {
+                return 0;
+            }
+
+            $row = $result->fetch_assoc();
+            $result->free();
+            return (int) ($row['total'] ?? 0);
+        };
+
+        $invoiceCount = $countRows($conn, 'donhang');
+        $productCount = $countRows($conn, 'sanpham');
+        $customerCount = $countRows($conn, 'khachhang');
+        $petCount = $countRows($conn, 'thucung');
+
+        $pendingOrders = $countRows($conn, 'donhang', "LOWER(TRIM(COALESCE(trangthaidonhang, ''))) IN ('cho_duyet', 'choduyet', 'dang_xu_ly', 'dangxuly')");
+        $pendingBookings = $countRows($conn, 'lichhen', "LOWER(TRIM(COALESCE(trangthailichhen, ''))) = 'choduyet'");
+        $lowStockProducts = $countRows($conn, 'sanpham', 'COALESCE(soluongsanpham, 0) <= 5');
+        $todayAfternoonBookings = $countRows($conn, 'lichhen', "DATE(thoigianhen) = CURDATE() AND HOUR(thoigianhen) >= 12 AND LOWER(TRIM(COALESCE(trangthailichhen, ''))) <> 'huy'");
+        $callbackCustomers = $countRows($conn, 'donhang', "LOWER(TRIM(COALESCE(nguondonhang, ''))) = 'online' AND LOWER(TRIM(COALESCE(trangthaidonhang, ''))) IN ('cho_duyet', 'choduyet', 'dang_xu_ly', 'dangxuly')");
+
+        $todoItems = [
+            [
+                'icon' => 'bi-cart-check',
+                'label' => 'đơn hàng chờ xác nhận',
+                'count' => $pendingOrders,
+            ],
+            [
+                'icon' => 'bi-scissors',
+                'label' => 'lịch grooming buổi chiều',
+                'count' => $todayAfternoonBookings,
+            ],
+            [
+                'icon' => 'bi-telephone',
+                'label' => 'khách cần gọi lại',
+                'count' => $callbackCustomers,
+            ],
+        ];
+
+        $todoTotal = 0;
+        foreach ($todoItems as $todoItem) {
+            if ((int) ($todoItem['count'] ?? 0) > 0) {
+                $todoTotal++;
+            }
+        }
+
+        $notifications = [];
+        if ($pendingOrders > 0) {
+            $notifications[] = [
+                'type' => 'order',
+                'title' => 'Đơn hàng cần xử lý',
+                'message' => $pendingOrders . ' đơn đang chờ xác nhận hoặc xử lý',
+            ];
+        }
+        if ($pendingBookings > 0) {
+            $notifications[] = [
+                'type' => 'booking',
+                'title' => 'Lịch hẹn chờ duyệt',
+                'message' => $pendingBookings . ' lịch hẹn đang chờ duyệt',
+            ];
+        }
+        if ($lowStockProducts > 0) {
+            $notifications[] = [
+                'type' => 'inventory',
+                'title' => 'Cảnh báo tồn kho',
+                'message' => $lowStockProducts . ' sản phẩm đang ở ngưỡng sắp hết/hết hàng',
+            ];
+        }
+
+        if (count($notifications) === 0) {
+            $notifications[] = [
+                'type' => 'system',
+                'title' => 'Hệ thống ổn định',
+                'message' => 'Không có cảnh báo mới cần xử lý ngay',
+            ];
+        }
+
+        $calendar = [];
+        $topServices = [];
+        if (app_table_exists($conn, 'lichhen')) {
+            $topServiceSql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(COALESCE(l.tendichvu, d.tendichvu)), ''), 'Dịch vụ') AS service_name,
+                    COUNT(*) AS total_bookings
+                FROM lichhen l
+                LEFT JOIN dichvu d ON d.id = l.dichvu_id
+                WHERE YEARWEEK(l.thoigianhen, 1) = YEARWEEK(CURDATE(), 1)
+                  AND LOWER(TRIM(COALESCE(l.trangthailichhen, ''))) <> 'huy'
+                GROUP BY service_name
+                ORDER BY total_bookings DESC, service_name ASC
+                LIMIT 3
+            ";
+            $topServiceResult = $conn->query($topServiceSql);
+            if ($topServiceResult) {
+                while ($topRow = $topServiceResult->fetch_assoc()) {
+                    $topServices[] = [
+                        'name' => (string) ($topRow['service_name'] ?? 'Dịch vụ'),
+                        'count' => (int) ($topRow['total_bookings'] ?? 0),
+                    ];
+                }
+                $topServiceResult->free();
+            }
+        }
+
+        if (app_table_exists($conn, 'lichhen')) {
+            $calendarSql = "
+                SELECT
+                    COALESCE(NULLIF(TRIM(tendichvu), ''), 'Dịch vụ') AS tendichvu,
+                    COALESCE(NULLIF(TRIM(tenkhachhang), ''), 'Khách hàng') AS tenkhachhang,
+                    thoigianhen,
+                    COALESCE(NULLIF(TRIM(trangthailichhen), ''), 'choduyet') AS trangthailichhen
+                FROM lichhen
+                WHERE thoigianhen IS NOT NULL
+                                    AND DATE(thoigianhen) = CURDATE()
+                  AND LOWER(TRIM(COALESCE(trangthailichhen, ''))) <> 'huy'
+                ORDER BY thoigianhen ASC
+                LIMIT 8
+            ";
+            $calendarResult = $conn->query($calendarSql);
+            if ($calendarResult) {
+                while ($row = $calendarResult->fetch_assoc()) {
+                    $timeValue = (string) ($row['thoigianhen'] ?? '');
+                    $formattedTime = $timeValue !== '' ? date('d/m/Y H:i', strtotime($timeValue)) : 'Chưa rõ thời gian';
+                    $calendar[] = [
+                        'service' => (string) ($row['tendichvu'] ?? 'Dịch vụ'),
+                        'customer' => (string) ($row['tenkhachhang'] ?? 'Khách hàng'),
+                        'time' => $formattedTime,
+                        'status' => (string) ($row['trangthailichhen'] ?? 'choduyet'),
+                    ];
+                }
+                $calendarResult->free();
+            }
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'data' => [
+                'invoices' => $invoiceCount,
+                'products' => $productCount,
+                'customers' => $customerCount,
+                'pets' => $petCount,
+                'notifications' => $notifications,
+                'calendar' => $calendar,
+                'todo_items' => $todoItems,
+                'todo_total' => $todoTotal,
+                'top_services' => $topServices,
+            ],
+        ]);
+    }
+
     if ($api === 'get_revenue_dashboard') {
         if (!app_sync_revenue_table($conn)) {
             $conn->close();
@@ -692,6 +884,11 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
 
         app_ensure_favorites_extended($conn);
     app_sync_product_purchase_counter($conn, 0);
+
+        $requestedPeriod = app_lower(trim((string) ($_GET['period'] ?? 'month')));
+        if (!in_array($requestedPeriod, ['day', 'week', 'month', 'year'], true)) {
+            $requestedPeriod = 'month';
+        }
 
         $months = [];
         $monthMap = [];
@@ -762,6 +959,116 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         $prevMonthTotal = (float) (($monthMap[$prevMonthKey]['product'] ?? 0) + ($monthMap[$prevMonthKey]['service'] ?? 0));
         $growthPercent = $prevMonthTotal > 0 ? round((($thisMonthTotal - $prevMonthTotal) / $prevMonthTotal) * 100, 2) : 0;
 
+        $chartBuckets = [];
+        $chartMap = [];
+        $chartGroupSql = "DATE_FORMAT(ngaytaodoanhthu, '%Y-%m')";
+        $chartFromDate = date('Y-m-01', strtotime('-5 month'));
+
+        if ($requestedPeriod === 'day') {
+            for ($i = 6; $i >= 0; $i--) {
+                $ts = strtotime('-' . $i . ' day');
+                $key = date('Y-m-d', $ts);
+                $chartBuckets[] = ['key' => $key, 'label' => date('d/m', $ts)];
+                $chartMap[$key] = ['product' => 0.0, 'service' => 0.0];
+            }
+            $chartGroupSql = "DATE(ngaytaodoanhthu)";
+            $chartFromDate = date('Y-m-d', strtotime('-6 day'));
+        } elseif ($requestedPeriod === 'week') {
+            for ($i = 7; $i >= 0; $i--) {
+                $ts = strtotime('-' . $i . ' week');
+                $isoYear = date('o', $ts);
+                $isoWeek = date('W', $ts);
+                $key = $isoYear . '-W' . $isoWeek;
+                $chartBuckets[] = ['key' => $key, 'label' => 'Tuần ' . ((int) $isoWeek) . '/' . substr($isoYear, 2, 2)];
+                $chartMap[$key] = ['product' => 0.0, 'service' => 0.0];
+            }
+            $chartGroupSql = "CONCAT(DATE_FORMAT(ngaytaodoanhthu, '%x'), '-W', DATE_FORMAT(ngaytaodoanhthu, '%v'))";
+            $chartFromDate = date('Y-m-d', strtotime('monday this week -7 week'));
+        } elseif ($requestedPeriod === 'year') {
+            for ($i = 5; $i >= 0; $i--) {
+                $ts = strtotime('-' . $i . ' year');
+                $key = date('Y', $ts);
+                $chartBuckets[] = ['key' => $key, 'label' => 'Năm ' . $key];
+                $chartMap[$key] = ['product' => 0.0, 'service' => 0.0];
+            }
+            $chartGroupSql = "DATE_FORMAT(ngaytaodoanhthu, '%Y')";
+            $chartFromDate = date('Y-01-01', strtotime('-5 year'));
+        } else {
+            for ($i = 11; $i >= 0; $i--) {
+                $ts = strtotime('-' . $i . ' month');
+                $key = date('Y-m', $ts);
+                $chartBuckets[] = ['key' => $key, 'label' => 'T' . date('n', $ts)];
+                $chartMap[$key] = ['product' => 0.0, 'service' => 0.0];
+            }
+            $chartGroupSql = "DATE_FORMAT(ngaytaodoanhthu, '%Y-%m')";
+            $chartFromDate = date('Y-m-01', strtotime('-11 month'));
+        }
+
+        $chartRevenueSql = "
+            SELECT
+                {$chartGroupSql} AS bucket_key,
+                COALESCE(nguondoanhthu, 'sanpham') AS source,
+                SUM(COALESCE(sotiendoanhthu, 0)) AS revenue
+            FROM doanhthu
+            WHERE DATE(ngaytaodoanhthu) >= ?
+            GROUP BY bucket_key, COALESCE(nguondoanhthu, 'sanpham')
+        ";
+        $chartStmt = $conn->prepare($chartRevenueSql);
+        if ($chartStmt) {
+            $chartStmt->bind_param('s', $chartFromDate);
+            $chartStmt->execute();
+            $chartResult = $chartStmt->get_result();
+            while ($chartResult && ($row = $chartResult->fetch_assoc())) {
+                $bucketKey = (string) ($row['bucket_key'] ?? '');
+                $source = (string) ($row['source'] ?? 'sanpham');
+                if (!isset($chartMap[$bucketKey])) {
+                    continue;
+                }
+                if ($source === 'dichvu') {
+                    $chartMap[$bucketKey]['service'] += (float) ($row['revenue'] ?? 0);
+                } else {
+                    $chartMap[$bucketKey]['product'] += (float) ($row['revenue'] ?? 0);
+                }
+            }
+            if ($chartResult) {
+                $chartResult->free();
+            }
+            $chartStmt->close();
+        }
+
+        $labels = [];
+        $productRevenue = [];
+        $serviceRevenue = [];
+        foreach ($chartBuckets as $bucket) {
+            $key = (string) ($bucket['key'] ?? '');
+            $labels[] = (string) ($bucket['label'] ?? '');
+            $productRevenue[] = round((float) ($chartMap[$key]['product'] ?? 0), 2);
+            $serviceRevenue[] = round((float) ($chartMap[$key]['service'] ?? 0), 2);
+        }
+
+        $totalProductRevenue = 0.0;
+        $totalServiceRevenue = 0.0;
+        $totalRevenueSql = "
+            SELECT
+                COALESCE(nguondoanhthu, 'sanpham') AS source,
+                SUM(COALESCE(sotiendoanhthu, 0)) AS total_revenue
+            FROM doanhthu
+            GROUP BY COALESCE(nguondoanhthu, 'sanpham')
+        ";
+        $totalRevenueResult = $conn->query($totalRevenueSql);
+        if ($totalRevenueResult) {
+            while ($row = $totalRevenueResult->fetch_assoc()) {
+                $source = (string) ($row['source'] ?? 'sanpham');
+                $value = (float) ($row['total_revenue'] ?? 0);
+                if ($source === 'dichvu') {
+                    $totalServiceRevenue += $value;
+                } else {
+                    $totalProductRevenue += $value;
+                }
+            }
+            $totalRevenueResult->free();
+        }
+
         $completedOrdersThisMonth = 0;
         $ordersSql = "
             SELECT COUNT(DISTINCT thamchieu) AS total
@@ -787,6 +1094,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             'quantity' => 0,
             'revenue' => 0,
         ];
+        $topBestSellingProducts = [];
         $bestProductSql = "
             SELECT
                 COALESCE(NULLIF(TRIM(tennguon), ''), 'San pham') AS item_name,
@@ -796,18 +1104,23 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             WHERE nguondoanhthu = 'sanpham'
             GROUP BY item_name
             ORDER BY sold_qty DESC, sold_revenue DESC
-            LIMIT 1
+            LIMIT 10
         ";
         $bestProductResult = $conn->query($bestProductSql);
-        if ($bestProductResult && ($row = $bestProductResult->fetch_assoc())) {
-            $bestProduct = [
-                'name' => (string) ($row['item_name'] ?? 'San pham'),
-                'quantity' => (int) ($row['sold_qty'] ?? 0),
-                'revenue' => (float) ($row['sold_revenue'] ?? 0),
-            ];
+        if ($bestProductResult) {
+            while ($row = $bestProductResult->fetch_assoc()) {
+                $topBestSellingProducts[] = [
+                    'name' => (string) ($row['item_name'] ?? 'San pham'),
+                    'quantity' => (int) ($row['sold_qty'] ?? 0),
+                    'revenue' => (float) ($row['sold_revenue'] ?? 0),
+                ];
+            }
             $bestProductResult->free();
         } elseif ($bestProductResult) {
             $bestProductResult->free();
+        }
+        if (!empty($topBestSellingProducts)) {
+            $bestProduct = $topBestSellingProducts[0];
         }
 
         $bestService = [
@@ -842,6 +1155,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             'name' => 'Chua co du lieu',
             'count' => 0,
         ];
+        $topFavoriteProducts = [];
         if (app_table_exists($conn, 'yeuthich')) {
             $favoriteProductSql = "
                 SELECT
@@ -852,46 +1166,58 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 WHERE y.sanpham_id IS NOT NULL
                 GROUP BY item_name
                 ORDER BY like_count DESC, item_name ASC
-                LIMIT 1
+                LIMIT 10
             ";
             $favoriteProductResult = $conn->query($favoriteProductSql);
-            if ($favoriteProductResult && ($row = $favoriteProductResult->fetch_assoc())) {
-                $favoriteProduct = [
-                    'name' => (string) ($row['item_name'] ?? 'San pham'),
-                    'count' => (int) ($row['like_count'] ?? 0),
-                ];
+            if ($favoriteProductResult) {
+                while ($row = $favoriteProductResult->fetch_assoc()) {
+                    $topFavoriteProducts[] = [
+                        'name' => (string) ($row['item_name'] ?? 'San pham'),
+                        'count' => (int) ($row['like_count'] ?? 0),
+                    ];
+                }
                 $favoriteProductResult->free();
             } elseif ($favoriteProductResult) {
                 $favoriteProductResult->free();
             }
+        }
+        if (!empty($topFavoriteProducts)) {
+            $favoriteProduct = $topFavoriteProducts[0];
         }
 
         $favoriteService = [
             'name' => 'Chua co du lieu',
             'count' => 0,
         ];
-        if (app_table_exists($conn, 'yeuthich') && app_column_exists($conn, 'yeuthich', 'dichvu_id')) {
+        $topFavoriteServices = [];
+        if (app_table_exists($conn, 'lichhen')) {
             $favoriteServiceSql = "
                 SELECT
-                    COALESCE(NULLIF(TRIM(d.tendichvu), ''), 'Dich vu') AS item_name,
-                    COUNT(*) AS like_count
-                FROM yeuthich y
-                LEFT JOIN dichvu d ON d.id = y.dichvu_id
-                WHERE y.dichvu_id IS NOT NULL
+                    COALESCE(NULLIF(TRIM(COALESCE(l.tendichvu, d.tendichvu)), ''), 'Dich vu') AS item_name,
+                    COUNT(*) AS booking_count
+                FROM lichhen l
+                LEFT JOIN dichvu d ON d.id = l.dichvu_id
+                WHERE COALESCE(NULLIF(TRIM(COALESCE(l.tendichvu, d.tendichvu)), ''), '') <> ''
+                  AND LOWER(TRIM(COALESCE(l.trangthailichhen, ''))) NOT IN ('huy', 'da_huy', 'cancelled')
                 GROUP BY item_name
-                ORDER BY like_count DESC, item_name ASC
-                LIMIT 1
+                ORDER BY booking_count DESC, item_name ASC
+                LIMIT 10
             ";
             $favoriteServiceResult = $conn->query($favoriteServiceSql);
-            if ($favoriteServiceResult && ($row = $favoriteServiceResult->fetch_assoc())) {
-                $favoriteService = [
-                    'name' => (string) ($row['item_name'] ?? 'Dich vu'),
-                    'count' => (int) ($row['like_count'] ?? 0),
-                ];
+            if ($favoriteServiceResult) {
+                while ($row = $favoriteServiceResult->fetch_assoc()) {
+                    $topFavoriteServices[] = [
+                        'name' => (string) ($row['item_name'] ?? 'Dich vu'),
+                        'count' => (int) ($row['booking_count'] ?? 0),
+                    ];
+                }
                 $favoriteServiceResult->free();
             } elseif ($favoriteServiceResult) {
                 $favoriteServiceResult->free();
             }
+        }
+        if (!empty($topFavoriteServices)) {
+            $favoriteService = $topFavoriteServices[0];
         }
 
         $favoritePet = [
@@ -930,11 +1256,15 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'current_month_service_revenue' => round($thisMonthService, 2),
                 'completed_orders_this_month' => $completedOrdersThisMonth,
                 'growth_percent' => $growthPercent,
+                'total_product_revenue' => round($totalProductRevenue, 2),
+                'total_service_revenue' => round($totalServiceRevenue, 2),
+                'total_revenue' => round($totalProductRevenue + $totalServiceRevenue, 2),
             ],
             'chart' => [
                 'labels' => $labels,
                 'service_revenue' => $serviceRevenue,
                 'product_revenue' => $productRevenue,
+                'period' => $requestedPeriod,
             ],
             'highlights' => [
                 'best_selling_product' => $bestProduct,
@@ -942,6 +1272,11 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'favorite_product' => $favoriteProduct,
                 'favorite_service' => $favoriteService,
                 'favorite_pet' => $favoritePet,
+            ],
+            'top10' => [
+                'best_selling_products' => $topBestSellingProducts,
+                'favorite_products' => $topFavoriteProducts,
+                'favorite_services' => $topFavoriteServices,
             ],
         ]);
     }
@@ -2049,6 +2384,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
 
         while ($row = $result->fetch_assoc()) {
             $qty = (int) $row['soluongsanpham'];
+            $effectiveStatus = app_staff_effective_product_status((string) ($row['trangthaisanpham'] ?? ''), $qty);
             if ($qty > 0 && $qty <= 5) {
                 $lowStock++;
             }
@@ -2068,7 +2404,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'thoigianketthucgiam' => (string) ($row['thoigianketthucgiam'] ?? ''),
                 'soluongsanpham' => $qty,
                 'soluotmuasanpham' => (int) ($row['soluotmuasanpham'] ?? 0),
-                'trangthaisanpham' => (string) $row['trangthaisanpham'],
+                'trangthaisanpham' => $effectiveStatus,
                 'hinhanhsanpham' => app_to_public_image_url((string) ($row['hinhanhsanpham'] ?? '')),
                 'thongtin' => (string) ($row['thongtin'] ?? ''),
             ];
@@ -2333,7 +2669,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         $customerOwnedCount = 0;
 
         while ($row = $result->fetch_assoc()) {
-            $status = (string) $row['trangthaithucung'];
+            $status = app_staff_normalize_pet_status_label((string) ($row['trangthaithucung'] ?? ''));
             if (
                 stripos($status, 'khoe') !== false ||
                 stripos($status, 'khoẻ') !== false ||

@@ -25,6 +25,7 @@
         .source-online { background: #e8f1ff; color: #1d4ed8; }
         .source-store { background: #ecfdf3; color: #166534; }
         .status-cho_duyet { background: #fff7dd; color: #946200; }
+        .status-hoan_tat { background: #e8f8ef; color: #136f3a; }
         .status-da_duyet { background: #e8f8ef; color: #136f3a; }
         .status-tu_choi { background: #ffe9e9; color: #b42318; }
         #ordersBody tr { cursor: pointer; }
@@ -197,9 +198,17 @@
         dang_xu_ly: 'Đang xử lý',
         da_huy: 'Đã hủy',
         cho_duyet: 'Chờ duyệt',
-        da_duyet: 'Đã duyệt',
+        da_duyet: 'Hoàn tất',
         tu_choi: 'Đã hủy'
     };
+
+    function normalizeAdminStatus(rawStatus) {
+        const status = String(rawStatus || 'cho_duyet').toLowerCase();
+        if (status === 'da_duyet') {
+            return 'hoan_tat';
+        }
+        return status;
+    }
 
     function toMoney(value) {
         return Number(value || 0).toLocaleString('vi-VN') + ' đ';
@@ -255,7 +264,7 @@
 
     function mapSalesOrder(item) {
         const source = String(item.nguon || '').toLowerCase() === 'online' ? 'online' : 'store';
-        const status = String(item.trangthai || 'dang_xu_ly').toLowerCase();
+        const status = normalizeAdminStatus(item.trangthai || 'dang_xu_ly');
         const note = source === 'online' ? 'Đơn online' : 'Đơn tại cửa hàng';
         return {
             source,
@@ -276,7 +285,7 @@
     }
 
     function mapOnlineOrder(item) {
-        const status = String(item.trangthai || 'cho_duyet').toLowerCase();
+        const status = normalizeAdminStatus(item.trangthai || 'cho_duyet');
         return {
             source: 'online',
             sourceLabel: 'Online',

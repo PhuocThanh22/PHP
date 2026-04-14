@@ -117,6 +117,89 @@
         @media (max-width: 900px) {
             .online-detail-grid { grid-template-columns: 1fr; }
         }
+
+        .notify-popup-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.44);
+            z-index: 4200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .notify-popup-backdrop.show {
+            display: flex;
+        }
+
+        .notify-popup {
+            width: min(560px, 96vw);
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #dbe2ea;
+            box-shadow: 0 22px 58px rgba(15, 23, 42, 0.28);
+            overflow: hidden;
+        }
+
+        .notify-popup-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .notify-popup-title {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .notify-popup-close {
+            border: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #e2e8f0;
+            color: #0f172a;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .notify-popup-body {
+            padding: 14px;
+        }
+
+        .notify-popup-message {
+            margin: 0;
+            color: #334155;
+            font-size: 14px;
+            line-height: 1.55;
+            white-space: pre-line;
+        }
+
+        .notify-popup-detail {
+            margin-top: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+            padding: 10px 12px;
+            color: #0f172a;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-line;
+            display: none;
+        }
+
+        .notify-popup-footer {
+            border-top: 1px solid #e2e8f0;
+            padding: 10px 14px 14px;
+            display: flex;
+            justify-content: flex-end;
+        }
     </style>
 </head>
 <body>
@@ -209,6 +292,22 @@
             </div>
         </div>
     </div>
+
+    <div id="notifyPopupBackdrop" class="notify-popup-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="notifyPopupTitle" hidden>
+        <div class="notify-popup">
+            <div class="notify-popup-head">
+                <h5 id="notifyPopupTitle" class="notify-popup-title">Thông báo</h5>
+                <button id="notifyPopupCloseBtn" type="button" class="notify-popup-close" aria-label="Đóng">&times;</button>
+            </div>
+            <div class="notify-popup-body">
+                <p id="notifyPopupMessage" class="notify-popup-message">-</p>
+                <div id="notifyPopupDetail" class="notify-popup-detail"></div>
+            </div>
+            <div class="notify-popup-footer">
+                <button id="notifyPopupOkBtn" type="button" class="btn btn-primary">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -231,6 +330,12 @@
     const detailApproveBtn = document.getElementById('detailApproveBtn');
     const detailRejectBtn = document.getElementById('detailRejectBtn');
     const rejectReasonInput = document.getElementById('rejectReasonInput');
+    const notifyPopupBackdrop = document.getElementById('notifyPopupBackdrop');
+    const notifyPopupTitle = document.getElementById('notifyPopupTitle');
+    const notifyPopupMessage = document.getElementById('notifyPopupMessage');
+    const notifyPopupDetail = document.getElementById('notifyPopupDetail');
+    const notifyPopupCloseBtn = document.getElementById('notifyPopupCloseBtn');
+    const notifyPopupOkBtn = document.getElementById('notifyPopupOkBtn');
     const ONLINE_ORDER_SYNC_KEY = 'onlineOrderSyncSignal';
     const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
     let cachedOrders = [];
@@ -316,6 +421,35 @@
         tu_choi: 'Đã hủy'
     };
 
+    function showPopup(options = {}) {
+        const title = String(options.title || 'Thông báo');
+        const message = String(options.message || 'Có lỗi xảy ra, vui lòng thử lại.');
+        const detail = String(options.detail || '').trim();
+
+        if (notifyPopupTitle) notifyPopupTitle.textContent = title;
+        if (notifyPopupMessage) notifyPopupMessage.textContent = message;
+        if (notifyPopupDetail) {
+            if (detail) {
+                notifyPopupDetail.textContent = detail;
+                notifyPopupDetail.style.display = 'block';
+            } else {
+                notifyPopupDetail.textContent = '';
+                notifyPopupDetail.style.display = 'none';
+            }
+        }
+
+        if (notifyPopupBackdrop) {
+            notifyPopupBackdrop.hidden = false;
+            notifyPopupBackdrop.classList.add('show');
+        }
+    }
+
+    function closePopup() {
+        if (!notifyPopupBackdrop) return;
+        notifyPopupBackdrop.classList.remove('show');
+        notifyPopupBackdrop.hidden = true;
+    }
+
     const getCandidates = (apiName, params = '') => {
         const suffix = params ? '&' + params : '';
         const encodedPath = String(window.location.pathname || '');
@@ -378,11 +512,13 @@
                 const rawText = await res.text();
                 const data = parseApiJson(rawText);
                 if (!data) {
-                    lastError = new Error('API tra ve du lieu khong hop le tu ' + url);
+                    const preview = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+                    lastError = new Error('API trả về dữ liệu không hợp lệ từ ' + url + (preview ? (' | Raw: ' + preview) : ''));
                     continue;
                 }
                 if (!res.ok || !data.ok) {
-                    lastError = new Error(data.message || ('HTTP ' + res.status));
+                    const reason = data.error ? ('\nChi tiết: ' + data.error) : '';
+                    lastError = new Error((data.message || ('HTTP ' + res.status)) + reason);
                     continue;
                 }
                 return data;
@@ -405,11 +541,13 @@
                 const rawText = await res.text();
                 const data = parseApiJson(rawText);
                 if (!data) {
-                    lastError = new Error('API tra ve du lieu khong hop le tu ' + url);
+                    const preview = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+                    lastError = new Error('API trả về dữ liệu không hợp lệ từ ' + url + (preview ? (' | Raw: ' + preview) : ''));
                     continue;
                 }
                 if (!res.ok || !data.ok) {
-                    lastError = new Error(data.message || ('HTTP ' + res.status));
+                    const reason = data.error ? ('\nChi tiết: ' + data.error) : '';
+                    lastError = new Error((data.message || ('HTTP ' + res.status)) + reason);
                     continue;
                 }
                 return data;
@@ -505,7 +643,10 @@
         if (nextStatus === 'tu_choi') {
             const reason = String(rejectReasonInput?.value || '').trim();
             if (!reason) {
-                alert('Vui lòng nhập lý do hủy đơn trước khi xác nhận.');
+                showPopup({
+                    title: 'Thiếu thông tin',
+                    message: 'Vui lòng nhập lý do hủy đơn trước khi xác nhận.'
+                });
                 return;
             }
 
@@ -604,7 +745,15 @@
         try {
             await updateActiveOrderStatus('da_duyet');
         } catch (err) {
-            alert('Duyệt đơn thất bại: ' + String(err.message || err));
+            const detail = String(err && err.message ? err.message : err || '').trim();
+            const outOfStock = /khong du|không đủ|h[ếe]t h[aà]ng|tru kho|trừ kho|ton kho|tồn kho|thu cung|thucung/i.test(detail);
+            showPopup({
+                title: outOfStock ? 'Thông báo hết hàng' : 'Duyệt đơn thất bại',
+                message: outOfStock
+                    ? 'Không thể duyệt đơn vì sản phẩm trong đơn đã hết hàng hoặc không đủ tồn kho.'
+                    : 'Không thể duyệt đơn online. Vui lòng kiểm tra lại dữ liệu.',
+                detail
+            });
         }
     });
 
@@ -612,8 +761,47 @@
         try {
             await updateActiveOrderStatus('tu_choi');
         } catch (err) {
-            alert('Hủy đơn thất bại: ' + String(err.message || err));
+            const detail = String(err && err.message ? err.message : err || '').trim();
+            showPopup({
+                title: 'Hủy đơn thất bại',
+                message: 'Không thể cập nhật trạng thái hủy cho đơn online.',
+                detail
+            });
         }
+    });
+
+    notifyPopupCloseBtn?.addEventListener('click', closePopup);
+    notifyPopupOkBtn?.addEventListener('click', closePopup);
+    notifyPopupBackdrop?.addEventListener('click', (event) => {
+        if (event.target === notifyPopupBackdrop) {
+            closePopup();
+        }
+    });
+
+    window.alert = (message) => {
+        showPopup({
+            title: 'Thông báo hệ thống',
+            message: String(message || '')
+        });
+    };
+
+    window.addEventListener('error', (event) => {
+        const message = String(event?.message || 'Có lỗi không xác định.');
+        showPopup({
+            title: 'Lỗi hệ thống',
+            message: 'Đã xảy ra lỗi khi xử lý thao tác.',
+            detail: message
+        });
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        const reason = event?.reason;
+        const detail = String(reason && reason.message ? reason.message : reason || 'Lỗi Promise chưa xử lý');
+        showPopup({
+            title: 'Lỗi hệ thống',
+            message: 'Đã xảy ra lỗi khi xử lý dữ liệu từ máy chủ.',
+            detail
+        });
     });
 
     closeOnlineDetailBtn.addEventListener('click', closeOrderDetailModal);
@@ -630,7 +818,9 @@
 
     bindRealtimeUpdates();
     loadOrders();
-    loadCompletedSalesCount();
+    if (typeof loadCompletedSalesCount === 'function') {
+        loadCompletedSalesCount();
+    }
 })();
 </script>
 </body>
