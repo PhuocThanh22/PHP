@@ -125,6 +125,7 @@
                 <div class="service-toolbar-actions">
                     <button class="btn btn-success" type="button" id="toolbarAddBtn"><i class="bi bi-plus-lg me-1"></i>Thêm</button>
                     <button class="btn btn-danger" type="button" id="toolbarDeleteBtn"><i class="bi bi-trash me-1"></i>Xóa</button>
+                    <button class="btn btn-outline-primary" type="button" id="toolbarExportBtn"><i class="bi bi-download me-1"></i>Xuất danh sách</button>
                 </div>
             </div>
         </div>
@@ -270,6 +271,123 @@
 
         function formatCurrencyVND(value) {
             return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
+        }
+
+        function askExportFormat() {
+            return new Promise((resolve) => {
+                const backdrop = document.createElement('div');
+                backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;';
+
+                const dialog = document.createElement('div');
+                dialog.style.cssText = 'width:min(420px,96vw);background:#fff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 20px 40px rgba(15,23,42,.25);padding:14px;';
+                dialog.innerHTML = `
+                    <h4 style="margin:0 0 8px;font-size:18px;font-weight:700;color:#0f172a;">Chọn định dạng xuất</h4>
+                    <p style="margin:0 0 12px;font-size:14px;color:#475569;">Bạn muốn xuất danh sách dưới dạng nào?</p>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                        <button type="button" data-format="cancel" class="btn btn-outline-secondary">Hủy</button>
+                        <button type="button" data-format="pdf" class="btn btn-outline-primary">PDF</button>
+                        <button type="button" data-format="excel" class="btn btn-success">Excel</button>
+                    </div>
+                `;
+
+                function close(value) {
+                    backdrop.remove();
+                    resolve(value || '');
+                }
+
+                dialog.querySelectorAll('button[data-format]').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const value = String(btn.getAttribute('data-format') || 'cancel');
+                        close(value === 'cancel' ? '' : value);
+                    });
+                });
+
+                backdrop.addEventListener('click', (event) => {
+                    if (event.target === backdrop) close('');
+                });
+
+                backdrop.appendChild(dialog);
+                document.body.appendChild(backdrop);
+            });
+        }
+
+        function downloadExcelFile(fileName, title, headers, rows) {
+            const thead = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
+            const tbody = rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('');
+            const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>table{border-collapse:collapse;width:100%;}th,td{border:1px solid #999;padding:6px;font-size:13px;}th{background:#f2f2f2;}h3{margin:0 0 10px;}</style></head><body><h3>${escapeHtml(title)}</h3><table><thead>${thead}</thead><tbody>${tbody}</tbody></table></body></html>`;
+            const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function openPdfPrint(title, headers, rows) {
+            const win = window.open('', '_blank', 'width=1000,height=700');
+            if (!win) {
+                showNotice('Không mở được cửa sổ in. Vui lòng tắt chặn popup.', 'warning');
+                return;
+            }
+            const thead = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
+            const tbody = rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('');
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title><style>body{font-family:Arial,sans-serif;padding:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ccc;padding:8px;font-size:13px;}th{background:#f5f5f5;}h3{margin:0 0 12px;}</style></head><body><h3>${escapeHtml(title)}</h3><table><thead>${thead}</thead><tbody>${tbody}</tbody></table></body></html>`);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+
+        async function exportServicesList() {
+            const format = await askExportFormat();
+            if (!format) return;
+
+            if (currentListMode === 'categories') {
+                const rows = getFilteredCategories(allServiceCategories, currentFilter);
+                if (!rows.length) {
+                    showNotice('Không có dữ liệu danh mục dịch vụ để xuất.', 'warning');
+                    return;
+                }
+
+                const dataRows = rows.map((item) => ([
+                    item.id || '',
+                    item.tendanhmucdichvu || '',
+                    Number(item.so_dich_vu || 0),
+                ]));
+
+                const headers = ['Mã danh mục', 'Tên danh mục', 'Số dịch vụ'];
+                if (format === 'excel') {
+                    downloadExcelFile(`danh-muc-dich-vu-${new Date().toISOString().slice(0, 10)}.xls`, 'Danh mục dịch vụ', headers, dataRows);
+                } else {
+                    openPdfPrint('Danh mục dịch vụ', headers, dataRows);
+                }
+                showNotice(`Đã xuất ${rows.length} danh mục dịch vụ.`, 'success');
+                return;
+            }
+
+            const rows = getFilteredServices(allServices, currentFilter);
+            if (!rows.length) {
+                showNotice('Không có dữ liệu dịch vụ để xuất.', 'warning');
+                return;
+            }
+
+            const dataRows = rows.map((item) => ([
+                item.id || '',
+                item.tendichvu || '',
+                Number(item.giadichvu || 0),
+                Number(item.thoigiandichvu || 0),
+                String(item.trangthaidichvu || '').toLowerCase() === 'hoatdong' ? 'Hoạt động' : 'Ngừng hoạt động',
+            ]));
+
+            const headers = ['Mã dịch vụ', 'Tên dịch vụ', 'Giá', 'Thời gian (phút)', 'Trạng thái'];
+            if (format === 'excel') {
+                downloadExcelFile(`dich-vu-${new Date().toISOString().slice(0, 10)}.xls`, 'Danh sách dịch vụ', headers, dataRows);
+            } else {
+                openPdfPrint('Danh sách dịch vụ', headers, dataRows);
+            }
+            showNotice(`Đã xuất ${rows.length} dịch vụ.`, 'success');
         }
 
         function publishServiceRealtimeChange(action = 'changed') {
@@ -1094,6 +1212,7 @@
 
         document.getElementById('closeServiceModal').addEventListener('click', closeServiceModal);
         document.getElementById('cancelServiceModal').addEventListener('click', closeServiceModal);
+        document.getElementById('toolbarExportBtn').addEventListener('click', exportServicesList);
 
         document.getElementById('serviceEditModal').addEventListener('click', (event) => {
             if (event.target.id === 'serviceEditModal') closeServiceModal();

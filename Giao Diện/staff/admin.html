@@ -340,6 +340,24 @@
             frame.src = buildFrameUrl(activePage);
         }
 
+        function getActivePage() {
+            const activeLink = document.querySelector('.sidebar-menu a.active[data-page]');
+            return activeLink ? String(activeLink.dataset.page || '') : 'trangchu.html';
+        }
+
+        function shouldSkipRealtimeRefresh(event) {
+            if (!event || typeof event !== 'object') return false;
+            const activePage = getActivePage();
+            const payloadType = String((event.data && event.data.type) || '');
+
+            // Keep POS invoice popup visible after checkout: do not reload sell page instantly.
+            if (activePage === 'sell.html' && event.type === 'entity_changed' && payloadType === 'pos_checkout_completed') {
+                return true;
+            }
+
+            return false;
+        }
+
         function bindFrameRealtimeBridge() {
             if (!frame || !frame.contentWindow || !window.AppSessionRealtime) return;
 
@@ -449,6 +467,9 @@
                     event.type === 'order_status_changed' ||
                     event.type === 'manual_refresh'
                 ) {
+                    if (shouldSkipRealtimeRefresh(event)) {
+                        return;
+                    }
                     refreshActiveFrame();
                 }
             });

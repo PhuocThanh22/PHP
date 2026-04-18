@@ -154,6 +154,114 @@
 			font-weight: 600;
 		}
 
+		.invoice-popup-backdrop {
+			position: fixed;
+			inset: 0;
+			z-index: 2100;
+			background: rgba(15, 23, 42, 0.55);
+		}
+
+		.invoice-popup {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			z-index: 2101;
+			width: min(96vw, 760px);
+			max-height: 90vh;
+			overflow: auto;
+			padding: 16px;
+			border-radius: 14px;
+			background: #fff;
+			border: 1px solid #e2e8f0;
+			box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+		}
+
+		.invoice-popup[hidden],
+		.invoice-popup-backdrop[hidden] {
+			display: none !important;
+		}
+
+		.invoice-head {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 10px;
+			margin-bottom: 10px;
+		}
+
+		.invoice-title {
+			margin: 0;
+			font-size: 24px;
+			font-weight: 700;
+		}
+
+		.invoice-meta {
+			font-size: 14px;
+			color: #334155;
+			margin: 0;
+		}
+
+		.invoice-summary-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+			margin-bottom: 10px;
+		}
+
+		.invoice-summary-item {
+			padding: 8px 10px;
+			border: 1px solid #e2e8f0;
+			border-radius: 8px;
+			background: #f8fafc;
+			font-size: 14px;
+		}
+
+		.invoice-table-wrap {
+			border: 1px solid #e2e8f0;
+			border-radius: 10px;
+			overflow: hidden;
+		}
+
+		.invoice-table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.invoice-table th,
+		.invoice-table td {
+			padding: 8px;
+			border-bottom: 1px solid #e2e8f0;
+			font-size: 14px;
+		}
+
+		.invoice-table th {
+			background: #f1f5f9;
+			text-align: left;
+		}
+
+		.invoice-table tr:last-child td {
+			border-bottom: 0;
+		}
+
+		.invoice-total-line {
+			display: flex;
+			justify-content: space-between;
+			font-size: 18px;
+			font-weight: 700;
+			margin-top: 10px;
+		}
+
+		.invoice-actions {
+			display: flex;
+			gap: 8px;
+			margin-top: 12px;
+		}
+
+		.invoice-actions .btn {
+			flex: 1;
+		}
+
 		.customer-checkout-box {
 			margin-top: 10px;
 			padding: 10px;
@@ -247,6 +355,14 @@
 				width: min(75vw, 280px);
 				height: min(75vw, 280px);
 			}
+
+			.invoice-summary-grid {
+				grid-template-columns: 1fr;
+			}
+
+			.invoice-title {
+				font-size: 20px;
+			}
 		}
 
 		@media (max-width: 992px) {
@@ -273,6 +389,41 @@
 		<div class="transfer-popup-actions">
 			<button id="cancelTransferPopupBtn" type="button" class="btn btn-outline-secondary">Đóng</button>
 			<button id="confirmTransferBtn" type="button" class="btn btn-success">Xác nhận đã nhận CK</button>
+		</div>
+	</div>
+
+	<div id="invoicePopupBackdrop" class="invoice-popup-backdrop" hidden></div>
+	<div id="invoicePopup" class="invoice-popup" role="dialog" aria-modal="true" aria-labelledby="invoicePopupTitle" hidden>
+		<div class="invoice-head">
+			<div>
+				<h5 id="invoicePopupTitle" class="invoice-title">Hóa Đơn Bán Hàng</h5>
+				<p id="invoiceMetaText" class="invoice-meta mb-0">Mã hóa đơn: -</p>
+			</div>
+			<button id="closeInvoicePopupBtn" type="button" class="transfer-popup-close" aria-label="Đóng popup hóa đơn">&times;</button>
+		</div>
+
+		<div class="invoice-summary-grid">
+			<div class="invoice-summary-item"><b>Khách hàng:</b> <span id="invoiceCustomerName">-</span></div>
+			<div class="invoice-summary-item"><b>SĐT:</b> <span id="invoiceCustomerPhone">-</span></div>
+			<div class="invoice-summary-item"><b>Nhân viên:</b> <span id="invoiceStaffName">-</span></div>
+			<div class="invoice-summary-item"><b>Thanh toán:</b> <span id="invoicePaymentMethod">-</span></div>
+		</div>
+
+		<div class="invoice-table-wrap">
+			<table class="invoice-table">
+				<thead>
+					<tr><th>Sản phẩm/Dịch vụ</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr>
+				</thead>
+				<tbody id="invoiceItemsBody"></tbody>
+			</table>
+		</div>
+
+		<div class="invoice-total-line"><span>Tổng thanh toán</span><span id="invoiceTotalText">0 đ</span></div>
+
+		<div class="invoice-actions">
+			<button id="showLatestInvoiceBtn" type="button" class="btn btn-outline-primary">Xem hóa đơn gần nhất</button>
+			<button id="printInvoiceBtn" type="button" class="btn btn-success">In / Lưu PDF</button>
+			<button id="doneInvoiceBtn" type="button" class="btn btn-outline-secondary">Đóng</button>
 		</div>
 	</div>
 
@@ -370,6 +521,7 @@
 	let isAwaitingTransferConfirmation = false;
 	let customerLookupTimer = null;
 	let matchedCustomerByPhone = null;
+	let latestInvoiceForPrint = null;
 	const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
 	let realtimeLoadTimer = null;
 
@@ -384,6 +536,28 @@
 
 	function formatVnd(value) {
 		return new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' đ';
+	}
+
+	function formatDateTimeText(dateString) {
+		const date = dateString ? new Date(dateString.replace(' ', 'T')) : new Date();
+		if (Number.isNaN(date.getTime())) {
+			return String(dateString || '-');
+		}
+		return new Intl.DateTimeFormat('vi-VN', {
+			hour12: false,
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			day: '2-digit',
+			month: '2-digit',
+			year: 'numeric',
+		}).format(date);
+	}
+
+	function getPaymentMethodLabel(method) {
+		const normalized = String(method || '').toLowerCase();
+		if (normalized === 'chuyen_khoan') return 'Chuyển khoản';
+		return 'Tiền mặt';
 	}
 
 	function getCartTotal() {
@@ -413,6 +587,136 @@
 		if (popup) popup.hidden = true;
 		if (backdrop) backdrop.hidden = true;
 		isAwaitingTransferConfirmation = false;
+	}
+
+	function closeInvoicePopup() {
+		const popup = document.getElementById('invoicePopup');
+		const backdrop = document.getElementById('invoicePopupBackdrop');
+		if (popup) popup.hidden = true;
+		if (backdrop) backdrop.hidden = true;
+	}
+
+	function openInvoicePopup() {
+		const popup = document.getElementById('invoicePopup');
+		const backdrop = document.getElementById('invoicePopupBackdrop');
+		if (!popup || !backdrop) {
+			return false;
+		}
+		popup.hidden = false;
+		backdrop.hidden = false;
+		return true;
+	}
+
+	function buildInvoiceData(createdInvoice, customerInfo, method, fallbackTotal, cartItems) {
+		const invoice = createdInvoice && typeof createdInvoice === 'object' ? createdInvoice : {};
+		const invoiceItems = Array.isArray(cartItems) ? cartItems : [];
+		return {
+			orderCode: String(invoice.mahoadon || '-'),
+			orderDate: formatDateTimeText(invoice.ngayban || ''),
+			customerName: String(invoice.tenkhachhang || customerInfo?.name || 'Khách lẻ'),
+			customerPhone: String(customerInfo?.phone || '-'),
+			staffName: String(invoice.tennhanvien || 'Nhân viên'),
+			paymentMethod: getPaymentMethodLabel(invoice.phuongthucthanhtoan || method),
+			total: Number(invoice.tongtien || fallbackTotal || 0),
+			items: invoiceItems.map((item) => {
+				const qty = Number(item.qty || 0);
+				const price = Number(item.giasanpham || 0);
+				return {
+					name: String(item.tensanpham || '-'),
+					qty,
+					price,
+					lineTotal: qty * price,
+				};
+			}),
+		};
+	}
+
+	function renderInvoicePopup(invoiceData) {
+		if (!invoiceData || typeof invoiceData !== 'object') return;
+
+		document.getElementById('invoiceMetaText').textContent = `Mã hóa đơn: ${invoiceData.orderCode} | Ngày: ${invoiceData.orderDate}`;
+		document.getElementById('invoiceCustomerName').textContent = invoiceData.customerName;
+		document.getElementById('invoiceCustomerPhone').textContent = invoiceData.customerPhone;
+		document.getElementById('invoiceStaffName').textContent = invoiceData.staffName;
+		document.getElementById('invoicePaymentMethod').textContent = invoiceData.paymentMethod;
+		document.getElementById('invoiceTotalText').textContent = formatVnd(invoiceData.total);
+
+		const tbody = document.getElementById('invoiceItemsBody');
+		if (!tbody) return;
+
+		if (!invoiceData.items.length) {
+			tbody.innerHTML = '<tr><td colspan="4">Không có dữ liệu chi tiết hóa đơn.</td></tr>';
+			return;
+		}
+
+		tbody.innerHTML = invoiceData.items.map((item) => {
+			return `
+				<tr>
+					<td>${escapeHtml(item.name)}</td>
+					<td>${escapeHtml(item.qty)}</td>
+					<td>${escapeHtml(formatVnd(item.price))}</td>
+					<td>${escapeHtml(formatVnd(item.lineTotal))}</td>
+				</tr>
+			`;
+		}).join('');
+	}
+
+	function printInvoice(invoiceData) {
+		if (!invoiceData || typeof invoiceData !== 'object') return;
+		const printWindow = window.open('', '_blank', 'width=900,height=700');
+		if (!printWindow) {
+			alert('Không mở được cửa sổ in. Vui lòng kiểm tra chặn popup của trình duyệt.');
+			return;
+		}
+
+		const rowsHtml = invoiceData.items.map((item) => {
+			return `
+				<tr>
+					<td>${escapeHtml(item.name)}</td>
+					<td style="text-align:center;">${escapeHtml(item.qty)}</td>
+					<td style="text-align:right;">${escapeHtml(formatVnd(item.price))}</td>
+					<td style="text-align:right;">${escapeHtml(formatVnd(item.lineTotal))}</td>
+				</tr>
+			`;
+		}).join('') || '<tr><td colspan="4" style="text-align:center;">Không có dữ liệu chi tiết hóa đơn.</td></tr>';
+
+		printWindow.document.write(`
+			<!DOCTYPE html>
+			<html lang="vi">
+			<head>
+				<meta charset="UTF-8">
+				<title>Hoa don ${escapeHtml(invoiceData.orderCode)}</title>
+				<style>
+					body { font-family: Arial, sans-serif; margin: 20px; color: #0f172a; }
+					h2 { margin: 0 0 8px; }
+					.meta { font-size: 14px; margin: 3px 0; }
+					table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+					th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 14px; }
+					th { background: #f1f5f9; text-align: left; }
+					.total { margin-top: 12px; text-align: right; font-size: 18px; font-weight: 700; }
+				</style>
+			</head>
+			<body>
+				<h2>HOA DON BAN HANG</h2>
+				<div class="meta"><b>Ma hoa don:</b> ${escapeHtml(invoiceData.orderCode)}</div>
+				<div class="meta"><b>Ngay ban:</b> ${escapeHtml(invoiceData.orderDate)}</div>
+				<div class="meta"><b>Khach hang:</b> ${escapeHtml(invoiceData.customerName)}</div>
+				<div class="meta"><b>So dien thoai:</b> ${escapeHtml(invoiceData.customerPhone)}</div>
+				<div class="meta"><b>Nhan vien:</b> ${escapeHtml(invoiceData.staffName)}</div>
+				<div class="meta"><b>Thanh toan:</b> ${escapeHtml(invoiceData.paymentMethod)}</div>
+				<table>
+					<thead>
+						<tr><th>San pham/Dich vu</th><th>SL</th><th>Don gia</th><th>Thanh tien</th></tr>
+					</thead>
+					<tbody>${rowsHtml}</tbody>
+				</table>
+				<div class="total">Tong thanh toan: ${escapeHtml(formatVnd(invoiceData.total))}</div>
+			</body>
+			</html>
+		`);
+		printWindow.document.close();
+		printWindow.focus();
+		printWindow.print();
 	}
 
 	function openTransferPopup() {
@@ -895,7 +1199,6 @@
 
 	async function finalizeCheckout(method, options = {}) {
 		const shouldSpeak = Boolean(options.speakSuccess);
-		const shouldShowSuccessAlert = !shouldSpeak;
 		let customerInfo;
 		try {
 			customerInfo = getCheckoutCustomerInfo();
@@ -912,6 +1215,7 @@
 
 		let total = getCartTotal();
 		let createdInvoice = null;
+		const checkedOutItems = Array.from(cartStore.values()).map((item) => ({ ...item }));
 		try {
 			const created = await submitCheckoutPayload(method, customerInfo);
 			createdInvoice = (created && created.data) ? created.data : null;
@@ -934,8 +1238,12 @@
 		if (shouldSpeak) {
 			speakPaymentSuccess(total);
 		}
-		if (shouldShowSuccessAlert) {
-			alert('Thanh toán thành công. Tổng tiền: ' + formatVnd(total));
+
+		latestInvoiceForPrint = buildInvoiceData(createdInvoice, customerInfo, method, total, checkedOutItems);
+		renderInvoicePopup(latestInvoiceForPrint);
+		const popupOpened = openInvoicePopup();
+		if (!popupOpened) {
+			printInvoice(latestInvoiceForPrint);
 		}
 
 		if (customerInfo && !customerInfo.matched) {
@@ -1094,6 +1402,25 @@
 	document.getElementById('cancelTransferPopupBtn').addEventListener('click', closeTransferPopup);
 	document.getElementById('closeTransferPopupBtn').addEventListener('click', closeTransferPopup);
 	document.getElementById('transferPopupBackdrop').addEventListener('click', closeTransferPopup);
+	document.getElementById('doneInvoiceBtn').addEventListener('click', closeInvoicePopup);
+	document.getElementById('closeInvoicePopupBtn').addEventListener('click', closeInvoicePopup);
+	document.getElementById('invoicePopupBackdrop').addEventListener('click', closeInvoicePopup);
+	document.getElementById('printInvoiceBtn').addEventListener('click', () => {
+		if (latestInvoiceForPrint) {
+			printInvoice(latestInvoiceForPrint);
+		}
+	});
+	document.getElementById('showLatestInvoiceBtn').addEventListener('click', () => {
+		if (!latestInvoiceForPrint) {
+			alert('Chưa có hóa đơn nào để hiển thị.');
+			return;
+		}
+		renderInvoicePopup(latestInvoiceForPrint);
+		const popupOpened = openInvoicePopup();
+		if (!popupOpened) {
+			printInvoice(latestInvoiceForPrint);
+		}
+	});
 	document.getElementById('checkoutBtn').addEventListener('click', checkoutCart);
 
 	bindRealtimeUpdates();
