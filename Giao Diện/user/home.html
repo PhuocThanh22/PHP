@@ -1876,6 +1876,56 @@
             window.removeEventListener('keydown', preventBackgroundScroll, { capture: true });
         };
 
+        const isPopupElementVisible = (el) => {
+            if (!el) return false;
+            const ariaHidden = String(el.getAttribute?.('aria-hidden') || '').toLowerCase();
+            if (ariaHidden === 'true') return false;
+            const computed = window.getComputedStyle ? window.getComputedStyle(el) : null;
+            if (computed && (computed.display === 'none' || computed.visibility === 'hidden')) return false;
+
+            if (el.classList?.contains('open') || el.classList?.contains('active') || el.classList?.contains('show')) {
+                return true;
+            }
+
+            return !computed || computed.display !== 'none';
+        };
+
+        const hasAnyPopupOpen = () => {
+            const popupNodes = [
+                document.getElementById('bookingModal'),
+                document.getElementById('featuredServiceInfoModal'),
+                document.getElementById('serviceDetailModal'),
+                document.getElementById('searchResultsModal'),
+                document.getElementById('quickViewModal'),
+                document.getElementById('userNoticePopup'),
+                document.getElementById('userInlineAuthModal'),
+                document.getElementById('socialProfileSetupModal'),
+                document.getElementById('voucherHuntBackdrop')
+            ];
+
+            return popupNodes.some((node) => isPopupElementVisible(node));
+        };
+
+        const forceUnlockBackgroundScroll = () => {
+            popupScrollState.count = 0;
+            document.body.classList.remove('app-popup-open', 'booking-popup-open', 'auth-modal-open');
+            document.body.style.top = popupScrollState.bodyTop;
+            document.body.style.overflow = popupScrollState.bodyOverflow;
+            document.documentElement.style.overflow = popupScrollState.htmlOverflow;
+            detachPopupScrollBlockers();
+        };
+
+        const reconcileBackgroundScrollState = () => {
+            if (hasAnyPopupOpen()) {
+                if (popupScrollState.count <= 0) {
+                    lockBackgroundScroll();
+                }
+                return;
+            }
+
+            forceUnlockBackgroundScroll();
+        };
+
         const lockBackgroundScroll = () => {
             if (popupScrollState.count === 0) {
                 popupScrollState.bodyTop = document.body.style.top;
@@ -1898,10 +1948,31 @@
                 document.documentElement.style.overflow = popupScrollState.htmlOverflow;
                 detachPopupScrollBlockers();
             }
+
+            if (popupScrollState.count === 0) {
+                setTimeout(reconcileBackgroundScrollState, 0);
+            }
         };
 
         window.__lockBackgroundScroll = lockBackgroundScroll;
         window.__unlockBackgroundScroll = unlockBackgroundScroll;
+        window.__reconcileBackgroundScrollState = reconcileBackgroundScrollState;
+
+        if (!window.__popupScrollReconcileBound) {
+            window.__popupScrollReconcileBound = true;
+
+            const scheduleReconcile = () => setTimeout(reconcileBackgroundScrollState, 0);
+            document.addEventListener('click', scheduleReconcile, true);
+            document.addEventListener('keydown', scheduleReconcile, true);
+            window.addEventListener('message', scheduleReconcile, true);
+            window.addEventListener('focus', scheduleReconcile, true);
+
+            setInterval(() => {
+                if (!hasAnyPopupOpen() && (popupScrollState.count > 0 || document.body.classList.contains('app-popup-open'))) {
+                    forceUnlockBackgroundScroll();
+                }
+            }, 400);
+        }
 
         // Quantity controls
         const decreaseQuantity = () => {
@@ -3506,6 +3577,46 @@
         let stopHomeFeaturedServicesRealtimeSubscribe = null;
         let lastHomeFeaturedServicesSignature = '';
 
+        const isElementVisible = (el) => {
+            if (!el) return false;
+            if (String(el.getAttribute?.('aria-hidden') || '').toLowerCase() === 'true') return false;
+            const computed = window.getComputedStyle ? window.getComputedStyle(el) : null;
+            if (computed) {
+                if (computed.display === 'none') return false;
+                if (computed.visibility === 'hidden') return false;
+                if (Number(computed.opacity || '1') === 0) return false;
+            }
+
+            return true;
+        };
+
+        const syncBackgroundScrollAfterPopupClose = () => {
+            const overlays = [
+                document.getElementById('featuredServiceInfoModal'),
+                document.getElementById('bookingModal'),
+                document.getElementById('serviceDetailModal'),
+                document.getElementById('userInlineAuthModal'),
+                document.getElementById('socialProfileSetupModal'),
+                document.getElementById('voucherHuntBackdrop')
+            ];
+
+            const hasAnyOpenOverlay = overlays.some((el) => isElementVisible(el));
+            if (hasAnyOpenOverlay) return;
+
+            if (typeof window.__unlockBackgroundScroll === 'function') {
+                for (let i = 0; i < 8; i += 1) {
+                    window.__unlockBackgroundScroll();
+                    if (!document.body.classList.contains('app-popup-open')) break;
+                }
+            }
+
+            document.body.classList.remove('app-popup-open', 'booking-popup-open', 'auth-modal-open');
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        };
+
+        window.__syncBackgroundScrollAfterPopupClose = syncBackgroundScrollAfterPopupClose;
+
         const formatServiceBookings = (value) => {
             const total = Number(value || 0);
             if (!Number.isFinite(total) || total <= 0) return '0 lượt đặt';
@@ -3627,8 +3738,14 @@
             const closeModal = () => {
                 modal.style.display = 'none';
                 modal.setAttribute('aria-hidden', 'true');
-                unlockScroll();
+                if (modal.dataset.scrollLocked === '1') {
+                    unlockScroll();
+                    modal.dataset.scrollLocked = '0';
+                }
+                syncBackgroundScrollAfterPopupClose();
             };
+
+            modal.__closeFeaturedServiceInfo = closeModal;
 
             modal.querySelector('#featuredServiceInfoCloseBtn')?.addEventListener('click', closeModal);
             modal.querySelector('#featuredServiceInfoCancelBtn')?.addEventListener('click', closeModal);
@@ -3676,14 +3793,23 @@
 
             if (bookBtn) {
                 bookBtn.onclick = () => {
-                    closeModal();
+                    if (typeof modal.__closeFeaturedServiceInfo === 'function') {
+                        modal.__closeFeaturedServiceInfo();
+                    }
                     openBookingModal(serviceName, servicePrice);
                 };
             }
 
             modal.style.display = 'flex';
             modal.setAttribute('aria-hidden', 'false');
-            lockScroll();
+            if (modal.dataset.scrollLocked !== '1') {
+                if (typeof window.__lockBackgroundScroll === 'function') {
+                    window.__lockBackgroundScroll();
+                } else {
+                    document.body.classList.add('app-popup-open');
+                }
+                modal.dataset.scrollLocked = '1';
+            }
         };
 
         const bindFeaturedServiceCardInteractions = () => {
@@ -4084,7 +4210,11 @@
             const close = () => {
                 modal.style.display = 'none';
                 document.body.classList.remove('booking-popup-open');
-                unlockBackgroundScroll();
+                if (modal.dataset.scrollLocked === '1') {
+                    unlockBackgroundScroll();
+                    modal.dataset.scrollLocked = '0';
+                }
+                syncBackgroundScrollAfterPopupClose();
             };
 
             modal.__closePopup = close;
@@ -4107,6 +4237,11 @@
         };
 
         const openBookingModal = (serviceName, servicePrice) => {
+            const featuredInfoModal = document.getElementById('featuredServiceInfoModal');
+            if (featuredInfoModal && typeof featuredInfoModal.__closeFeaturedServiceInfo === 'function') {
+                featuredInfoModal.__closeFeaturedServiceInfo();
+            }
+
             if (typeof window.requireCustomerLogin === 'function') {
                 const allowBooking = window.requireCustomerLogin(
                     'Hãy đăng nhập trước khi đặt lịch dịch vụ.',
@@ -4134,6 +4269,7 @@
             document.body.classList.add('booking-popup-open');
             if (!wasOpen) {
                 lockBackgroundScroll();
+                modal.dataset.scrollLocked = '1';
             }
         };
 
@@ -4141,19 +4277,74 @@
             openBookingModal(serviceName, servicePrice);
         };
 
+        const normalizeBookingRequest = (requestOrName, maybePrice) => {
+            if (requestOrName && typeof requestOrName === 'object') {
+                return {
+                    serviceName: String(requestOrName.service || requestOrName.name || 'Dịch vụ thú cưng').trim() || 'Dịch vụ thú cưng',
+                    servicePrice: String(requestOrName.price || maybePrice || 'Liên hệ').trim() || 'Liên hệ'
+                };
+            }
+
+            return {
+                serviceName: String(requestOrName || 'Dịch vụ thú cưng').trim() || 'Dịch vụ thú cưng',
+                servicePrice: String(maybePrice || 'Liên hệ').trim() || 'Liên hệ'
+            };
+        };
+
+        if (typeof window.openDatLichPopup !== 'function') {
+            window.openDatLichPopup = (requestOrName, maybePrice) => {
+                const payload = normalizeBookingRequest(requestOrName, maybePrice);
+                openBookingModal(payload.serviceName, payload.servicePrice);
+            };
+        }
+
+        if (typeof window.openServiceBookingPopup !== 'function') {
+            window.openServiceBookingPopup = (requestOrName, maybePrice) => {
+                const payload = normalizeBookingRequest(requestOrName, maybePrice);
+                openBookingModal(payload.serviceName, payload.servicePrice);
+            };
+        }
+
+        const forceCloseServiceDetailModal = () => {
+            const serviceDetailModal = document.getElementById('serviceDetailModal');
+            if (!serviceDetailModal) return;
+
+            serviceDetailModal.classList.remove('open');
+            serviceDetailModal.setAttribute('aria-hidden', 'true');
+
+            if (typeof window.__unlockBackgroundScroll === 'function') {
+                window.__unlockBackgroundScroll();
+            }
+
+            if (typeof window.__syncBackgroundScrollAfterPopupClose === 'function') {
+                window.__syncBackgroundScrollAfterPopupClose();
+            }
+        };
+
         // Bắt click nút "Đặt ngay" ở mọi trang dịch vụ được load động
         document.addEventListener('click', (event) => {
-            const bookingButton = event.target.closest('button');
+            const bookingButton = event.target.closest('button.service-booking-btn, #featuredServiceInfoBookBtn');
             if (!bookingButton) return;
+
+            if (bookingButton.closest('.unified-services-page') || bookingButton.closest('#serviceDetailModal')) {
+                return;
+            }
 
             const label = (bookingButton.textContent || '').trim().toLowerCase();
             if (label !== 'đặt ngay') return;
 
             event.preventDefault();
 
+            forceCloseServiceDetailModal();
+
             const card = bookingButton.closest('.service-card, .card');
             const serviceName = card?.querySelector('.card-title, h5, h4')?.textContent?.trim() || 'Dịch vụ thú cưng';
             const servicePrice = card?.querySelector('.fw-bold')?.textContent?.trim() || 'Liên hệ để biết giá';
+
+            const featuredInfoModal = document.getElementById('featuredServiceInfoModal');
+            if (featuredInfoModal && typeof featuredInfoModal.__closeFeaturedServiceInfo === 'function') {
+                featuredInfoModal.__closeFeaturedServiceInfo();
+            }
 
             openBookingModal(serviceName, servicePrice);
         });
@@ -4497,29 +4688,52 @@
 
         const SOCIAL_PROFILE_STYLE_ID = 'socialProfileSetupStyle';
         const SOCIAL_PROFILE_MODAL_ID = 'socialProfileSetupModal';
+        const SOCIAL_PROFILE_SEEN_MARKER_KEY = 'socialProfileSetupSeenMarkerV1';
 
         const ensureSocialProfileSetupStyle = () => {
             if (document.getElementById(SOCIAL_PROFILE_STYLE_ID)) return;
             const style = document.createElement('style');
             style.id = SOCIAL_PROFILE_STYLE_ID;
             style.textContent =
-                '.spu-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);display:none;align-items:center;justify-content:center;z-index:310000;padding:16px;}' +
-                '.spu-card{width:min(560px,100%);background:#fff;border-radius:16px;border:1px solid #d9e2ec;box-shadow:0 24px 68px rgba(0,0,0,.34);font-family:Poppins,Arial,sans-serif;}' +
-                '.spu-head{padding:14px 18px 10px;border-bottom:1px solid #edf2f7;}' +
-                '.spu-title{margin:0;font-size:22px;font-weight:700;color:#0f172a;}' +
-                '.spu-body{padding:14px 18px 18px;}' +
+                '.spu-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);display:none;align-items:center;justify-content:center;z-index:310000;padding:12px;}' +
+                '.spu-card{width:min(500px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;background:#fff;border-radius:14px;border:1px solid #d9e2ec;box-shadow:0 24px 68px rgba(0,0,0,.34);font-family:Poppins,Arial,sans-serif;}' +
+                '.spu-head{padding:12px 16px 9px;border-bottom:1px solid #edf2f7;}' +
+                '.spu-title{margin:0;font-size:20px;font-weight:700;color:#0f172a;}' +
+                '.spu-body{padding:12px 16px 14px;}' +
                 '.spu-msg{margin:0 0 12px;font-size:13px;color:#475569;line-height:1.45;}' +
                 '.spu-error{display:none;margin-bottom:10px;padding:9px 10px;border-radius:10px;background:#3a1218;color:#fecaca;font-size:13px;border:1px solid #7f1d1d;}' +
-                '.spu-group{margin:0 0 10px;}' +
+                '.spu-group{margin:0 0 9px;}' +
                 '.spu-label{display:block;margin-bottom:6px;font-size:13px;color:#14532d;font-weight:700;}' +
-                '.spu-input{width:100%;height:46px;border:1px solid #cbd5e1;border-radius:11px;padding:0 12px;font-size:14px;background:#fff;color:#0f172a;outline:none;}' +
+                '.spu-input{width:100%;height:42px;border:1px solid #cbd5e1;border-radius:11px;padding:0 12px;font-size:14px;background:#fff;color:#0f172a;outline:none;}' +
                 '.spu-input:focus{border-color:#2fcf72;box-shadow:0 0 0 3px rgba(47,207,114,.16);}' +
                 '.spu-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}' +
                 '.spu-meta-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;color:#334155;}' +
-                '.spu-avatar-preview{width:72px;height:72px;border-radius:999px;border:1px solid #cbd5e1;object-fit:cover;background:#f1f5f9;display:block;margin-top:6px;}' +
-                '.spu-submit{width:100%;height:48px;border:none;border-radius:11px;background:linear-gradient(135deg,#1f8f4d 0%,#36b86c 100%);color:#fff;font-weight:700;font-size:15px;cursor:pointer;margin-top:6px;}' +
-                '.spu-submit:disabled{opacity:.7;cursor:not-allowed;}';
+                '.spu-avatar-wrap{display:flex;justify-content:center;margin-top:10px;}' +
+                '.spu-avatar-preview{width:88px;height:88px;border-radius:10px;border:1px solid #cbd5e1;object-fit:cover;background:#f1f5f9;display:block;}' +
+                '.spu-submit{width:100%;height:44px;border:none;border-radius:11px;background:linear-gradient(135deg,#1f8f4d 0%,#36b86c 100%);color:#fff;font-weight:700;font-size:15px;cursor:pointer;margin-top:4px;}' +
+                '.spu-submit:disabled{opacity:.7;cursor:not-allowed;}' +
+                '.spu-actions{display:flex;justify-content:flex-end;margin-top:8px;}' +
+                '.spu-close{border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;}';
             document.head.appendChild(style);
+        };
+
+        const parsePendingSocialMarker = () => {
+            try {
+                const raw = localStorage.getItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+                if (!raw) return null;
+                const marker = JSON.parse(raw);
+                if (!marker || typeof marker !== 'object') return null;
+                const createdAt = Date.parse(String(marker.createdAt || ''));
+                const isFresh = Number.isFinite(createdAt) && (Date.now() - createdAt) <= (15 * 60 * 1000);
+                if (!isFresh || marker.required !== true) {
+                    localStorage.removeItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+                    return null;
+                }
+                return marker;
+            } catch (e) {
+                localStorage.removeItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+                return null;
+            }
         };
 
         const ensureSocialProfileSetupModal = () => {
@@ -4539,17 +4753,26 @@
                         '<div id="spuError" class="spu-error"></div>' +
                         '<div class="spu-meta">' +
                             '<div class="spu-meta-item">Nhà cung cấp: <b id="spuProvider">-</b></div>' +
-                            '<div class="spu-meta-item">Email: <b id="spuEmail">-</b></div>' +
+                            '<div class="spu-meta-item">Email social: <b id="spuEmailSource">-</b></div>' +
                         '</div>' +
+                        '<div class="spu-group"><label class="spu-label" for="spuEmail">Địa chỉ email *</label><input id="spuEmail" class="spu-input" type="email" placeholder="you@example.com"></div>' +
                         '<div class="spu-group"><label class="spu-label" for="spuDisplayName">Họ và tên hiển thị</label><input id="spuDisplayName" class="spu-input" type="text" placeholder="Nguyễn Văn A"></div>' +
                         '<div class="spu-group"><label class="spu-label" for="spuUsername">Tên tài khoản *</label><input id="spuUsername" class="spu-input" type="text" placeholder="thanhhuy123"></div>' +
+                        '<div class="spu-group"><label class="spu-label" for="spuPassword">Mật khẩu *</label><input id="spuPassword" class="spu-input" type="password" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password"></div>' +
                         '<div class="spu-group"><label class="spu-label" for="spuPhone">Số điện thoại *</label><input id="spuPhone" class="spu-input" type="tel" placeholder="09xxxxxxxx"></div>' +
-                        '<div class="spu-group"><label class="spu-label" for="spuAvatar">Avatar (tùy chọn)</label><input id="spuAvatar" class="spu-input" type="file" accept="image/*"><img id="spuAvatarPreview" class="spu-avatar-preview" alt="Avatar preview"></div>' +
+                        '<div class="spu-group"><label class="spu-label" for="spuAvatar">Avatar (tùy chọn)</label><input id="spuAvatar" class="spu-input" type="file" accept="image/*"><div class="spu-avatar-wrap"><img id="spuAvatarPreview" class="spu-avatar-preview" alt="Avatar preview"></div></div>' +
                         '<button id="spuSubmit" type="button" class="spu-submit">Hoàn tất tạo tài khoản</button>' +
+                        '<div class="spu-actions"><button id="spuClose" type="button" class="spu-close">Đóng</button></div>' +
                     '</div>' +
                 '</div>';
             document.body.appendChild(shell);
             return shell;
+        };
+
+        const hideSocialProfileSetupModal = (shell) => {
+            if (!shell) return;
+            shell.style.display = 'none';
+            document.body.classList.remove('auth-modal-open');
         };
 
         const readFileAsDataUrl = (file) => {
@@ -4563,36 +4786,51 @@
         };
 
         const openSocialProfileSetupModal = async () => {
-            const markerRaw = localStorage.getItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
-            if (!markerRaw) {
+            const marker = parsePendingSocialMarker();
+            if (!marker) {
                 return;
             }
 
+            const markerToken = String(marker.createdAt || marker.email || marker.provider || 'social-pending');
+            const seenMarkerToken = String(sessionStorage.getItem(SOCIAL_PROFILE_SEEN_MARKER_KEY) || '');
+            if (seenMarkerToken !== '' && seenMarkerToken === markerToken) {
+                localStorage.removeItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+                return;
+            }
+
+            sessionStorage.setItem(SOCIAL_PROFILE_SEEN_MARKER_KEY, markerToken);
+            localStorage.removeItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+
             const pendingResult = await callAuthApi('get_social_pending_profile', {});
             if (!pendingResult?.ok) {
-                localStorage.removeItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
+                sessionStorage.removeItem(SOCIAL_PROFILE_SEEN_MARKER_KEY);
                 return;
             }
 
             const pending = pendingResult.data?.data || {};
             const shell = ensureSocialProfileSetupModal();
             const providerEl = shell.querySelector('#spuProvider');
-            const emailEl = shell.querySelector('#spuEmail');
+            const emailSourceEl = shell.querySelector('#spuEmailSource');
+            const emailInput = shell.querySelector('#spuEmail');
             const displayNameInput = shell.querySelector('#spuDisplayName');
             const usernameInput = shell.querySelector('#spuUsername');
+            const passwordInput = shell.querySelector('#spuPassword');
             const phoneInput = shell.querySelector('#spuPhone');
             const avatarInput = shell.querySelector('#spuAvatar');
             const avatarPreview = shell.querySelector('#spuAvatarPreview');
             const submitBtn = shell.querySelector('#spuSubmit');
+            const closeBtn = shell.querySelector('#spuClose');
             const errorEl = shell.querySelector('#spuError');
 
             providerEl.textContent = String(pending.provider || '-');
-            emailEl.textContent = String(pending.email || '-');
+            emailSourceEl.textContent = String(pending.email || '-');
+            emailInput.value = String(pending.email || '').trim();
             displayNameInput.value = String(pending.name || '').trim();
             usernameInput.value = String(pending.name || '').trim().toLowerCase().replace(/[^a-z0-9_\.]/g, '');
+            passwordInput.value = '';
             phoneInput.value = '';
             avatarInput.value = '';
-            avatarPreview.src = String(pending.avatar_url || '').trim() || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMuL29yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjcyIiBoZWlnaHQ9IjcyIiByeD0iMzYiIGZpbGw9IiNFMkU4RjAiLz48Y2lyY2xlIGN4PSIzNiIgY3k9IjI5IiByPSIxMiIgZmlsbD0iIzk0QTNCOCIvPjxwYXRoIGQ9Ik0xNiA1OS4yQzE5Ljc2IDUwLjI5IDI3LjQ5IDQ0IDM2IDQ0QzQ0LjUxIDQ0IDUyLjI0IDUwLjI5IDU2IDU5LjIiIGZpbGw9IiM5NEEzQjgiLz48L3N2Zz4=';
+            avatarPreview.src = String(pending.avatar_url || '').trim() || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTEyIiBoZWlnaHQ9IjExMiIgdmlld0JveD0iMCAwIDExMiAxMTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjExMiIgaGVpZ2h0PSIxMTIiIHJ4PSIxMiIgZmlsbD0iI0UyRThGMCIvPjxjaXJjbGUgY3g9IjU2IiBjeT0iNDQiIHI9IjE4IiBmaWxsPSIjOTRBM0I4Ii8+PHBhdGggZD0iTTI0IDkwQzI5Ljg2IDc0LjY2IDQxLjk2IDY0IDU2IDY0QzcwLjA0IDY0IDgyLjE0IDc0LjY2IDg4IDkwIiBmaWxsPSIjOTRBM0I4Ii8+PC9zdmc+';
             errorEl.style.display = 'none';
             errorEl.textContent = '';
 
@@ -4605,15 +4843,35 @@
                 } catch (e) {}
             };
 
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    hideSocialProfileSetupModal(shell);
+                };
+            }
+
             submitBtn.onclick = async () => {
                 errorEl.style.display = 'none';
                 const username = usernameInput.value.trim();
                 const displayName = displayNameInput.value.trim();
+                const email = emailInput.value.trim().toLowerCase();
+                const password = passwordInput.value;
                 const phone = phoneInput.value.replace(/\D/g, '').trim();
                 if (username.length < 3) {
                     errorEl.textContent = 'Tên tài khoản phải từ 3 ký tự trở lên.';
                     errorEl.style.display = 'block';
                     usernameInput.focus();
+                    return;
+                }
+                if (password.length < 6) {
+                    errorEl.textContent = 'Mật khẩu phải từ 6 ký tự trở lên.';
+                    errorEl.style.display = 'block';
+                    passwordInput.focus();
+                    return;
+                }
+                if (!/^\S+@\S+\.\S+$/.test(email)) {
+                    errorEl.textContent = 'Địa chỉ email không hợp lệ.';
+                    errorEl.style.display = 'block';
+                    emailInput.focus();
                     return;
                 }
                 if (phone.length < 9 || phone.length > 11) {
@@ -4634,6 +4892,8 @@
                 const completeResult = await callAuthApi('complete_social_signup', {
                     username,
                     display_name: displayName,
+                    email,
+                    password,
                     phone,
                     avatar_data_url: avatarDataUrl
                 });
@@ -4651,15 +4911,14 @@
                 saveCustomerSession({
                     id: user.id || 0,
                     fullName: user.tennguoidung || username,
-                    email: user.emailnguoidung || pending.email || '',
-                    identifier: user.emailnguoidung || pending.email || username,
+                    email: user.emailnguoidung || email || pending.email || '',
+                    identifier: user.emailnguoidung || email || pending.email || username,
                     avatar: user.anhdaidiennguoidung_url || user.avatar_url || user.anhdaidiennguoidung || '',
                     avatar_path: user.anhdaidiennguoidung || ''
                 });
 
                 localStorage.removeItem(AUTH_STORAGE_KEYS.pendingSocialSetup);
-                shell.style.display = 'none';
-                document.body.classList.remove('auth-modal-open');
+                hideSocialProfileSetupModal(shell);
 
                 if (typeof window.routeToPage === 'function') {
                     window.routeToPage('user');
@@ -4706,6 +4965,8 @@
                 '.u-auth-submit{width:100%;height:48px;border:none;border-radius:11px;background:linear-gradient(135deg,#1f8f4d 0%,#36b86c 100%);color:#fff;font-weight:700;font-size:15px;cursor:pointer;margin-top:6px;}' +
                 '.u-auth-switch{margin-top:12px;font-size:13px;color:#64748b;text-align:center;}' +
                 '.u-auth-link{color:#1f8f4d;font-weight:700;cursor:pointer;text-decoration:none;}' +
+                '.u-auth-actions{display:flex;justify-content:flex-end;margin-top:8px;}' +
+                '.u-auth-close-secondary{border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;}' +
                 '.u-auth-email-wrap{display:none;}' +
                 '.u-auth-email-wrap.show{display:block;}' +
                 '.u-auth-row{display:flex;gap:8px;align-items:center;}' +
@@ -4734,7 +4995,7 @@
                         '<div class="u-auth-head-copy">' +
                             '<h3 id="uAuthTitle" class="u-auth-title">Đăng nhập</h3>' +
                         '</div>' +
-            '<button type="button" class="u-auth-close" id="uAuthClose" aria-label="Đóng">&times;</button>' +
+                        '<button type="button" class="u-auth-close" id="uAuthClose" aria-label="Close">&times;</button>' +
           '</div>' +
           '<div class="u-auth-body">' +
             '<p class="u-auth-msg" id="uAuthReason">Vui lòng đăng nhập để tiếp tục.</p>' +
@@ -4761,8 +5022,8 @@
                                 '<input class="u-auth-input" id="uAuthPassword" type="password" required minlength="6" autocomplete="current-password" placeholder="Nhập mật khẩu">' +
               '</div>' +
                             '<div class="u-auth-group u-auth-verify-wrap" id="uAuthConfirmPasswordWrap">' +
-                                '<label class="u-auth-label" for="uAuthConfirmPassword">Nhập lại mật khẩu mới</label>' +
-                                '<input class="u-auth-input" id="uAuthConfirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới">' +
+                                '<label class="u-auth-label" for="uAuthConfirmPassword">Nhập lại mật khẩu</label>' +
+                                '<input class="u-auth-input" id="uAuthConfirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Nhập lại mật khẩu">' +
                             '</div>' +
                             '<a href="#" class="u-auth-forgot" id="uAuthForgot">Quên mật khẩu?</a>' +
                             '<button type="submit" class="u-auth-submit" id="uAuthSubmit">Đăng nhập</button>' +
@@ -4773,6 +5034,7 @@
                             '<button type="button" class="u-auth-social-btn" id="uAuthGoogleBtn"><span class="u-auth-social-label"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.4c-.24 1.26-.96 2.33-2.04 3.05l3.3 2.55C20.58 17.94 21.6 15.3 21.6 12c0-.72-.06-1.38-.18-2.04H12z"/><path fill="#34A853" d="M12 22c2.7 0 4.98-.9 6.63-2.45l-3.3-2.55c-.9.6-2.04.96-3.33.96-2.58 0-4.77-1.74-5.55-4.08l-3.42 2.64C4.65 19.74 8.04 22 12 22z"/><path fill="#4A90E2" d="M6.45 13.88A5.98 5.98 0 0 1 6.12 12c0-.66.12-1.32.33-1.88L3.03 7.48A9.96 9.96 0 0 0 2.4 12c0 1.62.39 3.18 1.08 4.52l2.97-2.64z"/><path fill="#FBBC05" d="M12 6.06c1.47 0 2.79.51 3.81 1.47l2.85-2.85C16.98 3.12 14.7 2 12 2 8.04 2 4.65 4.26 3.03 7.48l3.42 2.64c.78-2.34 2.97-4.06 5.55-4.06z"/></svg></span><span class="u-auth-social-text">Tiếp tục với Google</span></button>' +
                         '</div>' +
                         '<div class="u-auth-switch">Chưa có tài khoản? <a href="#" class="u-auth-link" id="uAuthModeToggle">Đăng ký</a></div>' +
+                                                '<div class="u-auth-actions"><button type="button" class="u-auth-close-secondary" id="uAuthCloseSecondary">Đóng</button></div>' +
           '</div>' +
         '</div>';
 
@@ -4795,6 +5057,13 @@
       closeBtn.addEventListener('click', () => {
                 setAuthModalVisibility(false);
       });
+
+    const closeSecondaryBtn = shell.querySelector('#uAuthCloseSecondary');
+    if (closeSecondaryBtn) {
+        closeSecondaryBtn.addEventListener('click', () => {
+            setAuthModalVisibility(false);
+        });
+    }
 
       shell.addEventListener('click', (event) => {
         if (event.target === shell) {
@@ -4999,7 +5268,7 @@
             refs.nameWrap.style.display = authMode === 'reset' ? 'none' : 'block';
             refs.emailWrap.classList.toggle('show', authMode === 'register' || authMode === 'reset');
             refs.verifyWrap.classList.toggle('show', authMode === 'register' || authMode === 'reset');
-            refs.confirmPasswordWrap.classList.toggle('show', authMode === 'reset');
+            refs.confirmPasswordWrap.classList.toggle('show', authMode === 'register' || authMode === 'reset');
             refs.forgot.style.display = authMode === 'login' ? 'inline-block' : 'none';
             refs.divider.style.display = authMode === 'reset' ? 'none' : 'flex';
             refs.socialList.style.display = authMode === 'reset' ? 'none' : 'grid';
@@ -5007,9 +5276,10 @@
             refs.email.disabled = !(authMode === 'register' || authMode === 'reset');
             refs.name.required = authMode === 'register' || authMode === 'login';
             refs.verifyCode.required = authMode === 'register' || authMode === 'reset';
-            refs.confirmPassword.required = authMode === 'reset';
+            refs.confirmPassword.required = authMode === 'register' || authMode === 'reset';
             refs.password.autocomplete = authMode === 'login' ? 'current-password' : 'new-password';
             refs.password.placeholder = authMode === 'reset' ? 'Nhập mật khẩu mới' : 'Nhập mật khẩu';
+            refs.confirmPassword.placeholder = authMode === 'reset' ? 'Nhập lại mật khẩu mới' : 'Nhập lại mật khẩu';
             refs.name.placeholder = authMode === 'login' ? 'Nhập tên tài khoản' : 'Nhập tên tài khoản';
             resetCodeVerificationState(refs, authMode);
 
@@ -5273,9 +5543,11 @@
                     return;
                 }
 
-                if (authMode === 'reset') {
+                if (authMode === 'register' || authMode === 'reset') {
                     if (confirmPassword.length < 6) {
-                        showAuthError(refs, 'Vui lòng nhập lại mật khẩu mới (tối thiểu 6 ký tự).');
+                        showAuthError(refs, authMode === 'register'
+                            ? 'Vui lòng nhập lại mật khẩu (tối thiểu 6 ký tự).'
+                            : 'Vui lòng nhập lại mật khẩu mới (tối thiểu 6 ký tự).');
                         refs.confirmPassword.focus();
                         return;
                     }

@@ -337,6 +337,7 @@
         };
 
         let lastMessage = 'Không thể cập nhật trạng thái.';
+        let lastConflictRows = [];
 
         for (const url of getApiCandidates('update_service_booking_status')) {
             try {
@@ -348,16 +349,25 @@
                 });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok || !data.ok) {
+                    if (data?.error_code === 'BOOKING_TIME_CONFLICT') {
+                        return {
+                            ok: false,
+                            message: data?.message || 'Lịch hẹn bị trùng khung giờ đã duyệt.',
+                            conflictRows: Array.isArray(data?.data?.conflicts) ? data.data.conflicts : []
+                        };
+                    }
+
                     lastMessage = data.message || `Lỗi ${response.status}`;
+                    lastConflictRows = Array.isArray(data?.data?.conflicts) ? data.data.conflicts : [];
                     continue;
                 }
-                return { ok: true };
+                return { ok: true, data: data?.data || null };
             } catch (error) {
                 lastMessage = 'Không thể kết nối máy chủ.';
             }
         }
 
-        return { ok: false, message: lastMessage };
+        return { ok: false, message: lastMessage, conflictRows: lastConflictRows };
     };
 
     const emitBookingSyncSignal = (payload) => {
@@ -545,6 +555,17 @@
         rejectBtn.disabled = false;
 
         if (!result.ok) {
+            if (Array.isArray(result.conflictRows) && result.conflictRows.length) {
+                const lines = result.conflictRows.slice(0, 5).map((item, index) => {
+                    const code = item?.malichhen || `#${item?.id || index + 1}`;
+                    const time = item?.khunggio || item?.thoigianhen || 'Khung giờ không rõ';
+                    const customer = item?.tenkhachhang || 'Khách hàng';
+                    return `${index + 1}. ${code} - ${time} - ${customer}`;
+                });
+                alert((result.message || 'Không thể duyệt do trùng lịch.') + `\n\nLịch trùng:\n${lines.join('\n')}`);
+                return;
+            }
+
             alert(result.message || 'Cập nhật thất bại.');
             return;
         }

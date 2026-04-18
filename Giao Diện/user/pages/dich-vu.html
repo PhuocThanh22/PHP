@@ -72,6 +72,14 @@
             </div>
         </div>
         <div class="service-detail-footer">
+            <div class="service-share-actions" id="serviceDetailShareActions">
+                <span>Chia sẻ:</span>
+                <button type="button" class="service-share-btn" data-service-share="native">Chia sẻ nhanh</button>
+                <button type="button" class="service-share-btn" data-service-share="facebook">Facebook</button>
+                <button type="button" class="service-share-btn" data-service-share="messenger">Messenger</button>
+                <button type="button" class="service-share-btn" data-service-share="zalo">Zalo</button>
+                <button type="button" class="service-share-btn" data-service-share="copy">Sao chép link</button>
+            </div>
             <button type="button" class="btn btn-outline-secondary" data-modal-close="true">Đóng</button>
             <button type="button" class="btn service-detail-btn service-booking-btn" id="serviceDetailBookBtn">Đặt ngay</button>
         </div>
@@ -277,9 +285,36 @@
 .service-detail-footer {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     padding: 12px 16px 16px;
     border-top: 1px solid #e2e8f0;
+}
+
+.service-share-actions {
+    margin-right: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.service-share-actions span {
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+}
+
+.service-share-btn {
+    border: 1px solid #dbe2ea;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #0f172a;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 @media (max-width: 768px) {
@@ -801,18 +836,140 @@
     const serviceDetailInfo = document.getElementById('serviceDetailInfo');
     const serviceDetailImage = document.getElementById('serviceDetailImage');
     const serviceDetailBookBtn = document.getElementById('serviceDetailBookBtn');
-    let activeServiceDetail = { name: 'Dịch vụ thú cưng', price: 'Liên hệ' };
+    let activeServiceDetail = { name: 'Dịch vụ thú cưng', price: 'Liên hệ', category: 'Chưa phân loại', duration: 'Chưa cập nhật thời lượng' };
     let lastBodyOverflow = '';
+    let serviceDetailScrollLocked = false;
+
+    const buildServiceSharePayload = () => {
+        const name = String(activeServiceDetail?.name || 'Dịch vụ thú cưng').trim() || 'Dịch vụ thú cưng';
+        const price = String(activeServiceDetail?.price || 'Liên hệ').trim() || 'Liên hệ';
+        const category = String(activeServiceDetail?.category || 'Chưa phân loại').trim() || 'Chưa phân loại';
+        const duration = String(activeServiceDetail?.duration || 'Chưa cập nhật').trim() || 'Chưa cập nhật';
+        const pageUrl = new URL(window.location.href);
+        pageUrl.searchParams.set('share_service', name);
+        const url = pageUrl.toString();
+        const title = `${name} - 3 Chú Cún Con`;
+        const text = `${name} | Giá: ${price} | Danh mục: ${category} | Thời gian: ${duration}`;
+        return { url, title, text };
+    };
+
+    const isLocalShareUrl = (url) => {
+        try {
+            const parsed = new URL(String(url || ''));
+            const host = String(parsed.hostname || '').toLowerCase();
+            return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+        } catch (error) {
+            return false;
+        }
+    };
+
+    const openSharePopup = (url) => {
+        if (!url) return;
+        window.open(url, '_blank', 'noopener,noreferrer,width=720,height=680');
+    };
+
+    const tryOpenNativeScheme = (schemeUrl, fallbackUrl) => {
+        try {
+            window.location.href = schemeUrl;
+            window.setTimeout(() => {
+                if (fallbackUrl) {
+                    openSharePopup(fallbackUrl);
+                }
+            }, 520);
+        } catch (error) {
+            if (fallbackUrl) {
+                openSharePopup(fallbackUrl);
+            }
+        }
+    };
+
+    const shareServiceDetail = async (platform) => {
+        const payload = buildServiceSharePayload();
+        const encodedUrl = encodeURIComponent(payload.url);
+        const encodedText = encodeURIComponent(payload.text);
+
+        if (platform === 'native') {
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: payload.title, text: payload.text, url: payload.url });
+                    return;
+                } catch (error) {
+                    // user cancelled share sheet
+                }
+            }
+            await shareServiceDetail('copy');
+            return;
+        }
+
+        if (platform === 'facebook') {
+            openSharePopup(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`);
+            if (isLocalShareUrl(payload.url)) {
+                alert('Link localhost không tạo được thẻ xem trước dịch vụ trên Facebook. Hãy dùng domain public để hiển thị ảnh/mô tả tự động.');
+            }
+            return;
+        }
+
+        if (platform === 'messenger') {
+            const messengerUrl = `fb-messenger://share/?link=${encodedUrl}`;
+            const fallbackUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+            tryOpenNativeScheme(messengerUrl, fallbackUrl);
+            return;
+        }
+
+        if (platform === 'zalo') {
+            const zaloScheme = `zalo://share?url=${encodedUrl}`;
+            const fallbackUrl = `https://zalo.me/share?url=${encodedUrl}`;
+            tryOpenNativeScheme(zaloScheme, fallbackUrl);
+            if (isLocalShareUrl(payload.url)) {
+                alert('Zalo không thể xem trước đầy đủ với link localhost. Bạn cần domain public để chia sẻ có ảnh/mô tả tự động.');
+            }
+            return;
+        }
+
+        if (platform === 'copy') {
+            try {
+                await navigator.clipboard.writeText(payload.url);
+                alert('Đã sao chép liên kết dịch vụ.');
+            } catch (error) {
+                window.prompt('Sao chép liên kết bên dưới:', payload.url);
+            }
+            return;
+        }
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: payload.title, text: payload.text, url: payload.url });
+            } catch (error) {
+                // user cancelled share sheet
+            }
+        }
+    };
 
     const lockServicesPageBackground = () => {
+        if (serviceDetailScrollLocked) return;
+        if (typeof window.__lockBackgroundScroll === 'function') {
+            window.__lockBackgroundScroll();
+            serviceDetailScrollLocked = true;
+            return;
+        }
+
         lastBodyOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         document.body.classList.add('app-popup-open');
+        serviceDetailScrollLocked = true;
     };
 
     const unlockServicesPageBackground = () => {
+        if (!serviceDetailScrollLocked) return;
+        if (typeof window.__unlockBackgroundScroll === 'function') {
+            window.__unlockBackgroundScroll();
+            serviceDetailScrollLocked = false;
+            return;
+        }
+
         document.body.style.overflow = lastBodyOverflow;
         document.body.classList.remove('app-popup-open');
+        serviceDetailScrollLocked = false;
     };
 
     const closeServiceDetailModal = () => {
@@ -820,6 +977,9 @@
         serviceDetailModal.classList.remove('open');
         serviceDetailModal.setAttribute('aria-hidden', 'true');
         unlockServicesPageBackground();
+        if (typeof window.__syncBackgroundScrollAfterPopupClose === 'function') {
+            window.__syncBackgroundScrollAfterPopupClose();
+        }
     };
 
     const openServiceDetailModal = (serviceCard) => {
@@ -838,7 +998,7 @@
         serviceDetailInfo.textContent = serviceInfoText;
         if (serviceDetailCategory) serviceDetailCategory.textContent = serviceCategory;
         if (serviceDetailBookings) serviceDetailBookings.textContent = serviceBookings;
-        activeServiceDetail = { name: serviceName, price: servicePrice };
+        activeServiceDetail = { name: serviceName, price: servicePrice, category: serviceCategory, duration: serviceDuration };
 
         const imageUrl = toSafeText(serviceCard.dataset.serviceImage);
         serviceDetailImage.style.backgroundImage = imageUrl
@@ -888,7 +1048,10 @@
         }
     });
 
-    serviceDetailBookBtn?.addEventListener('click', () => {
+    serviceDetailBookBtn?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
         closeServiceDetailModal();
         const serviceName = String(activeServiceDetail?.name || 'Dịch vụ thú cưng').trim() || 'Dịch vụ thú cưng';
         const servicePrice = String(activeServiceDetail?.price || 'Liên hệ').trim() || 'Liên hệ';
@@ -910,9 +1073,20 @@
         }
     });
 
+    document.getElementById('serviceDetailShareActions')?.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-service-share]');
+        if (!button) return;
+        event.preventDefault();
+        event.stopPropagation();
+        await shareServiceDetail(String(button.dataset.serviceShare || '').toLowerCase());
+    });
+
     document.addEventListener('click', (event) => {
         const bookingBtn = event.target.closest('.service-booking-btn');
         if (!bookingBtn) return;
+
+        event.preventDefault();
+        event.stopPropagation();
 
         const serviceName = String(bookingBtn.dataset.serviceName || bookingBtn.closest('.service-card')?.querySelector('.card-title')?.textContent || 'Dịch vụ thú cưng').trim();
         const servicePrice = String(bookingBtn.dataset.servicePrice || bookingBtn.closest('.service-card')?.querySelector('.service-price')?.textContent || 'Liên hệ').trim();

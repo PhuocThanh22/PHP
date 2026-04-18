@@ -6,470 +6,363 @@
     <title>Đăng nhập - 3 CHÚ CÚN CON</title>
     <style>
         :root {
-            --bg: linear-gradient(180deg, #edf9f2 0%, #d8efdf 36%, #a9d1bc 68%, #4e7f68 100%);
-            --card: #ffffff;
-            --text: #111827;
-            --muted: #6b7280;
-            --line: #d1e6d7;
-            --primary: #0f2c1f;
-            --primary-hover: #144930;
-            --input-glow: rgba(16, 185, 129, 0.34);
-            --shell-bg: rgba(250, 255, 251, 0.74);
-            --shell-border: #d1ead9;
-            --shell-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
+            --bg-overlay-top: rgba(3, 15, 8, 0.38);
+            --bg-overlay-bottom: rgba(0, 0, 0, 0.8);
+            --form-bg: rgba(0, 0, 0, 0.74);
+            --form-border: rgba(255, 255, 255, 0.1);
+            --text: #ffffff;
+            --muted: #b7b7b7;
+            --field-bg: rgba(22, 22, 22, 0.82);
+            --field-border: #454545;
+            --field-focus: #ffffff;
+            --red: #22c55e;
+            --red-hover: #16a34a;
+            --line: rgba(255, 255, 255, 0.22);
         }
 
-        body.dark {
-            --bg: radial-gradient(circle at 20% 15%, #1a4330 0%, #0b1d17 58%, #081611 100%);
-            --card: #101c19;
-            --text: #e6f5ee;
-            --muted: #9fb8ad;
-            --line: #2f5846;
-            --primary: #59d39b;
-            --primary-hover: #7ae0af;
-            --input-glow: rgba(89, 211, 155, 0.48);
-            --shell-bg: rgba(8, 17, 14, 0.7);
-            --shell-border: #234635;
-            --shell-shadow: 0 34px 64px rgba(0, 0, 0, 0.5);
+        * {
+            box-sizing: border-box;
         }
-
-        * { box-sizing: border-box; }
 
         body {
             margin: 0;
             min-height: 100vh;
-            font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
-            background: var(--bg);
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: var(--text);
-            display: grid;
-            place-items: center;
-            padding: 24px;
+            background-image:
+                linear-gradient(to right, rgba(0, 0, 0, 0.52) 0%, rgba(0, 0, 0, 0.44) 46%, rgba(0, 0, 0, 0.76) 100%),
+                linear-gradient(to bottom, var(--bg-overlay-top) 0%, rgba(0, 0, 0, 0.48) 42%, var(--bg-overlay-bottom) 100%),
+                url('../anhdata/products/anhnen.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             position: relative;
-            overflow: hidden;
         }
 
-        body::before,
         body::after {
             content: "";
             position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 150px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0));
             pointer-events: none;
-            z-index: 0;
-            border-radius: 50%;
-            filter: blur(12px);
-        }
-
-        body::before {
-            width: 44vw;
-            height: 44vw;
-            left: -8vw;
-            top: -10vw;
-            background: radial-gradient(circle, rgba(201, 162, 92, 0.26) 0%, rgba(201, 162, 92, 0) 68%);
-        }
-
-        body::after {
-            width: 40vw;
-            height: 40vw;
-            right: -7vw;
-            bottom: -12vw;
-            background: radial-gradient(circle, rgba(95, 145, 123, 0.3) 0%, rgba(95, 145, 123, 0) 68%);
-        }
-
-        .cat-glow-field {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 2;
-        }
-
-        .cat-glow {
-            position: absolute;
-            font-size: clamp(22px, 2.4vw, 38px);
-            color: rgba(17, 24, 39, 0.36);
-            text-shadow: none;
-            filter: none;
-            animation: none;
-        }
-
-        .cat-glow:nth-child(2n) {
-            font-size: clamp(18px, 2vw, 30px);
-            opacity: .45;
-        }
-
-        .auth-shell {
-            position: relative;
-            z-index: 1;
-            width: min(1400px, 100%);
-            min-height: 680px;
-            border-radius: 0;
-            background: transparent;
-            border: none;
-            box-shadow: none;
-            backdrop-filter: none;
-            display: grid;
-            grid-template-columns: 1.32fr 1.08fr;
-            gap: 24px;
-            padding: 0;
         }
 
         .theme-toggle {
             display: none;
-            position: absolute;
-            right: 22px;
-            top: 18px;
-            border: 1px solid var(--line);
-            background: color-mix(in srgb, var(--card) 75%, transparent);
-            color: var(--text);
-            border-radius: 999px;
-            height: 40px;
-            padding: 0 14px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: .2s;
         }
 
-        .theme-toggle:hover {
-            box-shadow: 0 0 0 3px var(--input-glow);
-        }
-
-        .visual {
-            border-radius: 20px;
-            overflow: hidden;
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
             position: relative;
-            min-height: 540px;
-            background: #0f172a;
+            z-index: 1;
         }
 
-        .visual img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            filter: brightness(1);
-        }
-
-        .visual-copy {
-            position: absolute;
-            left: 28px;
-            right: 28px;
-            bottom: 28px;
-            color: #fff;
-        }
-
-        .visual-copy .tag {
-            display: inline-block;
-            padding: 8px 12px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,.3);
-            background: rgba(15,23,42,.35);
-            font-size: 12px;
-            margin-bottom: 12px;
-        }
-
-        .visual-copy h1 {
-            margin: 0 0 10px;
-            font-size: clamp(28px, 3vw, 48px);
-            line-height: 1.1;
-        }
-
-        .visual-copy p {
-            margin: 0;
-            color: rgba(255,255,255,.9);
-            max-width: 640px;
-        }
-
-        .form-wrap {
-            display: grid;
-            place-items: center;
-            padding: 8px;
-        }
-
-        .form-card {
-            width: min(470px, 100%);
-            background: #ffffff;
-            border: none;
-            border-radius: 20px;
-            box-shadow: 0 16px 38px rgba(15, 23, 42, 0.08);
-            padding: 34px 28px 24px;
+        .topbar {
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 4vw;
         }
 
         .brand {
             display: flex;
-            gap: 12px;
             align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .brand-logo {
-            width: 34px;
-            height: 34px;
-            object-fit: contain;
-            border-radius: 9px;
-            background: #f8fafc;
-            padding: 3px;
-            border: 1px solid #e5e7eb;
+            gap: 12px;
         }
 
         .brand-title {
             margin: 0;
-            font-size: 33px;
+            font-size: clamp(27px, 2vw, 34px);
+            font-weight: 900;
             line-height: 1;
-            font-weight: 800;
-            letter-spacing: -0.3px;
-            color: #111827;
+            letter-spacing: 0.8px;
+            color: #3ddc84;
+            text-transform: uppercase;
+        }
+
+        .auth-shell {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr minmax(420px, 560px);
+            align-items: center;
+            gap: 28px;
+            padding: 22px 5vw 42px;
+        }
+
+        .hero-copy {
+            max-width: 620px;
+            color: #f3f8f4;
+        }
+
+        .hero-copy h2 {
+            margin: 0 0 12px;
+            font-size: clamp(30px, 4vw, 58px);
+            line-height: 1.08;
+            letter-spacing: -0.8px;
+            text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        }
+
+        .hero-copy p {
+            margin: 0;
+            max-width: 560px;
+            font-size: clamp(15px, 1.35vw, 20px);
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .form-wrap {
+            width: 100%;
+            display: grid;
+            justify-content: end;
+        }
+
+        .form-card {
+            width: min(560px, 100%);
+            background: var(--form-bg);
+            border: 1px solid var(--form-border);
+            border-radius: 10px;
+            padding: 60px 64px 52px;
+            box-shadow: 0 26px 70px rgba(0, 0, 0, 0.62);
+            backdrop-filter: blur(2px);
+        }
+
+        .card-title {
+            margin: 0 0 28px;
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
         }
 
         .subtitle {
-            margin: 0 0 112px;
-            color: #6b7280;
-            font-size: 14px;
+            margin: 0 0 24px;
+            font-size: 18px;
+            color: var(--muted);
         }
 
         .field {
-            margin-bottom: 14px;
+            margin-bottom: 18px;
         }
 
         .input-shell {
             position: relative;
-            border: 1px solid #d8dee9;
-            border-radius: 12px;
-            background: #eef3fb;
-            height: 60px;
-            transition: border-color .2s, box-shadow .2s;
+            height: 68px;
         }
 
         .input-shell > label {
             position: absolute;
-            left: 12px;
-            top: -8px;
+            left: 16px;
+            top: 9px;
             margin: 0;
-            padding: 0 6px;
-            border-radius: 8px;
-            background: #ffffff;
-            font-size: 11px;
-            font-weight: 700;
-            color: #2f6fca;
+            font-size: 13px;
+            color: #adadad;
             pointer-events: none;
         }
 
         .input {
             width: 100%;
             height: 100%;
-            border: none;
-            background: transparent;
-            border-radius: 12px;
-            padding: 0 16px;
-            font-size: 20px;
-            font-weight: 600;
+            border-radius: 4px;
+            border: 1px solid var(--field-border);
+            background: var(--field-bg);
+            color: #ffffff;
             outline: none;
-            color: #1f2937;
-            letter-spacing: .2px;
+            padding: 28px 16px 10px;
+            font-size: 22px;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
         }
 
-        .input-shell:hover {
-            border-color: #9cb8ec;
+        .input::placeholder {
+            color: transparent;
         }
 
-        .input-shell:focus-within {
-            border-color: #4f8df1;
-            box-shadow: 0 0 0 3px rgba(79, 141, 241, 0.22);
+        .input-shell:focus-within .input {
+            border-color: var(--field-focus);
+            background: rgba(33, 33, 33, 0.95);
         }
 
         .row {
+            margin: 6px 0 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin: 8px 2px 14px;
-            font-size: 14px;
-            color: #6b7280;
+            font-size: 16px;
+            color: var(--muted);
         }
 
         .row label {
+            margin: 0;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            margin: 0;
-            color: #6b7280;
-            font-size: 15px;
-            font-weight: 500;
+            color: var(--muted);
+            font-size: 16px;
         }
 
         .row label input {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
+            accent-color: #737373;
         }
 
         .row a {
-            color: #374151;
+            color: var(--muted);
             text-decoration: none;
-            font-weight: 600;
+        }
+
+        .row a:hover {
+            text-decoration: underline;
         }
 
         .btn {
             width: 100%;
-            height: 50px;
+            height: 60px;
             border: none;
-            border-radius: 12px;
-            color: #fff;
-            background: linear-gradient(90deg, #0d1527 0%, #172541 100%);
-            font-size: 16px;
+            border-radius: 4px;
+            color: #ffffff;
+            background: var(--red);
+            font-size: 26px;
             font-weight: 700;
             cursor: pointer;
-            transition: transform .2s, box-shadow .2s, filter .2s;
+            transition: background-color 0.2s ease;
         }
 
         .btn:hover {
-            transform: translateY(-1px);
-            filter: brightness(1.03);
-            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.24);
+            background: var(--red-hover);
         }
-        .btn:disabled { opacity: .7; cursor: not-allowed; }
+
+        .btn:disabled {
+            opacity: 0.75;
+            cursor: not-allowed;
+        }
 
         .status {
             min-height: 18px;
-            margin-top: 8px;
-            font-size: 13px;
-            color: #b91c1c;
+            margin-top: 12px;
+            color: #f87171;
+            font-size: 16px;
             text-align: center;
         }
 
-        .status.ok { color: #15803d; }
-
-        .auth-divider {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 10px 0 12px;
-            color: #9ca3af;
-            font-size: 13px;
-        }
-
-        .auth-divider::before,
-        .auth-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #e5e7eb;
-        }
-
-        .social-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .social-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            height: 38px;
-            border-radius: 11px;
-            border: 1px solid #e5e7eb;
-            background: #fff;
-            color: #374151;
-            font-weight: 700;
-            font-size: 15px;
-            cursor: pointer;
+        .status.ok {
+            color: #4ade80;
         }
 
         .signup {
-            margin: 12px 0 6px;
-            text-align: center;
-            font-size: 14px;
-            color: #6b7280;
+            margin: 18px 0 6px;
+            color: #8c8c8c;
+            font-size: 16px;
+            text-align: left;
         }
 
         .signup a {
-            color: #111827;
+            color: #ffffff;
             text-decoration: none;
-            font-weight: 700;
+            font-weight: 500;
+        }
+
+        .signup a:hover {
+            text-decoration: underline;
         }
 
         .hint {
-            margin-top: 0;
-            color: #6b7280;
+            margin: 0;
             font-size: 13px;
-            text-align: center;
+            color: #8c8c8c;
+            line-height: 1.5;
         }
 
-        @media (max-width: 980px) {
+        @media (max-width: 760px) {
+            .topbar {
+                height: 72px;
+                padding: 0 18px;
+            }
+
+            .brand-title {
+                font-size: 24px;
+            }
+
             .auth-shell {
                 grid-template-columns: 1fr;
-                min-height: auto;
+                align-items: start;
+                padding: 0;
+                gap: 0;
             }
-            .visual { min-height: 320px; }
-            .visual-copy h1 { font-size: 32px; }
-            .brand-title { font-size: 30px; }
-            .input { font-size: 17px; }
+
+            .hero-copy {
+                padding: 14px 24px 12px;
+            }
+
+            .hero-copy h2 {
+                font-size: 30px;
+            }
+
+            .hero-copy p {
+                font-size: 14px;
+            }
+
+            .form-card {
+                width: 100%;
+                min-height: calc(100vh - 72px);
+                border-radius: 0;
+                border-left: none;
+                border-right: none;
+                border-bottom: none;
+                padding: 36px 24px 32px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="cat-glow-field" aria-hidden="true">
-        <span class="cat-glow" style="left: 7%; top: 10%;">🐱</span>
-        <span class="cat-glow" style="left: 18%; top: 76%;">🐾</span>
-        <span class="cat-glow" style="left: 46%; top: 16%;">🐱</span>
-        <span class="cat-glow" style="left: 63%; top: 82%;">🐾</span>
-        <span class="cat-glow" style="left: 86%; top: 23%;">🐱</span>
-        <span class="cat-glow" style="left: 92%; top: 71%;">🐾</span>
-        <span class="cat-glow" style="left: 12%; top: 32%;">🐾</span>
-        <span class="cat-glow" style="left: 27%; top: 12%;">🐱</span>
-        <span class="cat-glow" style="left: 33%; top: 88%;">🐾</span>
-        <span class="cat-glow" style="left: 41%; top: 66%;">🐱</span>
-    </div>
-
-    <main class="auth-shell">
-        <button id="themeToggle" class="theme-toggle" type="button">🌙 Dark mode</button>
-
-        <section class="visual" aria-hidden="true">
-            <img src="../anhdata/services/service_001.jpg" alt="Ảnh thú cưng">
-            <div class="visual-copy">
-                <span class="tag">Premium Pet Experience</span>
-                <h1>Nâng tầm trải nghiệm mua sắm cho thú cưng của bạn.</h1>
-                <p>Không gian mua sắm cao cấp, giao hàng nhanh, sản phẩm tuyển chọn và dịch vụ chăm sóc toàn diện.</p>
+    <div class="page">
+        <header class="topbar">
+            <div class="brand">
+                <h1 class="brand-title">3 CHÚ CÚN CON</h1>
             </div>
-        </section>
+        </header>
 
-        <section class="form-wrap">
-            <form class="form-card" id="loginForm" novalidate>
-                <div class="brand">
-                    <img src="user/img/logo.png" alt="3 CHÚ CÚN CON" class="brand-logo">
-                    <h2 class="brand-title">3 CHÚ CÚN CON</h2>
-                </div>
-                <p class="subtitle">Chăm sóc thú cưng của bạn tốt nhất</p>
+        <main class="auth-shell">
+            <button id="themeToggle" class="theme-toggle" type="button">Theme</button>
+            <section class="hero-copy" aria-hidden="true">
+                <h2>Chăm sóc thú cưng bằng cả yêu thương và chuyên nghiệp.</h2>
+                <p>Không gian dành cho những người yêu thú cưng, nơi mỗi lần đăng nhập là một bước gần hơn đến dịch vụ tốt nhất cho bé cưng của bạn.</p>
+            </section>
+            <section class="form-wrap">
+                <form class="form-card" id="loginForm" novalidate>
+                    <h2 class="card-title">Đăng nhập</h2>
+                    <p class="subtitle">Đăng nhập để tiếp tục với khu vực quản trị.</p>
 
-                <div class="field">
-                    <div class="input-shell">
-                        <label for="identifier">Email hoặc Username</label>
-                        <input id="identifier" class="input" type="text" autocomplete="username" required placeholder="">
+                    <div class="field">
+                        <div class="input-shell">
+                            <label for="identifier">Email hoặc Username</label>
+                            <input id="identifier" class="input" type="text" autocomplete="username" required placeholder=" ">
+                        </div>
                     </div>
-                </div>
 
-                <div class="field">
-                    <div class="input-shell">
-                        <label for="password">Mật khẩu</label>
-                        <input id="password" class="input" type="password" autocomplete="current-password" required placeholder="">
+                    <div class="field">
+                        <div class="input-shell">
+                            <label for="password">Mật khẩu</label>
+                            <input id="password" class="input" type="password" autocomplete="current-password" required placeholder=" ">
+                        </div>
                     </div>
-                </div>
 
-                <div class="row">
-                    <label><input id="remember" type="checkbox"> Ghi nhớ đăng nhập</label>
-                    <a href="javascript:void(0)">Quên mật khẩu?</a>
-                </div>
+                    <div class="row">
+                        <label><input id="remember" type="checkbox"> Ghi nhớ đăng nhập</label>
+                        <a href="javascript:void(0)">Bạn cần trợ giúp?</a>
+                    </div>
 
-                <button class="btn" id="submitBtn" type="submit">Đăng nhập</button>
-                <div class="status" id="statusText"></div>
+                    <button class="btn" id="submitBtn" type="submit">Đăng nhập</button>
+                    <div class="status" id="statusText"></div>
 
-                <div class="auth-divider">hoặc tiếp tục với</div>
-                <div class="social-row">
-                    <button class="social-btn" type="button">Google</button>
-                    <button class="social-btn" type="button">Facebook</button>
-                </div>
-
-                <p class="signup">Chưa có tài khoản? <a href="javascript:void(0)">Đăng ký ngay</a></p>
-                <div class="hint">Demo: demo@petshop.vn / 12345678</div>
-            </form>
-        </section>
-    </main>
+                </form>
+            </section>
+        </main>
+    </div>
 
     <script>
         (function () {

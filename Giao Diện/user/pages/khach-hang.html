@@ -1163,6 +1163,20 @@
     </div>
   </div>
 
+  <div id="serviceBookingCancelBackdrop" class="customer-confirm-backdrop" hidden>
+    <div class="customer-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="serviceBookingCancelTitle">
+      <div class="customer-confirm-head">
+        <h4 id="serviceBookingCancelTitle">Xác nhận hủy lịch</h4>
+        <button id="serviceBookingCancelCloseBtn" type="button" class="customer-confirm-close" aria-label="Đóng">&times;</button>
+      </div>
+      <p id="serviceBookingCancelBody" class="customer-confirm-body">Bạn có chắc muốn hủy lịch này không?</p>
+      <div class="customer-confirm-actions">
+        <button id="serviceBookingCancelNoBtn" type="button" class="customer-confirm-btn cancel">Không hủy</button>
+        <button id="serviceBookingCancelYesBtn" type="button" class="customer-confirm-btn danger">Xác nhận hủy</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function () {
       const root = document.getElementById('customerShell');
@@ -1184,6 +1198,8 @@
       };
       const SAMPLE_VOUCHER_CODES = new Set(['PET10', 'FREESHIP']);
       const ONLINE_ORDER_SYNC_KEY = 'onlineOrderSyncSignal';
+      const SERVICE_BOOKING_SYNC_KEY = 'serviceBookingSyncSignal';
+      const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
 
       const store = {
         get(key, fallback) {
@@ -1500,6 +1516,7 @@
       let orderReviewRating = 5;
       let activeReviewOrderId = '';
       let orderReviewsCache = [];
+      let serviceBookingsCache = [];
 
       const normalizeOrderId = (value) => String(value || '').trim();
 
@@ -1629,6 +1646,13 @@
         ]));
       };
 
+      const getCancelServiceBookingApiCandidates = () => Array.from(new Set([
+        new URL('../../index.php?api=cancel_service_booking_by_user', window.location.href).toString(),
+        window.location.origin + '/phuocthanh/PHPCHINH/index.php?api=cancel_service_booking_by_user',
+        window.location.origin + '/PHPCHINH/index.php?api=cancel_service_booking_by_user',
+        window.location.origin + '/index.php?api=cancel_service_booking_by_user'
+      ]));
+
       const fetchServiceBookings = async () => {
         const identity = getCurrentUserIdentity();
         const query = new URLSearchParams({
@@ -1655,6 +1679,73 @@
         }
 
         throw lastError;
+      };
+
+      const cancelServiceBooking = async (booking) => {
+        const identity = getCurrentUserIdentity();
+        const payload = {
+          id: Number(booking?.id || 0),
+          user_id: identity.id > 0 ? identity.id : 0,
+          user_email: identity.email || '',
+          user_phone: identity.phone || '',
+          cancel_note: 'Khach hang huy lich tu trang tai khoan'
+        };
+
+        let lastError = new Error('Không thể hủy lịch dịch vụ.');
+
+        for (const url of getCancelServiceBookingApiCandidates()) {
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok || !data?.ok) {
+              if (data?.error_code === 'BOOKING_STATUS_LOCKED') {
+                return Promise.reject(new Error(data?.message || 'Lịch này đã được xử lý nên không thể hủy.'));
+              }
+              lastError = new Error((data && data.message) || ('HTTP ' + response.status));
+              continue;
+            }
+
+            return data.data || null;
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error('Không thể hủy lịch dịch vụ.');
+          }
+        }
+
+        throw lastError;
+      };
+
+      const emitServiceBookingSyncSignal = (payload = {}) => {
+        const signal = {
+          time: Date.now(),
+          source: 'user',
+          entity: 'service_booking',
+          ...payload
+        };
+
+        try {
+          localStorage.setItem(SERVICE_BOOKING_SYNC_KEY, JSON.stringify(signal));
+        } catch (e) {
+          // ignore storage errors
+        }
+
+        if ('BroadcastChannel' in window) {
+          try {
+            const channel = new BroadcastChannel('service-booking-sync');
+            channel.postMessage(signal);
+            channel.close();
+          } catch (e) {
+            // ignore channel errors
+          }
+        }
+
+        if (realtimeApi && typeof realtimeApi.publish === 'function') {
+          realtimeApi.publish('entity_changed', signal);
+        }
       };
 
       const fetchOrderReviews = async () => {
@@ -2054,6 +2145,7 @@
         const summary = document.getElementById('serviceBookingSummary');
         if (!wrap || !summary) return;
 
+        serviceBookingsCache = [];
         summary.textContent = 'Đang tải lịch dịch vụ...';
         wrap.innerHTML = '<div class="muted">Đang tải dữ liệu từ hệ thống...</div>';
 
@@ -2076,6 +2168,8 @@
           wrap.innerHTML = '<div class="muted">Các lịch bạn đặt ở trang Dịch vụ sẽ hiển thị tại đây.</div>';
           return;
         }
+
+        serviceBookingsCache = sorted;
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -2113,6 +2207,7 @@
             huy: { label: 'Đã hủy', cls: 'chip-cancelled' }
           };
           const statusMeta = statusMap[item?.trangthai] || statusMap.choduyet;
+          const canCancelBooking = String(item?.trangthai || '') === 'choduyet';
 
           return `
             <div class="ticket-item">
@@ -2123,6 +2218,11 @@
               <div class="muted" style="margin-top:4px;">Ngày hẹn: ${date} • Giá: ${price}</div>
               <div style="margin-top:6px;">Khách đặt: <strong>${name}</strong> • SĐT: ${phone}</div>
               <div class="muted" style="margin-top:6px;">Tạo lịch: ${createdAt}</div>
+              ${canCancelBooking ? `
+                <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn-danger" type="button" data-action="cancel-service-booking" data-booking-id="${Number(item?.id || 0)}">Hủy lịch</button>
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('');
@@ -2501,6 +2601,12 @@
       const logoutConfirmCloseBtn = document.getElementById('logoutConfirmCloseBtn');
       const logoutConfirmCancelBtn = document.getElementById('logoutConfirmCancelBtn');
       const logoutConfirmOkBtn = document.getElementById('logoutConfirmOkBtn');
+      const serviceBookingCancelBackdrop = document.getElementById('serviceBookingCancelBackdrop');
+      const serviceBookingCancelBody = document.getElementById('serviceBookingCancelBody');
+      const serviceBookingCancelCloseBtn = document.getElementById('serviceBookingCancelCloseBtn');
+      const serviceBookingCancelNoBtn = document.getElementById('serviceBookingCancelNoBtn');
+      const serviceBookingCancelYesBtn = document.getElementById('serviceBookingCancelYesBtn');
+      let serviceBookingCancelResolver = null;
 
       const showLogoutConfirm = () => {
         if (!logoutConfirmBackdrop) return;
@@ -2512,6 +2618,34 @@
         if (!logoutConfirmBackdrop) return;
         logoutConfirmBackdrop.classList.remove('show');
         logoutConfirmBackdrop.hidden = true;
+      };
+
+      const resolveServiceBookingCancel = (value) => {
+        if (typeof serviceBookingCancelResolver === 'function') {
+          serviceBookingCancelResolver(Boolean(value));
+        }
+        serviceBookingCancelResolver = null;
+      };
+
+      const closeServiceBookingCancelConfirm = (value = false) => {
+        if (!serviceBookingCancelBackdrop) return;
+        serviceBookingCancelBackdrop.classList.remove('show');
+        serviceBookingCancelBackdrop.hidden = true;
+        resolveServiceBookingCancel(value);
+      };
+
+      const openServiceBookingCancelConfirm = (message) => {
+        if (!serviceBookingCancelBackdrop) {
+          return Promise.resolve(window.confirm(String(message || 'Bạn có chắc muốn hủy lịch này không?')));
+        }
+
+        serviceBookingCancelBody.textContent = String(message || 'Bạn có chắc muốn hủy lịch này không?');
+        serviceBookingCancelBackdrop.hidden = false;
+        serviceBookingCancelBackdrop.classList.add('show');
+
+        return new Promise((resolve) => {
+          serviceBookingCancelResolver = resolve;
+        });
       };
 
       const performLogout = () => {
@@ -2726,7 +2860,45 @@
           openOrderReviewModal(orderId);
         });
 
-        document.getElementById('serviceBookingList')?.addEventListener('click', (e) => {
+        document.getElementById('serviceBookingList')?.addEventListener('click', async (e) => {
+          const cancelBtn = e.target.closest('button[data-action="cancel-service-booking"]');
+          if (cancelBtn) {
+            const bookingId = Number(cancelBtn.dataset.bookingId || 0);
+            if (bookingId <= 0) return;
+
+            const booking = serviceBookingsCache.find((item) => Number(item?.id || 0) === bookingId);
+            if (!booking) {
+              pushNotification('Không tìm thấy lịch cần hủy. Vui lòng tải lại trang.', 'service');
+              return;
+            }
+
+            if (String(booking?.trangthai || '') !== 'choduyet') {
+              pushNotification('Chỉ có thể hủy lịch đang chờ duyệt.', 'service');
+              return;
+            }
+
+            const confirmed = await openServiceBookingCancelConfirm(`Bạn có chắc muốn hủy lịch ${booking?.malichhen || ('#' + bookingId)} không?`);
+            if (!confirmed) {
+              return;
+            }
+
+            cancelBtn.disabled = true;
+            const originalText = cancelBtn.textContent;
+            cancelBtn.textContent = 'Đang hủy...';
+
+            try {
+              await cancelServiceBooking(booking);
+              emitServiceBookingSyncSignal({ id: bookingId, status: 'huy' });
+              pushNotification(`Đã hủy lịch ${booking?.malichhen || ('#' + bookingId)} thành công.`, 'service');
+              await renderServiceBookings();
+            } catch (error) {
+              pushNotification(error?.message || 'Hủy lịch thất bại.', 'service');
+              cancelBtn.disabled = false;
+              cancelBtn.textContent = originalText || 'Hủy lịch';
+            }
+            return;
+          }
+
           const btn = e.target.closest('button[data-action="go-services"]');
           if (!btn) return;
           if (typeof window.routeToPage === 'function') {
@@ -3081,6 +3253,15 @@
           }
         });
 
+        serviceBookingCancelCloseBtn?.addEventListener('click', () => closeServiceBookingCancelConfirm(false));
+        serviceBookingCancelNoBtn?.addEventListener('click', () => closeServiceBookingCancelConfirm(false));
+        serviceBookingCancelYesBtn?.addEventListener('click', () => closeServiceBookingCancelConfirm(true));
+        serviceBookingCancelBackdrop?.addEventListener('click', (event) => {
+          if (event.target === serviceBookingCancelBackdrop) {
+            closeServiceBookingCancelConfirm(false);
+          }
+        });
+
         document.getElementById('notificationList').addEventListener('click', (e) => {
           const btn = e.target.closest('button[data-action="read-notification"]');
           if (!btn) return;
@@ -3170,12 +3351,64 @@
         window.setInterval(runSync, 5000);
       };
 
+      const startServiceBookingStatusSync = () => {
+        let reloadTimer = null;
+
+        const requestReload = () => {
+          if (reloadTimer) {
+            window.clearTimeout(reloadTimer);
+          }
+          reloadTimer = window.setTimeout(() => {
+            reloadTimer = null;
+            renderServiceBookings();
+          }, 180);
+        };
+
+        window.addEventListener('storage', (event) => {
+          if (event.key === SERVICE_BOOKING_SYNC_KEY && event.newValue) {
+            requestReload();
+          }
+        });
+
+        if ('BroadcastChannel' in window) {
+          try {
+            const channel = new BroadcastChannel('service-booking-sync');
+            channel.onmessage = () => {
+              requestReload();
+            };
+          } catch (e) {
+            // ignore channel errors
+          }
+        }
+
+        if (realtimeApi && typeof realtimeApi.subscribe === 'function') {
+          realtimeApi.subscribe((event) => {
+            if (!event || !event.type) return;
+
+            if (event.type === 'manual_refresh') {
+              requestReload();
+              return;
+            }
+
+            if (event.type !== 'entity_changed') return;
+            const payload = event.payload && typeof event.payload === 'object' ? event.payload : {};
+            const source = String(payload.source || '').toLowerCase();
+            const entity = String(payload.entity || '').toLowerCase();
+
+            if (entity === 'service_booking' || source === 'staff' || source === 'user') {
+              requestReload();
+            }
+          });
+        }
+      };
+
       syncProfileFromAuthUser();
       seedData();
       bindEvents();
       initialRender();
       syncOrderReviewsFromServer();
       startOnlineOrderStatusSync();
+      startServiceBookingStatusSync();
 
       if (typeof feather !== 'undefined') {
         feather.replace();

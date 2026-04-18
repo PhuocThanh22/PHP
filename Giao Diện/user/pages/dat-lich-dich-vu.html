@@ -201,6 +201,56 @@
     color: #166534;
 }
 
+.booking-success-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 2500;
+}
+
+.booking-success-modal.open {
+    display: flex;
+}
+
+.booking-success-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(12, 24, 17, 0.46);
+}
+
+.booking-success-modal-card {
+    position: relative;
+    width: min(440px, 100%);
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #d2e9d9;
+    box-shadow: 0 22px 44px rgba(17, 66, 40, 0.2);
+    padding: 22px 20px;
+}
+
+.booking-success-modal-card h4 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    color: #14532d;
+}
+
+.booking-success-modal-card p {
+    margin: 0;
+    color: #3f5e4f;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.booking-success-modal-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
 @media (max-width: 992px) {
     .booking-service-grid {
         grid-template-columns: 1fr;
@@ -307,14 +357,33 @@
     </div>
 </section>
 
+<div id="bookingSuccessModal" class="booking-success-modal" aria-hidden="true">
+    <div class="booking-success-modal-backdrop" data-action="close-success-modal"></div>
+    <div class="booking-success-modal-card" role="dialog" aria-modal="true" aria-labelledby="bookingSuccessModalTitle">
+        <h4 id="bookingSuccessModalTitle">Đặt lịch thành công</h4>
+        <p id="bookingSuccessModalMessage">Cửa hàng đã nhận yêu cầu và sẽ sớm liên hệ xác nhận.</p>
+        <div class="booking-success-modal-actions">
+            <button id="bookingSuccessBackBtn" class="booking-btn secondary" type="button">Về danh sách dịch vụ</button>
+            <button id="bookingSuccessCloseBtn" class="booking-btn primary" type="button">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
     const bookingErrorBox = document.getElementById('bookingErrorBox');
     const bookingSuccessBox = document.getElementById('bookingSuccessBox');
+    const bookingSuccessModal = document.getElementById('bookingSuccessModal');
+    const bookingSuccessModalMessage = document.getElementById('bookingSuccessModalMessage');
+    const bookingSuccessBackBtn = document.getElementById('bookingSuccessBackBtn');
+    const bookingSuccessCloseBtn = document.getElementById('bookingSuccessCloseBtn');
     const bookingSubmitBtn = document.getElementById('bookingSubmitBtn');
     const bookingBackBtn = document.getElementById('bookingBackBtn');
     const isPopupMode = /(?:\?|&)popup=1(?:&|$)/.test(String(window.location.search || '')) || window.top !== window.self;
     const bookingPageRoot = document.querySelector('.booking-service-page');
+    const BOOKING_SYNC_KEY = 'serviceBookingSyncSignal';
+    const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
+    let latestBookingCode = '';
 
     if (isPopupMode && bookingPageRoot) {
         bookingPageRoot.classList.add('popup-mode');
@@ -399,6 +468,42 @@
         if (bookingErrorBox) bookingErrorBox.style.display = 'none';
     };
 
+    const navigateAfterSuccess = (target) => {
+        if (isPopupMode) {
+            window.parent?.postMessage({ type: 'closeDatLichPopup', source: 'dat-lich-dich-vu', bookingCode: latestBookingCode }, '*');
+            return;
+        }
+
+        if (target === 'services') {
+            if (typeof window.routeToPage === 'function') {
+                window.routeToPage('services');
+            } else if (typeof window.loadPage === 'function') {
+                window.loadPage('services');
+            }
+            return;
+        }
+
+        if (typeof window.routeToPage === 'function') {
+            window.routeToPage('services');
+        } else if (typeof window.loadPage === 'function') {
+            window.loadPage('services');
+        }
+    };
+
+    const openSuccessModal = (message, bookingCode) => {
+        latestBookingCode = String(bookingCode || '');
+        if (bookingSuccessModalMessage) {
+            bookingSuccessModalMessage.textContent = message;
+        }
+        bookingSuccessModal?.classList.add('open');
+        bookingSuccessModal?.setAttribute('aria-hidden', 'false');
+    };
+
+    const closeSuccessModal = () => {
+        bookingSuccessModal?.classList.remove('open');
+        bookingSuccessModal?.setAttribute('aria-hidden', 'true');
+    };
+
     const getBookingApiCandidates = () => {
         const base = window.location.href;
         return [
@@ -439,6 +544,35 @@
         return { ok: false, message: lastMessage };
     };
 
+    const emitBookingSyncSignal = (payload = {}) => {
+        const signal = {
+            time: Date.now(),
+            source: 'user',
+            entity: 'service_booking',
+            ...payload
+        };
+
+        try {
+            localStorage.setItem(BOOKING_SYNC_KEY, JSON.stringify(signal));
+        } catch (e) {
+            // ignore storage errors
+        }
+
+        if ('BroadcastChannel' in window) {
+            try {
+                const channel = new BroadcastChannel('service-booking-sync');
+                channel.postMessage(signal);
+                channel.close();
+            } catch (e) {
+                // ignore channel errors
+            }
+        }
+
+        if (realtimeApi && typeof realtimeApi.publish === 'function') {
+            realtimeApi.publish('entity_changed', signal);
+        }
+    };
+
     bookingBackBtn?.addEventListener('click', () => {
         if (isPopupMode) {
             window.parent?.postMessage({ type: 'closeDatLichPopup', source: 'dat-lich-dich-vu' }, '*');
@@ -457,6 +591,24 @@
     if (isPopupMode && bookingBackBtn) {
         bookingBackBtn.textContent = 'Đóng';
     }
+
+    bookingSuccessModal?.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (!target.closest('.booking-success-modal-card') || target.matches('[data-action="close-success-modal"]')) {
+            closeSuccessModal();
+        }
+    });
+
+    bookingSuccessBackBtn?.addEventListener('click', () => {
+        closeSuccessModal();
+        navigateAfterSuccess('services');
+    });
+
+    bookingSuccessCloseBtn?.addEventListener('click', () => {
+        closeSuccessModal();
+        navigateAfterSuccess('close');
+    });
 
     bookingSubmitBtn?.addEventListener('click', async () => {
         if (!authUser || Number(authUser.id || 0) <= 0) {
@@ -540,20 +692,14 @@
             // ignore malformed notification storage
         }
 
+        emitBookingSyncSignal({
+            id: Number(result.data?.data?.id || 0),
+            status: 'choduyet',
+            malichhen: bookingCode
+        });
+
         showSuccess(`Đặt lịch thành công với mã ${bookingCode}. Cửa hàng sẽ liên hệ xác nhận sớm.`);
-
-        setTimeout(() => {
-            if (isPopupMode) {
-                window.parent?.postMessage({ type: 'closeDatLichPopup', source: 'dat-lich-dich-vu', bookingCode }, '*');
-                return;
-            }
-
-            if (typeof window.routeToPage === 'function') {
-                window.routeToPage('services');
-            } else if (typeof window.loadPage === 'function') {
-                window.loadPage('services');
-            }
-        }, 1200);
+        openSuccessModal(`Đặt lịch thành công với mã ${bookingCode}. Cửa hàng sẽ liên hệ xác nhận sớm.`, bookingCode);
     });
 })();
 </script>

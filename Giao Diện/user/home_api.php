@@ -2604,9 +2604,10 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         $input = app_input_payload();
         $username = trim((string) ($input['username'] ?? $input['name'] ?? ''));
         $displayName = trim((string) ($input['display_name'] ?? $pending['name'] ?? $username));
+        $email = app_lower(trim((string) ($input['email'] ?? $input['emailnguoidung'] ?? $pending['email'] ?? '')));
+        $password = (string) ($input['password'] ?? '');
         $phone = app_digits_only((string) ($input['phone'] ?? $input['sodienthoai'] ?? ''));
         $avatarDataUrl = trim((string) ($input['avatar_data_url'] ?? ''));
-        $email = trim((string) ($pending['email'] ?? ''));
 
         if ($username === '') {
             $conn->close();
@@ -2636,7 +2637,15 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             $conn->close();
             app_json_response([
                 'ok' => false,
-                'message' => 'Email social khong hop le',
+                'message' => 'Email khong hop le',
+            ], 400);
+        }
+
+        if (strlen($password) < 6) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Mat khau phai tu 6 ky tu tro len',
             ], 400);
         }
 
@@ -2688,7 +2697,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             $conn->query("ALTER TABLE nguoidung ADD COLUMN sodienthoainguoidung VARCHAR(20) NULL AFTER emailnguoidung");
         }
 
-        $passwordHash = password_hash(bin2hex(random_bytes(18)), PASSWORD_BCRYPT);
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
         $insertStmt = $conn->prepare("INSERT INTO nguoidung (tennguoidung, emailnguoidung, sodienthoainguoidung, matkhaunguoidung, vaitronguoidung) VALUES (?, ?, ?, ?, 'user')");
         if (!$insertStmt) {
             $conn->close();

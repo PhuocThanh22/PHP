@@ -145,6 +145,15 @@
 
             </div>
 
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; border-top:1px solid #eef2f7; padding-top:10px;">
+                <span style="font-size:13px; color:#475569; font-weight:600;">Chia sẻ:</span>
+                <button type="button" data-qv-share="native" style="border:1px solid #dbe2ea; background:#f8fafc; color:#0f172a; height:32px; padding:0 10px; border-radius:999px; font-size:12px; font-weight:700;">Chia sẻ nhanh</button>
+                <button type="button" data-qv-share="facebook" style="border:1px solid #dbe2ea; background:#fff; color:#1877f2; height:32px; padding:0 10px; border-radius:999px; font-size:12px; font-weight:700;">Facebook</button>
+                <button type="button" data-qv-share="messenger" style="border:1px solid #dbe2ea; background:#fff; color:#0078ff; height:32px; padding:0 10px; border-radius:999px; font-size:12px; font-weight:700;">Messenger</button>
+                <button type="button" data-qv-share="zalo" style="border:1px solid #dbe2ea; background:#fff; color:#0068ff; height:32px; padding:0 10px; border-radius:999px; font-size:12px; font-weight:700;">Zalo</button>
+                <button type="button" data-qv-share="copy" style="border:1px solid #dbe2ea; background:#fff; color:#0f172a; height:32px; padding:0 10px; border-radius:999px; font-size:12px; font-weight:700;">Sao chép link</button>
+            </div>
+
             <div style="display: flex; justify-content: flex-end; margin-top: auto;">
                 <button id="qvAddCartBtn" onclick="addToCartFromQV()" style="width: auto; min-width: 220px; background: #000; color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s ease;" onmouseover="if(!this.disabled){this.style.background='#333'}" onmouseout="if(!this.disabled){this.style.background='#000'}">
                     <i data-feather="shopping-cart" style="width: 18px; height: 18px; display: inline; margin-right: 8px; vertical-align: -3px;"></i>
@@ -3196,6 +3205,122 @@
 
     window.handleBreedImageFallback = handleBreedImageFallback;
 
+    const buildProductSharePayload = (item) => {
+        const name = String(item?.name || 'Sản phẩm thú cưng').trim() || 'Sản phẩm thú cưng';
+        const price = String(item?.price || 'Liên hệ').trim() || 'Liên hệ';
+        const pageUrl = new URL(window.location.href);
+        pageUrl.searchParams.set('share_product', name);
+        if (Number(item?.id || 0) > 0) {
+            pageUrl.searchParams.set('share_product_id', String(Number(item.id)));
+        }
+        const url = pageUrl.toString();
+        const title = `${name} - 3 Chú Cún Con`;
+        const text = `${name} (${price})`;
+        return { name, price, title, text, url };
+    };
+
+    const isLocalShareUrl = (url) => {
+        try {
+            const parsed = new URL(String(url || ''));
+            const host = String(parsed.hostname || '').toLowerCase();
+            return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+        } catch (error) {
+            return false;
+        }
+    };
+
+    const openSharePopup = (url) => {
+        if (!url) return;
+        window.open(url, '_blank', 'noopener,noreferrer,width=720,height=680');
+    };
+
+    const tryOpenNativeScheme = (schemeUrl, fallbackUrl) => {
+        try {
+            window.location.href = schemeUrl;
+            window.setTimeout(() => {
+                if (fallbackUrl) {
+                    openSharePopup(fallbackUrl);
+                }
+            }, 520);
+        } catch (error) {
+            if (fallbackUrl) {
+                openSharePopup(fallbackUrl);
+            }
+        }
+    };
+
+    const shareProductFromQuickView = async (platform) => {
+        if (!currentQVProduct) return;
+
+        const payload = buildProductSharePayload(currentQVProduct);
+        const encodedUrl = encodeURIComponent(payload.url);
+        const encodedText = encodeURIComponent(payload.text);
+
+        if (platform === 'native') {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: payload.title,
+                        text: payload.text,
+                        url: payload.url,
+                    });
+                    return;
+                } catch (error) {
+                    // user cancelled share sheet
+                }
+            }
+            await shareProductFromQuickView('copy');
+            return;
+        }
+
+        if (platform === 'facebook') {
+            openSharePopup(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`);
+            if (isLocalShareUrl(payload.url)) {
+                alert('Link localhost không tạo được thẻ xem trước sản phẩm trên Facebook. Hãy dùng domain public để hiển thị ảnh/mô tả tự động.');
+            }
+            return;
+        }
+
+        if (platform === 'messenger') {
+            const messengerUrl = `fb-messenger://share/?link=${encodedUrl}`;
+            const fallbackUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+            tryOpenNativeScheme(messengerUrl, fallbackUrl);
+            return;
+        }
+
+        if (platform === 'zalo') {
+            const zaloScheme = `zalo://share?url=${encodedUrl}`;
+            const fallbackUrl = `https://zalo.me/share?url=${encodedUrl}`;
+            tryOpenNativeScheme(zaloScheme, fallbackUrl);
+            if (isLocalShareUrl(payload.url)) {
+                alert('Zalo không thể xem trước đầy đủ với link localhost. Bạn cần domain public để chia sẻ có ảnh/mô tả tự động.');
+            }
+            return;
+        }
+
+        if (platform === 'copy') {
+            try {
+                await navigator.clipboard.writeText(payload.url);
+                alert('Đã sao chép liên kết sản phẩm.');
+            } catch (error) {
+                window.prompt('Sao chép liên kết bên dưới:', payload.url);
+            }
+            return;
+        }
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: payload.title,
+                    text: payload.text,
+                    url: payload.url,
+                });
+            } catch (error) {
+                // user cancelled share sheet
+            }
+        }
+    };
+
     const openQuickViewWithData = async (item) => {
         if (!item) return;
 
@@ -4070,12 +4195,25 @@
         const clearBtn = document.getElementById('clearFiltersBtn');
         const categorySidebar = document.getElementById('shopCategorySidebar');
         const quickViewCloseBtn = document.getElementById('quickViewCloseBtn');
+        const quickViewMain = document.getElementById('quickViewMain');
 
         if (quickViewCloseBtn && !quickViewCloseBtn.dataset.bound) {
             quickViewCloseBtn.addEventListener('click', () => {
                 closeQuickView();
             });
             quickViewCloseBtn.dataset.bound = '1';
+        }
+
+        if (quickViewMain && !quickViewMain.dataset.shareBound) {
+            quickViewMain.addEventListener('click', async (event) => {
+                const shareBtn = event.target.closest('button[data-qv-share]');
+                if (!shareBtn) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+                await shareProductFromQuickView(String(shareBtn.dataset.qvShare || '').toLowerCase());
+            });
+            quickViewMain.dataset.shareBound = '1';
         }
 
         if (toolbar && !toolbar.dataset.bound) {

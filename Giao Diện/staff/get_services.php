@@ -259,6 +259,89 @@ function app_booking_resolve_datetime(string $date, string $timeSlot): string
     return $cleanDate . ' 09:00:00';
 }
 
+function app_booking_find_time_conflicts(mysqli $conn, int $bookingId, string $scheduledAt, string $timeSlot): array
+{
+    if ($bookingId <= 0 || trim($scheduledAt) === '') {
+        return [];
+    }
+
+    $dateObj = date_create($scheduledAt);
+    if (!($dateObj instanceof DateTime)) {
+        return [];
+    }
+
+    $dayStart = $dateObj->format('Y-m-d 00:00:00');
+    $dayEnd = $dateObj->format('Y-m-d 23:59:59');
+    $currentSlot = app_lower(trim($timeSlot));
+    $currentTime = $dateObj->format('H:i');
+
+    $sql = "
+        SELECT
+            id,
+            thoigianhen,
+            khunggio,
+            tenkhachhang,
+            sodienthoai,
+            tendichvu
+        FROM lichhen
+        WHERE id <> ?
+          AND trangthailichhen = 'hoanthanh'
+          AND thoigianhen IS NOT NULL
+          AND thoigianhen BETWEEN ? AND ?
+        ORDER BY thoigianhen ASC, id ASC
+        LIMIT 50
+    ";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return [];
+    }
+
+    $stmt->bind_param('iss', $bookingId, $dayStart, $dayEnd);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $conflicts = [];
+    while ($result && ($row = $result->fetch_assoc())) {
+        $candidateDate = date_create((string) ($row['thoigianhen'] ?? ''));
+        if (!($candidateDate instanceof DateTime)) {
+            continue;
+        }
+
+        $candidateSlot = app_lower(trim((string) ($row['khunggio'] ?? '')));
+        $candidateTime = $candidateDate->format('H:i');
+
+        $sameSlot = $currentSlot !== '' && $candidateSlot !== '' && $currentSlot === $candidateSlot;
+        $sameTime = $currentTime !== '' && $candidateTime === $currentTime;
+
+        if (!$sameSlot && !$sameTime) {
+            continue;
+        }
+
+        $conflictId = (int) ($row['id'] ?? 0);
+        $conflicts[] = [
+            'id' => $conflictId,
+            'malichhen' => 'LH' . str_pad((string) $conflictId, 6, '0', STR_PAD_LEFT),
+            'thoigianhen' => (string) ($row['thoigianhen'] ?? ''),
+            'khunggio' => (string) ($row['khunggio'] ?? ''),
+            'tenkhachhang' => (string) ($row['tenkhachhang'] ?? ''),
+            'sodienthoai' => (string) ($row['sodienthoai'] ?? ''),
+            'tendichvu' => (string) ($row['tendichvu'] ?? ''),
+        ];
+
+        if (count($conflicts) >= 10) {
+            break;
+        }
+    }
+
+    if ($result) {
+        $result->free();
+    }
+    $stmt->close();
+
+    return $conflicts;
+}
+
 function app_booking_find_or_create_customer(mysqli $conn, string $name, string $phone, string $email): int
 {
     if (!app_table_exists($conn, 'khachhang')) {
@@ -2103,7 +2186,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             ], 400);
         }
 
-        $currentStmt = $conn->prepare('SELECT ghichulichhen, dichvu_id, trangthailichhen FROM lichhen WHERE id = ? LIMIT 1');
+        $currentStmt = $conn->prepare('SELECT ghichulichhen, dichvu_id, trangthailichhen, thoigianhen, khunggio FROM lichhen WHERE id = ? LIMIT 1');
         if (!$currentStmt) {
             $conn->close();
             app_json_response([
@@ -2128,6 +2211,25 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'ok' => false,
                 'message' => 'Khong tim thay lich hen',
             ], 404);
+        }
+
+        if ($status === 'hoanthanh') {
+            $scheduledAt = (string) ($currentRow['thoigianhen'] ?? '');
+            $timeSlot = (string) ($currentRow['khunggio'] ?? '');
+            $conflicts = app_booking_find_time_conflicts($conn, $bookingId, $scheduledAt, $timeSlot);
+
+            if (!empty($conflicts)) {
+                $conn->close();
+                app_json_response([
+                    'ok' => false,
+                    'error_code' => 'BOOKING_TIME_CONFLICT',
+                    'message' => 'Không thể duyệt lịch hẹn vì trùng khung giờ với lịch đã được duyệt trước đó',
+                    'data' => [
+                        'booking_id' => $bookingId,
+                        'conflicts' => $conflicts,
+                    ],
+                ], 409);
+            }
         }
 
         $meta = app_booking_decode_note((string) ($currentRow['ghichulichhen'] ?? ''));
@@ -2194,6 +2296,181 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
             'data' => [
                 'id' => $bookingId,
                 'status' => $status,
+            ],
+        ]);
+    }
+
+    if ($api === 'cancel_service_booking_by_user') {
+        if (!app_booking_ensure_table($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang lichhen',
+            ], 500);
+        }
+
+        $input = app_input_payload();
+        $bookingId = (int) ($input['id'] ?? 0);
+        $userId = (int) ($input['user_id'] ?? 0);
+        $userEmail = app_lower(trim((string) ($input['user_email'] ?? '')));
+        $userPhone = preg_replace('/[^0-9]/', '', (string) ($input['user_phone'] ?? ''));
+        $cancelNote = trim((string) ($input['cancel_note'] ?? ''));
+
+        if ($bookingId <= 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Ma lich hen khong hop le',
+            ], 400);
+        }
+
+        if ($userId <= 0 && $userEmail === '' && $userPhone === '') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong xac dinh duoc tai khoan nguoi dung',
+            ], 401);
+        }
+
+        $bookingSql = "
+            SELECT
+                id,
+                nguoidung_id,
+                email,
+                sodienthoai,
+                trangthailichhen,
+                dichvu_id,
+                ghichulichhen
+            FROM lichhen
+            WHERE id = ?
+            LIMIT 1
+        ";
+        $bookingStmt = $conn->prepare($bookingSql);
+        if (!$bookingStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the tai thong tin lich hen',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $bookingStmt->bind_param('i', $bookingId);
+        $bookingStmt->execute();
+        $bookingResult = $bookingStmt->get_result();
+        $bookingRow = $bookingResult ? $bookingResult->fetch_assoc() : null;
+        if ($bookingResult) {
+            $bookingResult->free();
+        }
+        $bookingStmt->close();
+
+        if (!is_array($bookingRow)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong tim thay lich hen',
+            ], 404);
+        }
+
+        $bookingUserId = (int) ($bookingRow['nguoidung_id'] ?? 0);
+        $bookingEmail = app_lower(trim((string) ($bookingRow['email'] ?? '')));
+        $bookingPhone = preg_replace('/[^0-9]/', '', (string) ($bookingRow['sodienthoai'] ?? ''));
+
+        $isOwner = false;
+        if ($userId > 0 && $bookingUserId > 0 && $userId === $bookingUserId) {
+            $isOwner = true;
+        }
+        if (!$isOwner && $userEmail !== '' && $bookingEmail !== '' && $userEmail === $bookingEmail) {
+            $isOwner = true;
+        }
+        if (!$isOwner && $userPhone !== '' && $bookingPhone !== '' && $userPhone === $bookingPhone) {
+            $isOwner = true;
+        }
+
+        if (!$isOwner) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Ban khong co quyen huy lich hen nay',
+            ], 403);
+        }
+
+        $currentStatus = (string) ($bookingRow['trangthailichhen'] ?? 'choduyet');
+        if ($currentStatus !== 'choduyet') {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'error_code' => 'BOOKING_STATUS_LOCKED',
+                'message' => 'Chi co the huy lich dang cho duyet',
+            ], 409);
+        }
+
+        $meta = app_booking_decode_note((string) ($bookingRow['ghichulichhen'] ?? ''));
+        if (!isset($meta['status_updates']) || !is_array($meta['status_updates'])) {
+            $meta['status_updates'] = [];
+        }
+
+        $meta['updated_at'] = date(DATE_ATOM);
+        $meta['customer_cancelled_at'] = date(DATE_ATOM);
+        $meta['customer_cancel_note'] = $cancelNote;
+        $meta['status_updates'][] = [
+            'status' => 'huy',
+            'staff_note' => $cancelNote,
+            'updated_at' => date(DATE_ATOM),
+            'staff_id' => 0,
+            'updated_by' => 'user',
+        ];
+
+        $metaJson = json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (!is_string($metaJson)) {
+            $metaJson = '{}';
+        }
+
+        $updateSql = "
+            UPDATE lichhen
+            SET
+                trangthailichhen = 'huy',
+                ngaycapnhat = NOW(),
+                ghichulichhen = ?
+            WHERE id = ?
+              AND trangthailichhen = 'choduyet'
+        ";
+        $updateStmt = $conn->prepare($updateSql);
+        if (!$updateStmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the huy lich hen',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $updateStmt->bind_param('si', $metaJson, $bookingId);
+        $ok = $updateStmt->execute();
+        $affected = (int) $updateStmt->affected_rows;
+        $updateStmt->close();
+
+        if (!$ok || $affected <= 0) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'error_code' => 'BOOKING_STATUS_LOCKED',
+                'message' => 'Khong the huy lich hen nay. Vui long tai lai danh sach va thu lai.',
+            ], 409);
+        }
+
+        $serviceIdForCounter = (int) ($bookingRow['dichvu_id'] ?? 0);
+        if ($serviceIdForCounter > 0) {
+            app_sync_service_booking_counter($conn, $serviceIdForCounter);
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'message' => 'Da huy lich hen thanh cong',
+            'data' => [
+                'id' => $bookingId,
+                'status' => 'huy',
             ],
         ]);
     }
