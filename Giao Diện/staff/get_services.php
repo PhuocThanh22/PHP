@@ -277,6 +277,104 @@ function app_booking_resolve_datetime(string $date, string $timeSlot): string
     return $cleanDate . ' 09:00:00';
 }
 
+function app_booking_normalize_slot(string $value): string
+{
+    return app_lower(trim(preg_replace('/\s+/', ' ', $value)));
+}
+
+function app_booking_extract_start_time(string $timeSlot): string
+{
+    if (preg_match('/(\d{1,2}:\d{2})/', $timeSlot, $matches) === 1) {
+        return $matches[1];
+    }
+
+    return '';
+}
+
+function app_booking_default_slots(): array
+{
+    return [
+        '08:00 - 10:00',
+        '10:00 - 12:00',
+        '13:00 - 15:00',
+        '15:00 - 17:00',
+        '17:00 - 19:00',
+    ];
+}
+
+function app_booking_collect_occupied_slots(mysqli $conn, string $date): array
+{
+    $date = trim($date);
+    if ($date === '') {
+        return [];
+    }
+
+    $sql = "
+        SELECT khunggio, thoigianhen
+        FROM lichhen
+        WHERE DATE(thoigianhen) = ?
+          AND LOWER(TRIM(COALESCE(trangthailichhen, ''))) <> 'huy'
+    ";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return [];
+    }
+
+    $stmt->bind_param('s', $date);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $taken = [];
+    while ($result && ($row = $result->fetch_assoc())) {
+        $slot = app_booking_normalize_slot((string) ($row['khunggio'] ?? ''));
+        if ($slot !== '') {
+            $taken[$slot] = true;
+            continue;
+        }
+
+        $candidate = date_create((string) ($row['thoigianhen'] ?? ''));
+        if ($candidate instanceof DateTime) {
+            $taken[$candidate->format('H:i')] = true;
+        }
+    }
+
+    if ($result) {
+        $result->free();
+    }
+    $stmt->close();
+
+    return $taken;
+}
+
+function app_booking_is_slot_taken(mysqli $conn, string $date, string $timeSlot): bool
+{
+    $normalizedSlot = app_booking_normalize_slot($timeSlot);
+    $slotStart = app_booking_extract_start_time($timeSlot);
+    $taken = app_booking_collect_occupied_slots($conn, $date);
+
+    if ($normalizedSlot !== '' && isset($taken[$normalizedSlot])) {
+        return true;
+    }
+
+    if ($slotStart !== '' && isset($taken[$slotStart])) {
+        return true;
+    }
+
+    return false;
+}
+
+function app_booking_is_day_full(mysqli $conn, string $date): bool
+{
+    $taken = app_booking_collect_occupied_slots($conn, $date);
+    $slotCount = count(app_booking_default_slots());
+    if ($slotCount <= 0) {
+        return false;
+    }
+
+    return count($taken) >= $slotCount;
+}
+
 function app_booking_find_time_conflicts(mysqli $conn, int $bookingId, string $scheduledAt, string $timeSlot): array
 {
     if ($bookingId <= 0 || trim($scheduledAt) === '') {
@@ -1919,6 +2017,32 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         $customerId = app_booking_find_or_create_customer($conn, $customerName, $customerPhone, $customerEmail);
         $serviceId = app_booking_find_service_id($conn, $serviceName);
         $scheduledAt = app_booking_resolve_datetime($appointmentDate, $timeSlot);
+        $scheduledDate = date('Y-m-d', strtotime($scheduledAt));
+
+        if (app_booking_is_day_full($conn, $scheduledDate)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'error_code' => 'BOOKING_DAY_FULL',
+                'message' => 'Ngay ban chon da full lich. Vui long chon ngay khac.',
+                'data' => [
+                    'date' => $scheduledDate,
+                ],
+            ], 409);
+        }
+
+        if (app_booking_is_slot_taken($conn, $scheduledDate, $timeSlot)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'error_code' => 'BOOKING_SLOT_TAKEN',
+                'message' => 'Khung gio ban chon da co lich. Vui long chon gio khac.',
+                'data' => [
+                    'date' => $scheduledDate,
+                    'time_slot' => $timeSlot,
+                ],
+            ], 409);
+        }
 
         $notePayload = [
             'customer_name' => $customerName,
@@ -2035,6 +2159,127 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'status' => 'choduyet',
                 'status_label' => 'Chờ duyệt',
                 'thoigianhen' => $scheduledAt,
+            ],
+        ]);
+    }
+
+    if ($api === 'get_service_booking_availability') {
+        if (!app_booking_ensure_table($conn)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the khoi tao bang lichhen',
+            ], 500);
+        }
+
+        $startDate = trim((string) ($_GET['start_date'] ?? date('Y-m-d')));
+        $endDate = trim((string) ($_GET['end_date'] ?? date('Y-m-d', strtotime('+30 days'))));
+
+        $startObj = date_create($startDate);
+        $endObj = date_create($endDate);
+        if (!($startObj instanceof DateTime) || !($endObj instanceof DateTime)) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khoang ngay khong hop le',
+            ], 400);
+        }
+
+        if ($startObj > $endObj) {
+            $temp = $startObj;
+            $startObj = $endObj;
+            $endObj = $temp;
+        }
+
+        $startDate = $startObj->format('Y-m-d');
+        $endDate = $endObj->format('Y-m-d');
+
+        $sql = "
+            SELECT
+                DATE(thoigianhen) AS booking_date,
+                khunggio,
+                thoigianhen
+            FROM lichhen
+            WHERE DATE(thoigianhen) BETWEEN ? AND ?
+              AND LOWER(TRIM(COALESCE(trangthailichhen, ''))) <> 'huy'
+            ORDER BY thoigianhen ASC, id ASC
+            LIMIT 2000
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $conn->close();
+            app_json_response([
+                'ok' => false,
+                'message' => 'Khong the tai lich ban',
+                'error' => $conn->error,
+            ], 500);
+        }
+
+        $stmt->bind_param('ss', $startDate, $endDate);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $slotPool = app_booking_default_slots();
+        $normalizedPool = [];
+        foreach ($slotPool as $slot) {
+            $normalizedPool[app_booking_normalize_slot($slot)] = $slot;
+        }
+
+        $availability = [];
+        while ($result && ($row = $result->fetch_assoc())) {
+            $dateKey = (string) ($row['booking_date'] ?? '');
+            if ($dateKey === '') {
+                continue;
+            }
+
+            if (!isset($availability[$dateKey])) {
+                $availability[$dateKey] = [];
+            }
+
+            $rawSlot = (string) ($row['khunggio'] ?? '');
+            $normalized = app_booking_normalize_slot($rawSlot);
+
+            if ($normalized !== '' && isset($normalizedPool[$normalized])) {
+                $availability[$dateKey][$normalizedPool[$normalized]] = true;
+                continue;
+            }
+
+            $candidate = date_create((string) ($row['thoigianhen'] ?? ''));
+            if ($candidate instanceof DateTime) {
+                $startTime = $candidate->format('H:i');
+                foreach ($slotPool as $slot) {
+                    if (strpos($slot, $startTime) === 0) {
+                        $availability[$dateKey][$slot] = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($result) {
+            $result->free();
+        }
+        $stmt->close();
+
+        $rows = [];
+        foreach ($availability as $dateKey => $slotMap) {
+            $bookedSlots = array_values(array_keys($slotMap));
+            $rows[] = [
+                'date' => $dateKey,
+                'booked_slots' => $bookedSlots,
+                'is_full' => count($bookedSlots) >= count($slotPool),
+            ];
+        }
+
+        $conn->close();
+        app_json_response([
+            'ok' => true,
+            'data' => [
+                'time_slots' => $slotPool,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'availability' => $rows,
             ],
         ]);
     }
@@ -2256,25 +2501,6 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'ok' => false,
                 'message' => 'Khong tim thay lich hen',
             ], 404);
-        }
-
-        if ($status === 'hoanthanh') {
-            $scheduledAt = (string) ($currentRow['thoigianhen'] ?? '');
-            $timeSlot = (string) ($currentRow['khunggio'] ?? '');
-            $conflicts = app_booking_find_time_conflicts($conn, $bookingId, $scheduledAt, $timeSlot);
-
-            if (!empty($conflicts)) {
-                $conn->close();
-                app_json_response([
-                    'ok' => false,
-                    'error_code' => 'BOOKING_TIME_CONFLICT',
-                    'message' => 'Không thể duyệt lịch hẹn vì trùng khung giờ với lịch đã được duyệt trước đó',
-                    'data' => [
-                        'booking_id' => $bookingId,
-                        'conflicts' => $conflicts,
-                    ],
-                ], 409);
-            }
         }
 
         $meta = app_booking_decode_note((string) ($currentRow['ghichulichhen'] ?? ''));

@@ -180,6 +180,16 @@
     color: #345544;
 }
 
+.booking-time-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #3f5e4f;
+}
+
+.booking-time-hint.warning {
+    color: #b45309;
+}
+
 .booking-error-box,
 .booking-success-box {
     display: none;
@@ -319,6 +329,7 @@
                             <option value="15:00 - 17:00">15:00 - 17:00</option>
                             <option value="17:00 - 19:00">17:00 - 19:00</option>
                         </select>
+                        <div id="bookingTimeHint" class="booking-time-hint">Chọn ngày để xem khung giờ còn trống.</div>
                     </div>
                 </div>
 
@@ -379,6 +390,7 @@
     const bookingSuccessCloseBtn = document.getElementById('bookingSuccessCloseBtn');
     const bookingSubmitBtn = document.getElementById('bookingSubmitBtn');
     const bookingBackBtn = document.getElementById('bookingBackBtn');
+    const bookingTimeHint = document.getElementById('bookingTimeHint');
     const isPopupMode = /(?:\?|&)popup=1(?:&|$)/.test(String(window.location.search || '')) || window.top !== window.self;
     const bookingPageRoot = document.querySelector('.booking-service-page');
     const BOOKING_SYNC_KEY = 'serviceBookingSyncSignal';
@@ -431,6 +443,15 @@
     const summaryPrice = document.getElementById('bookingSummaryPrice');
     const previewCode = document.getElementById('bookingPreviewCode');
     const dateInput = document.getElementById('bookingDate');
+    const timeSlotEl = document.getElementById('bookingTimeSlot');
+    const DEFAULT_TIME_SLOTS = [
+        '08:00 - 10:00',
+        '10:00 - 12:00',
+        '13:00 - 15:00',
+        '15:00 - 17:00',
+        '17:00 - 19:00'
+    ];
+    const availabilityByDate = new Map();
 
     if (serviceNameInput) serviceNameInput.value = serviceName;
     if (summaryService) summaryService.textContent = serviceName;
@@ -442,6 +463,139 @@
         dateInput.min = formatDateISO(minDate);
         dateInput.value = formatDateISO(minDate);
     }
+
+    const normalizeSlot = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+    const updateTimeHint = (message, level = 'normal') => {
+        if (!bookingTimeHint) return;
+        bookingTimeHint.textContent = message;
+        bookingTimeHint.classList.toggle('warning', level === 'warning');
+    };
+
+    const getAvailabilityApiCandidates = () => {
+        const base = window.location.href;
+        return [
+            new URL('../../index.php?api=get_service_booking_availability', base).toString(),
+            new URL('/phuocthanh/PHPCHINH/index.php?api=get_service_booking_availability', window.location.origin).toString(),
+            new URL('/PHPCHINH/index.php?api=get_service_booking_availability', window.location.origin).toString(),
+            new URL('/index.php?api=get_service_booking_availability', window.location.origin).toString()
+        ];
+    };
+
+    const findNextAvailableDate = (startDateValue) => {
+        const base = date_create_safe(startDateValue);
+        if (!base) return startDateValue;
+
+        for (let i = 0; i <= 60; i += 1) {
+            const probe = new Date(base.getTime());
+            probe.setDate(base.getDate() + i);
+            const key = formatDateISO(probe);
+            const takenSlots = availabilityByDate.get(key) || new Set();
+            if (takenSlots.size < DEFAULT_TIME_SLOTS.length) {
+                return key;
+            }
+        }
+
+        return startDateValue;
+    };
+
+    function date_create_safe(value) {
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return null;
+        return d;
+    }
+
+    const applyAvailabilityForDate = (dateValue) => {
+        if (!timeSlotEl) return;
+        const selectedDate = String(dateValue || '').trim();
+        const takenSlots = availabilityByDate.get(selectedDate) || new Set();
+        const isFullDay = selectedDate !== '' && takenSlots.size >= DEFAULT_TIME_SLOTS.length;
+
+        Array.from(timeSlotEl.options).forEach((opt) => {
+            const optionValue = String(opt.value || '').trim();
+            if (!optionValue) {
+                opt.disabled = false;
+                return;
+            }
+
+            opt.disabled = takenSlots.has(normalizeSlot(optionValue));
+        });
+
+        const currentValue = String(timeSlotEl.value || '').trim();
+        if (currentValue && takenSlots.has(normalizeSlot(currentValue))) {
+            timeSlotEl.value = '';
+        }
+
+        if (selectedDate === '') {
+            updateTimeHint('Chọn ngày để xem khung giờ còn trống.');
+            return;
+        }
+
+        if (isFullDay) {
+            updateTimeHint('Ngày này đã full lịch. Vui lòng chọn ngày khác.', 'warning');
+            return;
+        }
+
+        const remain = Math.max(0, DEFAULT_TIME_SLOTS.length - takenSlots.size);
+        updateTimeHint(`Còn ${remain}/${DEFAULT_TIME_SLOTS.length} khung giờ khả dụng trong ngày này.`);
+    };
+
+    const fetchAvailability = async () => {
+        let lastMessage = 'Không thể tải lịch trống.';
+        const startDate = dateInput?.min || formatDateISO(new Date());
+        const endBase = new Date(startDate);
+        endBase.setDate(endBase.getDate() + 45);
+        const endDate = formatDateISO(endBase);
+
+        for (const endpoint of getAvailabilityApiCandidates()) {
+            try {
+                const url = new URL(endpoint);
+                url.searchParams.set('start_date', startDate);
+                url.searchParams.set('end_date', endDate);
+
+                const response = await fetch(url.toString(), {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data?.ok) {
+                    lastMessage = data?.message || `Lỗi hệ thống (${response.status})`;
+                    continue;
+                }
+
+                availabilityByDate.clear();
+                const rows = Array.isArray(data?.data?.availability) ? data.data.availability : [];
+                rows.forEach((row) => {
+                    const date = String(row?.date || '').trim();
+                    if (!date) return;
+                    const slotSet = new Set(
+                        (Array.isArray(row?.booked_slots) ? row.booked_slots : []).map((item) => normalizeSlot(item))
+                    );
+                    availabilityByDate.set(date, slotSet);
+                });
+
+                const selectedDate = String(dateInput?.value || '').trim();
+                if (selectedDate) {
+                    const takenSlots = availabilityByDate.get(selectedDate) || new Set();
+                    if (takenSlots.size >= DEFAULT_TIME_SLOTS.length) {
+                        const nextDate = findNextAvailableDate(selectedDate);
+                        if (nextDate && dateInput) {
+                            dateInput.value = nextDate;
+                        }
+                    }
+                }
+
+                applyAvailabilityForDate(String(dateInput?.value || ''));
+                return { ok: true };
+            } catch (error) {
+                lastMessage = 'Không thể kết nối máy chủ để tải lịch trống.';
+            }
+        }
+
+        updateTimeHint('Chưa tải được lịch trống, bạn vẫn có thể thử đặt lại sau.', 'warning');
+        return { ok: false, message: lastMessage };
+    };
 
     const customerNameEl = document.getElementById('bookingCustomerName');
     const customerPhoneEl = document.getElementById('bookingCustomerPhone');
@@ -532,6 +686,15 @@
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok || !data.ok) {
                     lastMessage = data.message || `Lỗi hệ thống (${response.status})`;
+                    if (String(data?.error_code || '').trim() !== '') {
+                        return {
+                            ok: false,
+                            message: lastMessage,
+                            error_code: String(data.error_code || '').trim(),
+                            data: data?.data || null
+                        };
+                    }
+
                     continue;
                 }
 
@@ -592,6 +755,27 @@
         bookingBackBtn.textContent = 'Đóng';
     }
 
+    dateInput?.addEventListener('change', () => {
+        const dateValue = String(dateInput?.value || '').trim();
+        if (!dateValue) {
+            applyAvailabilityForDate('');
+            return;
+        }
+
+        const takenSlots = availabilityByDate.get(dateValue) || new Set();
+        if (takenSlots.size >= DEFAULT_TIME_SLOTS.length) {
+            const nextDate = findNextAvailableDate(dateValue);
+            if (dateInput) {
+                dateInput.value = nextDate;
+            }
+            showError('Ngày bạn chọn đã full lịch. Hệ thống đã chuyển sang ngày còn trống gần nhất.');
+            applyAvailabilityForDate(String(dateInput?.value || ''));
+            return;
+        }
+
+        applyAvailabilityForDate(dateValue);
+    });
+
     bookingSuccessModal?.addEventListener('click', (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
@@ -639,6 +823,18 @@
             return;
         }
 
+        const takenSlots = availabilityByDate.get(date) || new Set();
+        if (takenSlots.size >= DEFAULT_TIME_SLOTS.length) {
+            showError('Ngày đã full lịch. Vui lòng chọn ngày khác.');
+            return;
+        }
+
+        if (takenSlots.has(normalizeSlot(timeSlot))) {
+            showError('Khung giờ này vừa được đặt. Vui lòng chọn giờ khác.');
+            applyAvailabilityForDate(date);
+            return;
+        }
+
         bookingSubmitBtn.disabled = true;
 
         const authUserId = Number(authUser?.id || 0);
@@ -660,6 +856,18 @@
         bookingSubmitBtn.disabled = false;
 
         if (!result.ok) {
+            if (result?.error_code === 'BOOKING_DAY_FULL') {
+                await fetchAvailability();
+                showError('Ngày đã full lịch. Vui lòng chọn ngày khác.');
+                return;
+            }
+
+            if (result?.error_code === 'BOOKING_SLOT_TAKEN') {
+                await fetchAvailability();
+                showError('Khung giờ đã có người đặt. Vui lòng chọn giờ khác.');
+                return;
+            }
+
             showError(result.message || 'Đặt lịch thất bại.');
             return;
         }
@@ -700,6 +908,10 @@
 
         showSuccess(`Đặt lịch thành công với mã ${bookingCode}. Cửa hàng sẽ liên hệ xác nhận sớm.`);
         openSuccessModal(`Đặt lịch thành công với mã ${bookingCode}. Cửa hàng sẽ liên hệ xác nhận sớm.`, bookingCode);
+
+        await fetchAvailability();
     });
+
+    fetchAvailability();
 })();
 </script>

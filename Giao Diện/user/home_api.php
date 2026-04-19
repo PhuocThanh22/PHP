@@ -2462,7 +2462,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         }
 
         $provider = app_lower(trim((string) ($_GET['provider'] ?? '')));
-        if (!in_array($provider, ['google', 'facebook'], true)) {
+        if (!in_array($provider, ['google', 'facebook', 'apple'], true)) {
             $conn->close();
             app_json_response([
                 'ok' => false,
@@ -2473,6 +2473,9 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         app_social_start_session();
         $returnUrl = app_social_sanitize_return_url((string) ($_GET['return'] ?? ''));
         $providerConfig = app_social_get_provider_config($provider);
+        if ($provider === 'apple' && trim((string) ($providerConfig['client_secret'] ?? '')) === '') {
+            $providerConfig['client_secret'] = app_social_build_apple_client_secret($providerConfig);
+        }
         if ($providerConfig['client_id'] === '' || $providerConfig['client_secret'] === '') {
             $conn->close();
             app_json_response([
@@ -2503,7 +2506,7 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         if ($provider === '') {
             $provider = app_lower(trim((string) ($_SESSION['oauth_provider_active'] ?? '')));
         }
-        if (!in_array($provider, ['google', 'facebook'], true)) {
+        if (!in_array($provider, ['google', 'facebook', 'apple'], true)) {
             $conn->close();
             app_json_response([
                 'ok' => false,
@@ -2511,9 +2514,9 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             ], 400);
         }
 
-        $state = trim((string) ($_GET['state'] ?? ''));
-        $code = trim((string) ($_GET['code'] ?? ''));
-        $error = trim((string) ($_GET['error'] ?? ''));
+        $state = trim((string) ($_REQUEST['state'] ?? ''));
+        $code = trim((string) ($_REQUEST['code'] ?? ''));
+        $error = trim((string) ($_REQUEST['error'] ?? ''));
         $savedState = (string) ($_SESSION['oauth_state_' . $provider] ?? '');
         $returnUrl = (string) ($_SESSION['oauth_return_' . $provider] ?? app_social_default_return_url());
 
@@ -2525,6 +2528,9 @@ function app_handle_user_api(mysqli $conn, string $api): bool
         }
 
         $providerConfig = app_social_get_provider_config($provider);
+        if ($provider === 'apple' && trim((string) ($providerConfig['client_secret'] ?? '')) === '') {
+            $providerConfig['client_secret'] = app_social_build_apple_client_secret($providerConfig);
+        }
         if ($providerConfig['client_id'] === '' || $providerConfig['client_secret'] === '') {
             $conn->close();
             app_social_render_bridge(null, $returnUrl, 'Chua cau hinh OAuth cho provider nay. Vui long cap nhat file oauth-config.php.');
@@ -2537,7 +2543,11 @@ function app_handle_user_api(mysqli $conn, string $api): bool
             app_social_render_bridge(null, $returnUrl, $tokenData['message']);
         }
 
-        $profileData = app_social_fetch_profile($provider, (string) $tokenData['access_token']);
+        $profileData = app_social_fetch_profile(
+            $provider,
+            (string) $tokenData['access_token'],
+            (string) ($tokenData['id_token'] ?? '')
+        );
         if (!$profileData['ok']) {
             $conn->close();
             app_social_render_bridge(null, $returnUrl, $profileData['message']);
@@ -4016,6 +4026,17 @@ function app_social_get_provider_config(string $provider): array
         ];
     }
 
+    if ($provider === 'apple') {
+        return [
+            'client_id' => app_env_value('APPLE_OAUTH_CLIENT_ID', ''),
+            'client_secret' => app_env_value('APPLE_OAUTH_CLIENT_SECRET', ''),
+            'team_id' => app_env_value('APPLE_OAUTH_TEAM_ID', ''),
+            'key_id' => app_env_value('APPLE_OAUTH_KEY_ID', ''),
+            'private_key' => app_env_value('APPLE_OAUTH_PRIVATE_KEY', ''),
+            'private_key_file' => app_env_value('APPLE_OAUTH_PRIVATE_KEY_FILE', ''),
+        ];
+    }
+
     return [
         'client_id' => app_env_value('FACEBOOK_OAUTH_CLIENT_ID', ''),
         'client_secret' => app_env_value('FACEBOOK_OAUTH_CLIENT_SECRET', ''),
@@ -4039,6 +4060,13 @@ function app_social_callback_url(string $provider): string
         }
     }
 
+    if ($provider === 'apple') {
+        $configured = trim(app_env_value('APPLE_OAUTH_REDIRECT_URI', ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+    }
+
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     return $scheme . '://' . $host . app_base_path() . '/index.php?api=social_oauth_callback&provider=' . rawurlencode($provider);
@@ -4053,6 +4081,17 @@ function app_social_build_auth_url(string $provider, string $clientId, string $r
             'response_type' => 'code',
             'scope' => 'openid email profile',
             'prompt' => 'select_account',
+            'state' => $state,
+        ]);
+    }
+
+    if ($provider === 'apple') {
+        return 'https://appleid.apple.com/auth/authorize?' . http_build_query([
+            'client_id' => $clientId,
+            'redirect_uri' => $redirectUri,
+            'response_type' => 'code',
+            'response_mode' => 'form_post',
+            'scope' => 'name email',
             'state' => $state,
         ]);
     }
@@ -4119,6 +4158,81 @@ function app_social_http_request(string $url, array $options = []): array
     return ['ok' => true, 'status' => $status, 'body' => $raw, 'error' => ''];
 }
 
+function app_social_base64url_encode(string $input): string
+{
+    return rtrim(strtr(base64_encode($input), '+/', '-_'), '=');
+}
+
+function app_social_decode_jwt_payload(string $jwt): ?array
+{
+    $parts = explode('.', $jwt);
+    if (count($parts) !== 3) {
+        return null;
+    }
+
+    $payload = strtr((string) $parts[1], '-_', '+/');
+    $padLength = strlen($payload) % 4;
+    if ($padLength > 0) {
+        $payload .= str_repeat('=', 4 - $padLength);
+    }
+
+    $decoded = base64_decode($payload, true);
+    if (!is_string($decoded) || $decoded === '') {
+        return null;
+    }
+
+    $json = json_decode($decoded, true);
+    return is_array($json) ? $json : null;
+}
+
+function app_social_build_apple_client_secret(array $config): string
+{
+    $teamId = trim((string) ($config['team_id'] ?? ''));
+    $keyId = trim((string) ($config['key_id'] ?? ''));
+    $clientId = trim((string) ($config['client_id'] ?? ''));
+    $privateKey = trim((string) ($config['private_key'] ?? ''));
+    $privateKeyFile = trim((string) ($config['private_key_file'] ?? ''));
+
+    if ($privateKey === '' && $privateKeyFile !== '' && is_file($privateKeyFile)) {
+        $loaded = @file_get_contents($privateKeyFile);
+        if (is_string($loaded)) {
+            $privateKey = trim($loaded);
+        }
+    }
+
+    if ($privateKey !== '' && strpos($privateKey, '\\n') !== false) {
+        $privateKey = str_replace('\\n', "\n", $privateKey);
+    }
+
+    if ($teamId === '' || $keyId === '' || $clientId === '' || $privateKey === '' || !function_exists('openssl_sign')) {
+        return '';
+    }
+
+    $now = time();
+    $header = ['alg' => 'ES256', 'kid' => $keyId, 'typ' => 'JWT'];
+    $payload = [
+        'iss' => $teamId,
+        'iat' => $now,
+        'exp' => $now + (60 * 60 * 24 * 180),
+        'aud' => 'https://appleid.apple.com',
+        'sub' => $clientId,
+    ];
+
+    $segments = [
+        app_social_base64url_encode((string) json_encode($header, JSON_UNESCAPED_SLASHES)),
+        app_social_base64url_encode((string) json_encode($payload, JSON_UNESCAPED_SLASHES)),
+    ];
+    $input = implode('.', $segments);
+
+    $ok = openssl_sign($input, $signature, $privateKey, OPENSSL_ALGO_SHA256);
+    if (!$ok || !is_string($signature) || $signature === '') {
+        return '';
+    }
+
+    $segments[] = app_social_base64url_encode($signature);
+    return implode('.', $segments);
+}
+
 function app_social_exchange_token(string $provider, array $config, string $code, string $redirectUri): array
 {
     if ($provider === 'google') {
@@ -4131,6 +4245,18 @@ function app_social_exchange_token(string $provider, array $config, string $code
                 'client_secret' => $config['client_secret'],
                 'redirect_uri' => $redirectUri,
                 'grant_type' => 'authorization_code',
+            ]),
+        ]);
+    } elseif ($provider === 'apple') {
+        $response = app_social_http_request('https://appleid.apple.com/auth/token', [
+            'method' => 'POST',
+            'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+            'body' => http_build_query([
+                'client_id' => $config['client_id'],
+                'client_secret' => $config['client_secret'],
+                'code' => $code,
+                'grant_type' => 'authorization_code',
+                'redirect_uri' => $redirectUri,
             ]),
         ]);
     } else {
@@ -4153,15 +4279,28 @@ function app_social_exchange_token(string $provider, array $config, string $code
         return ['ok' => false, 'message' => 'Phan hoi token khong hop le'];
     }
 
-    return ['ok' => true, 'access_token' => $token];
+    $idToken = is_array($json) ? (string) ($json['id_token'] ?? '') : '';
+
+    return ['ok' => true, 'access_token' => $token, 'id_token' => $idToken];
 }
 
-function app_social_fetch_profile(string $provider, string $accessToken): array
+function app_social_fetch_profile(string $provider, string $accessToken, string $idToken = ''): array
 {
     if ($provider === 'google') {
         $response = app_social_http_request('https://www.googleapis.com/oauth2/v3/userinfo', [
             'headers' => ['Authorization: Bearer ' . $accessToken],
         ]);
+    } elseif ($provider === 'apple') {
+        if ($idToken === '') {
+            return ['ok' => false, 'message' => 'Khong the lay id_token tu Apple'];
+        }
+
+        $payload = app_social_decode_jwt_payload($idToken);
+        if (!is_array($payload)) {
+            return ['ok' => false, 'message' => 'Phan hoi thong tin Apple khong hop le'];
+        }
+
+        return ['ok' => true, 'profile' => $payload];
     } else {
         $response = app_social_http_request('https://graph.facebook.com/me?' . http_build_query([
             'fields' => 'id,name,email',

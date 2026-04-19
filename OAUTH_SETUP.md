@@ -138,9 +138,39 @@ Ví dụ kênh realtime nổi bật:
 
 - Google: scope `openid email profile`.
 - Facebook: scope `email public_profile`.
+- Apple: scope `name email`.
 - Callback local (Laragon, port 8888):
   - `http://localhost:8888/phuocthanh/PHPCHINH/index.php?api=social_oauth_callback&provider=google`
   - `http://localhost:8888/phuocthanh/PHPCHINH/index.php?api=social_oauth_callback&provider=facebook`
+  - `http://localhost:8888/phuocthanh/PHPCHINH/index.php?api=social_oauth_callback&provider=apple`
+
+## 7.4 Cau hinh Apple Sign In (Service ID)
+
+1. Tao cac doi tuong trong Apple Developer:
+  - Identifier loai `App ID` (bat quyen `Sign in with Apple`).
+  - Identifier loai `Services ID` (chinh la `APPLE_OAUTH_CLIENT_ID`).
+  - Key loai `Sign in with Apple` de tai file `.p8` (lay `KEY_ID`).
+
+2. Cau hinh Services ID:
+  - Domains and Subdomains: them domain dang chay (local thi dung domain local cua ban).
+  - Return URLs: them callback:
+    - `http://localhost:8888/phuocthanh/PHPCHINH/index.php?api=social_oauth_callback&provider=apple`
+
+3. Dien bien cau hinh vao file `oauth-config.php`:
+  - `APPLE_OAUTH_CLIENT_ID`: Service ID (vd: `com.company.petcare.web`).
+  - `APPLE_OAUTH_TEAM_ID`: Team ID tai Apple Developer.
+  - `APPLE_OAUTH_KEY_ID`: Key ID cua file `.p8`.
+  - Chon 1 trong 2 cach private key:
+    - `APPLE_OAUTH_PRIVATE_KEY`: dan noi dung key vao 1 dong, thay xuong dong bang `\n`.
+    - `APPLE_OAUTH_PRIVATE_KEY_FILE`: duong dan tuyet doi den file `.p8`.
+
+4. Client secret cho Apple:
+  - Cach khuyen nghi: de trong `APPLE_OAUTH_CLIENT_SECRET`, he thong se tu ky JWT ES256 tu `TEAM_ID`, `KEY_ID`, `CLIENT_ID`, `PRIVATE_KEY`.
+  - Cach thu cong: ban co the tu tao JWT roi gan vao `APPLE_OAUTH_CLIENT_SECRET`.
+
+5. Yeu cau moi truong:
+  - PHP can co extension OpenSSL (`extension=openssl`) de tu ky JWT.
+  - Neu khong co OpenSSL va `APPLE_OAUTH_CLIENT_SECRET` de trong, dang nhap Apple se bao chua cau hinh.
 
 ## 7.3 OTP email
 

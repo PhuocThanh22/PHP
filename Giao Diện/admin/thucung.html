@@ -88,6 +88,19 @@
             padding: 0 16px 16px;
         }
 
+        .pet-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pet-section-actions {
+            display: inline-flex;
+            gap: 8px;
+        }
+
         .module-card.is-clickable {
             cursor: pointer;
             transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -139,7 +152,14 @@
     </div>
 
     <div class="content-section">
-        <div class="section-header"><h3 id="petSectionTitle"><i class="bi bi-heart-fill text-warning me-2"></i>Danh Sách Thú Cưng</h3></div>
+        <div class="section-header pet-section-header">
+            <h3 id="petSectionTitle"><i class="bi bi-heart-fill text-warning me-2"></i>Danh Sách Thú Cưng</h3>
+            <div class="pet-section-actions">
+                <button id="deleteSelectedPetsBtn" type="button" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-trash me-1"></i>Xóa đã chọn
+                </button>
+            </div>
+        </div>
         <div class="data-table">
             <table>
                 <thead>
@@ -180,7 +200,10 @@
                 </div>
             </div>
         </div>
-        <div class="pet-view-actions"></div>
+        <div class="pet-view-actions">
+            <button type="button" class="btn btn-outline-secondary" id="editPetFromDetailBtn">Chỉnh sửa</button>
+            <button type="button" class="btn btn-outline-danger" id="deletePetFromDetailBtn">Xóa</button>
+        </div>
     </div>
 </div>
 
@@ -246,7 +269,7 @@
     let customerOptions = [];
     const productImageById = new Map();
     const selectedPetIds = new Set();
-    const ADMIN_CAN_MANAGE_PETS = false;
+    const ADMIN_CAN_MANAGE_PETS = true;
 
     function escapeHtml(value) {
         return String(value)
@@ -991,6 +1014,40 @@
         }
     }
 
+    async function deletePetById(petId) {
+        if (!ADMIN_CAN_MANAGE_PETS) {
+            showNotice('Trang admin không có quyền xóa thú cưng.', 'warning');
+            return;
+        }
+
+        const target = petStore.get(String(petId));
+        if (!target) {
+            showNotice('Không tìm thấy thú cưng cần xóa.', 'warning');
+            return;
+        }
+
+        const petName = String(target.tenthucung || `ID ${target.id}`);
+        if (!confirm(`Bạn có chắc muốn xóa hồ sơ thú cưng "${petName}"?`)) return;
+
+        try {
+            await mutatePet('delete', { id: target.id });
+
+            allPets = allPets.filter((item) => String(item.id) !== String(target.id));
+            petStore.delete(String(target.id));
+            selectedPetIds.delete(String(target.id));
+            if (String(selectedPetId) === String(target.id)) {
+                selectedPetId = '';
+                hidePetDetail();
+            }
+
+            updatePetSummary();
+            renderPets();
+            showNotice(`Đã xóa hồ sơ thú cưng "${petName}".`, 'success');
+        } catch (error) {
+            showNotice('Xóa thú cưng thất bại: ' + getErrorMessage(error), 'error');
+        }
+    }
+
     document.getElementById('petSearchInput').addEventListener('input', (event) => {
         petFilter = event.target.value || '';
         renderPets();
@@ -1014,6 +1071,14 @@
     });
     document.getElementById('petSelectAll').addEventListener('change', (event) => {
         toggleAllPets(Boolean(event.target.checked));
+    });
+    document.getElementById('deleteSelectedPetsBtn')?.addEventListener('click', deletePetBySearch);
+    document.getElementById('deletePetFromDetailBtn')?.addEventListener('click', async () => {
+        if (!selectedPetId) {
+            showNotice('Vui lòng chọn một thú cưng để xóa.', 'warning');
+            return;
+        }
+        await deletePetById(selectedPetId);
     });
 
     document.getElementById('petModal').addEventListener('click', (event) => {

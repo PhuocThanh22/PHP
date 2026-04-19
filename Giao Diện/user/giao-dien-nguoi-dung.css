@@ -1554,9 +1554,11 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 #homeFeaturedServicesGrid .featured-service-image {
     aspect-ratio: auto;
     width: 100%;
-    height: 44%;
+    height: clamp(120px, 10.5vw, 152px);
     position: relative;
     overflow: hidden;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    background: linear-gradient(145deg, #eef8f1, #d8ecde);
 }
 
 #homeFeaturedServicesGrid .featured-service-image img {
@@ -1565,6 +1567,7 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     object-fit: cover;
     position: relative;
     z-index: 1;
+    transition: transform 0.45s ease;
 }
 
 #homeFeaturedServicesGrid .featured-service-col {
@@ -1573,20 +1576,23 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 }
 
 #homeFeaturedServicesGrid .featured-service-content {
-    padding: 10px;
+    padding: 12px 12px 13px;
     flex: 1;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    display: grid;
+    grid-template-rows: minmax(42px, auto) auto auto auto;
+    align-content: start;
+    row-gap: 7px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fcf9 100%);
 }
 
 #homeFeaturedServicesGrid .featured-service-name {
-    margin: 0 0 8px;
+    margin: 0;
     color: #0f172a;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 800;
-    line-height: 1.25;
+    line-height: 1.3;
+    min-height: 42px;
     display: -webkit-box;
     line-clamp: 2;
     -webkit-line-clamp: 2;
@@ -1595,60 +1601,88 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 }
 
 #homeFeaturedServicesGrid .featured-service-price {
-    color: #111827;
-    font-size: 22px;
+    color: #0b2239;
+    font-size: 30px;
+    font-size: clamp(20px, 1.6vw, 30px);
     font-weight: 800;
-    line-height: 1.15;
-    margin-bottom: 6px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 0;
 }
 
 #homeFeaturedServicesGrid .featured-service-bookings {
-    color: #334155;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 10px;
+    color: #2d4a3b;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 4px 10px;
+    background: #e8f6ec;
+    border: 1px solid #c4e5cf;
+}
+
+#homeFeaturedServicesGrid .featured-service-bookings::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #1f8f4d;
+    box-shadow: 0 0 0 3px rgba(31, 143, 77, 0.17);
 }
 
 #homeFeaturedServicesGrid .featured-service-book-btn {
     width: 100%;
     border: none;
-    border-radius: 10px;
-    font-size: 13px;
-    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    padding: 10px 12px;
     font-weight: 700;
-    margin-top: auto;
+    margin-top: 2px;
     color: #ffffff;
-    background: linear-gradient(135deg, #1f8f4d 0%, #6fcf5f 100%);
-    box-shadow: 0 8px 16px rgba(31, 143, 77, 0.24);
+    letter-spacing: 0.01em;
+    background: linear-gradient(135deg, #1e9b4f 0%, #67c755 60%, #8dde69 100%);
+    box-shadow: 0 10px 18px rgba(31, 143, 77, 0.27);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
 }
 
 #homeFeaturedServicesGrid .featured-service-book-btn:hover,
 #homeFeaturedServicesGrid .featured-service-book-btn:focus {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 20px rgba(31, 143, 77, 0.28);
-    filter: brightness(1.03);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 24px rgba(31, 143, 77, 0.33);
+    filter: brightness(1.04);
 }
 
 #homeFeaturedServicesGrid .featured-service-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    transform: translateY(-7px);
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.16);
+}
+
+#homeFeaturedServicesGrid .featured-service-card:hover .featured-service-image img {
+    transform: scale(1.065);
 }
 
 #homeFeaturedServicesGrid .featured-service-card:focus-visible {
-    outline: 2px solid #0ea5e9;
+    outline: 2px solid #16a34a;
     outline-offset: 2px;
 }
 
 #homeFeaturedServicesGrid .featured-service-card {
-    aspect-ratio: 1 / 1;
+    aspect-ratio: auto;
     display: flex;
     flex-direction: column;
+    height: auto;
+    min-height: 290px;
     border-radius: 22px;
-    border: 1px solid #d8dee6;
+    border: 1px solid rgba(148, 163, 184, 0.32);
     overflow: hidden;
     cursor: pointer;
-    background: #f3f4f6;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background: #f8fbf9;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09);
+    transition: transform 0.28s ease, box-shadow 0.28s ease;
 }
 
 @media (max-width: 1399.98px) {
@@ -1676,6 +1710,15 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
     #homeFeaturedServicesGrid .featured-service-col {
         flex: 0 0 100%;
         max-width: 100%;
+    }
+
+    #homeFeaturedServicesGrid .featured-service-card {
+        height: auto;
+        min-height: 282px;
+    }
+
+    #homeFeaturedServicesGrid .featured-service-price {
+        font-size: clamp(21px, 6.8vw, 28px);
     }
 }
 

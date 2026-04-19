@@ -340,6 +340,57 @@
             frame.src = buildFrameUrl(activePage);
         }
 
+        function dispatchRealtimeToFrame(event) {
+            if (!frame || !frame.contentWindow || !event || !event.type) {
+                return false;
+            }
+
+            const frameWin = frame.contentWindow;
+            let handled = false;
+
+            try {
+                frameWin.postMessage({ type: 'app_realtime_event', payload: event }, '*');
+            } catch (e) {
+                // ignore postMessage bridge errors
+            }
+
+            try {
+                const customEvent = new frameWin.CustomEvent('app-realtime:event', { detail: event });
+                frameWin.dispatchEvent(customEvent);
+                handled = true;
+            } catch (e) {
+                // ignore custom event errors
+            }
+
+            const refreshHooks = [
+                'handleRealtimeEvent',
+                'onRealtimeEvent',
+                'refreshRealtimeData',
+                'refreshData',
+                'loadData',
+                'loadOrders',
+                'loadProducts',
+                'loadCustomers',
+                'loadServices',
+                'loadBookings',
+                'loadAppointments',
+                'refreshDashboard'
+            ];
+
+            refreshHooks.forEach((hookName) => {
+                try {
+                    if (typeof frameWin[hookName] === 'function') {
+                        frameWin[hookName](event);
+                        handled = true;
+                    }
+                } catch (e) {
+                    // ignore hook errors to keep host stable
+                }
+            });
+
+            return handled;
+        }
+
         function getActivePage() {
             const activeLink = document.querySelector('.sidebar-menu a.active[data-page]');
             return activeLink ? String(activeLink.dataset.page || '') : 'trangchu.html';
@@ -470,7 +521,7 @@
                     if (shouldSkipRealtimeRefresh(event)) {
                         return;
                     }
-                    refreshActiveFrame();
+                    dispatchRealtimeToFrame(event);
                 }
             });
         }

@@ -3,6 +3,7 @@
 
   var EVENT_KEY = 'app_realtime_event';
   var CHANNEL_NAME = 'app-realtime-channel';
+  var LOCAL_EVENT_NAME = 'app-realtime-local-event';
   var AUTH_USER_KEY = 'authUser';
   var SESSION_KEY = 'userSession';
   var LOGIN_FLAG_KEY = 'isLoggedIn';
@@ -189,6 +190,19 @@
       }
     }
 
+    try {
+      var localEvent = null;
+      if (typeof CustomEvent === 'function') {
+        localEvent = new CustomEvent(LOCAL_EVENT_NAME, { detail: payload });
+      } else {
+        localEvent = document.createEvent('CustomEvent');
+        localEvent.initCustomEvent(LOCAL_EVENT_NAME, false, false, payload);
+      }
+      global.dispatchEvent(localEvent);
+    } catch (e) {
+      // ignore local dispatch errors
+    }
+
     return payload;
   }
 
@@ -204,16 +218,22 @@
 
       try {
         var payload = JSON.parse(event.newValue);
-        if (payload && payload.type === 'auth_logout' && payload.scope !== getScope()) {
-          return;
-        }
         callback(payload);
       } catch (e) {
         // ignore invalid payload
       }
     };
 
+    var onLocal = function (event) {
+      try {
+        callback(event && event.detail ? event.detail : null);
+      } catch (e) {
+        // ignore invalid payload
+      }
+    };
+
     global.addEventListener('storage', onStorage);
+    global.addEventListener(LOCAL_EVENT_NAME, onLocal);
 
     var channel = null;
     if ('BroadcastChannel' in global) {
@@ -221,9 +241,6 @@
         channel = new BroadcastChannel(CHANNEL_NAME);
         channel.onmessage = function (event) {
           var payload = event.data || {};
-          if (payload && payload.type === 'auth_logout' && payload.scope !== getScope()) {
-            return;
-          }
           callback(payload);
         };
       } catch (e) {
@@ -233,6 +250,7 @@
 
     return function () {
       global.removeEventListener('storage', onStorage);
+      global.removeEventListener(LOCAL_EVENT_NAME, onLocal);
       if (channel) {
         channel.close();
       }
