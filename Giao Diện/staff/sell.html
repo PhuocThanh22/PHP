@@ -63,6 +63,11 @@
 			margin-top: 8px;
 		}
 
+		.sell-summary-line.discount {
+			color: #b91c1c;
+			font-weight: 700;
+		}
+
 		.cart-actions {
 			display: grid;
 			grid-template-columns: 1fr 1fr;
@@ -380,7 +385,7 @@
 			<h5 id="transferPopupTitle" class="transfer-popup-title">Thanh toán chuyển khoản</h5>
 			<button id="closeTransferPopupBtn" type="button" class="transfer-popup-close" aria-label="Đóng popup">&times;</button>
 		</div>
-		<div class="transfer-meta">Ngân hàng: MB Bank - STK: 0123456789 - Chủ TK: PET SHOP</div>
+		<div class="transfer-meta">Ngân hàng: BIDV - STK: 6910984101 - Chủ TK: DO THANH HUY</div>
 		<div class="transfer-meta">Số tiền: <b id="transferAmountText">0 đ</b></div>
 		<div class="transfer-qr-wrap">
 			<img id="transferQrImage" class="transfer-qr" alt="Mã QR chuyển khoản" src="images/QR.jpg" />
@@ -407,6 +412,8 @@
 			<div class="invoice-summary-item"><b>SĐT:</b> <span id="invoiceCustomerPhone">-</span></div>
 			<div class="invoice-summary-item"><b>Nhân viên:</b> <span id="invoiceStaffName">-</span></div>
 			<div class="invoice-summary-item"><b>Thanh toán:</b> <span id="invoicePaymentMethod">-</span></div>
+			<div class="invoice-summary-item"><b>Ưu đãi KH:</b> <span id="invoiceDiscountPercentText">0%</span></div>
+			<div class="invoice-summary-item"><b>Tiền giảm:</b> <span id="invoiceDiscountAmountText">0 đ</span></div>
 		</div>
 
 		<div class="invoice-table-wrap">
@@ -469,6 +476,7 @@
 
 				<div class="mt-2">
 					<div class="sell-summary-line"><span>Tạm tính</span><b id="cartSubTotal">0 đ</b></div>
+					<div class="sell-summary-line discount" id="cartDiscountLine" style="display:none;"><span id="cartDiscountLabel">Giảm khách hàng</span><b id="cartDiscountAmount">-0 đ</b></div>
 					<div class="sell-summary-line total"><span>Tổng tiền</span><span id="cartTotalAmount">0 đ</span></div>
 				</div>
 
@@ -514,14 +522,23 @@
 	let currentCatalogTab = 'products';
 	const cartStore = new Map();
 	const transferConfig = {
-		bankCode: 'MB',
-		accountNumber: '0123456789',
-		accountName: 'PET SHOP',
+		bankCode: 'BIDV',
+		bankName: 'BIDV',
+		accountNumber: '6910984101',
+		accountName: 'DO THANH HUY',
+		template: 'compact2',
 	};
 	let isAwaitingTransferConfirmation = false;
 	let customerLookupTimer = null;
 	let matchedCustomerByPhone = null;
 	let latestInvoiceForPrint = null;
+	const CUSTOMER_TIER_DISCOUNT_PERCENT = {
+		dong: 0,
+		bac: 3,
+		vang: 5,
+		bach_kim: 8,
+		kim_cuong: 10,
+	};
 	const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
 	let realtimeLoadTimer = null;
 
@@ -560,14 +577,112 @@
 		return 'Tiền mặt';
 	}
 
+	function getCustomerDiscountPercent(customer) {
+		if (!customer || typeof customer !== 'object') return 0;
+		const explicitPercent = Number(customer.phantramkhuyenmai || 0);
+		if (Number.isFinite(explicitPercent) && explicitPercent > 0) {
+			return Math.max(0, Math.min(100, explicitPercent));
+		}
+
+		const tierKey = String(customer.loaikhachhang || '').trim().toLowerCase();
+		const mapped = Number(CUSTOMER_TIER_DISCOUNT_PERCENT[tierKey] || 0);
+		return Number.isFinite(mapped) ? Math.max(0, Math.min(100, mapped)) : 0;
+	}
+
+	function getActiveDiscountContext() {
+		const phoneInput = document.getElementById('customerPhoneInput');
+		const normalizedPhone = normalizePhone(phoneInput ? phoneInput.value : '');
+		const matched = normalizedPhone ? findCustomerByPhone(normalizedPhone) : null;
+		const percent = getCustomerDiscountPercent(matched);
+		return {
+			matched,
+			percent,
+		};
+	}
+
+	function calculateCartAmounts(baseSubTotal = null) {
+		const subTotal = Number.isFinite(Number(baseSubTotal))
+			? Math.max(0, Number(baseSubTotal))
+			: Array.from(cartStore.values()).reduce((sum, item) => {
+				return sum + (Number(item.giasanpham || 0) * Number(item.qty || 0));
+			}, 0);
+
+		const discountContext = getActiveDiscountContext();
+		const discountPercent = discountContext.percent;
+		const discountAmount = Math.max(0, Math.round((subTotal * discountPercent) / 100));
+		const total = Math.max(0, subTotal - discountAmount);
+
+		return {
+			subTotal,
+			discountPercent,
+			discountAmount,
+			total,
+			matchedCustomer: discountContext.matched,
+		};
+	}
+
+	function updateDiscountSummaryUI(amounts) {
+		const discountLine = document.getElementById('cartDiscountLine');
+		const discountLabel = document.getElementById('cartDiscountLabel');
+		const discountAmountEl = document.getElementById('cartDiscountAmount');
+		if (!discountLine || !discountLabel || !discountAmountEl) return;
+
+		if (amounts.discountPercent > 0 && amounts.discountAmount > 0) {
+			discountLine.style.display = 'flex';
+			discountLabel.textContent = `Giảm khách hàng (${amounts.discountPercent}%)`;
+			discountAmountEl.textContent = `-${formatVnd(amounts.discountAmount)}`;
+		} else {
+			discountLine.style.display = 'none';
+			discountLabel.textContent = 'Giảm khách hàng';
+			discountAmountEl.textContent = '-0 đ';
+		}
+	}
+
 	function getCartTotal() {
-		return Array.from(cartStore.values()).reduce((sum, item) => {
-			return sum + (Number(item.giasanpham || 0) * Number(item.qty || 0));
-		}, 0);
+		return calculateCartAmounts().total;
 	}
 
 	function getTransferContent() {
 		return 'POS-' + Date.now();
+	}
+
+	function parseCurrencyNumber(value) {
+		const digitsOnly = String(value || '').replace(/\D+/g, '');
+		if (!digitsOnly) return 0;
+		const parsed = Number(digitsOnly);
+		return Number.isFinite(parsed) ? parsed : 0;
+	}
+
+	function getTransferAmountSafe() {
+		const byCart = Number(getCartTotal());
+		if (Number.isFinite(byCart) && byCart > 0) {
+			return Math.max(0, Math.round(byCart));
+		}
+
+		const cartTotalEl = document.getElementById('cartTotalAmount');
+		const byText = parseCurrencyNumber(cartTotalEl ? cartTotalEl.textContent : '');
+		return Math.max(0, byText);
+	}
+
+	function buildVietQrImageUrl(amount, transferContent) {
+		const bankCode = String(transferConfig.bankCode || '').trim();
+		const accountNumber = String(transferConfig.accountNumber || '').trim();
+		const template = String(transferConfig.template || 'compact2').trim();
+		if (!bankCode || !accountNumber) {
+			return '';
+		}
+
+		const baseUrl = `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-${encodeURIComponent(template)}.png`;
+		const params = new URLSearchParams();
+		params.set('amount', String(Math.max(0, Math.round(Number(amount) || 0))));
+		if (transferContent) {
+			params.set('addInfo', String(transferContent));
+		}
+		if (transferConfig.accountName) {
+			params.set('accountName', String(transferConfig.accountName));
+		}
+
+		return `${baseUrl}?${params.toString()}`;
 	}
 
 	function speakPaymentSuccess(amount) {
@@ -610,6 +725,9 @@
 	function buildInvoiceData(createdInvoice, customerInfo, method, fallbackTotal, cartItems) {
 		const invoice = createdInvoice && typeof createdInvoice === 'object' ? createdInvoice : {};
 		const invoiceItems = Array.isArray(cartItems) ? cartItems : [];
+		const subTotal = Number(invoice.tamtinh || 0);
+		const discountPercent = Number(invoice.khuyenmaiphantram || customerInfo?.discountPercent || 0);
+		const discountAmount = Number(invoice.sotiengiam || customerInfo?.discountAmount || 0);
 		return {
 			orderCode: String(invoice.mahoadon || '-'),
 			orderDate: formatDateTimeText(invoice.ngayban || ''),
@@ -617,6 +735,9 @@
 			customerPhone: String(customerInfo?.phone || '-'),
 			staffName: String(invoice.tennhanvien || 'Nhân viên'),
 			paymentMethod: getPaymentMethodLabel(invoice.phuongthucthanhtoan || method),
+			subTotal: subTotal > 0 ? subTotal : Number(fallbackTotal || 0) + Math.max(0, discountAmount),
+			discountPercent: Math.max(0, discountPercent),
+			discountAmount: Math.max(0, discountAmount),
 			total: Number(invoice.tongtien || fallbackTotal || 0),
 			items: invoiceItems.map((item) => {
 				const qty = Number(item.qty || 0);
@@ -639,6 +760,8 @@
 		document.getElementById('invoiceCustomerPhone').textContent = invoiceData.customerPhone;
 		document.getElementById('invoiceStaffName').textContent = invoiceData.staffName;
 		document.getElementById('invoicePaymentMethod').textContent = invoiceData.paymentMethod;
+		document.getElementById('invoiceDiscountPercentText').textContent = `${invoiceData.discountPercent || 0}%`;
+		document.getElementById('invoiceDiscountAmountText').textContent = formatVnd(invoiceData.discountAmount || 0);
 		document.getElementById('invoiceTotalText').textContent = formatVnd(invoiceData.total);
 
 		const tbody = document.getElementById('invoiceItemsBody');
@@ -710,6 +833,8 @@
 					</thead>
 					<tbody>${rowsHtml}</tbody>
 				</table>
+				<div class="meta"><b>Tam tinh:</b> ${escapeHtml(formatVnd(invoiceData.subTotal || 0))}</div>
+				<div class="meta"><b>Khuyen mai:</b> ${escapeHtml(String(invoiceData.discountPercent || 0))}% (${escapeHtml(formatVnd(invoiceData.discountAmount || 0))})</div>
 				<div class="total">Tong thanh toan: ${escapeHtml(formatVnd(invoiceData.total))}</div>
 			</body>
 			</html>
@@ -729,7 +854,7 @@
 
 	function updateTransferBox() {
 		const method = String(document.getElementById('paymentMethodSelect').value || 'tien_mat');
-		const total = getCartTotal();
+		const total = getTransferAmountSafe();
 		const checkoutBtn = document.getElementById('checkoutBtn');
 		const amountText = document.getElementById('transferAmountText');
 		const contentText = document.getElementById('transferContentText');
@@ -744,9 +869,19 @@
 		}
 
 		const content = getTransferContent();
+		const qrUrl = buildVietQrImageUrl(total, content);
 		amountText.textContent = formatVnd(total);
 		contentText.textContent = content;
-		qrImage.src = 'images/QR.jpg';
+		qrImage.removeAttribute('src');
+		qrImage.alt = 'Đang tải mã QR VietQR';
+		qrImage.onerror = () => {
+			qrImage.onerror = null;
+			qrImage.alt = 'Không tải được QR từ VietQR. Vui lòng kiểm tra mạng hoặc cấu hình ngân hàng.';
+			console.warn('Không tải được ảnh QR VietQR:', qrUrl);
+		};
+		if (qrUrl) {
+			qrImage.src = `${qrUrl}&_t=${Date.now()}`;
+		}
 
 		checkoutBtn.textContent = 'Thanh toán';
 	}
@@ -835,7 +970,12 @@
 		if (customer) {
 			nameInput.value = String(customer.tenkhachhang || '');
 			nameInput.readOnly = true;
-			setCustomerStatus('Đã tìm thấy khách hàng trong hệ thống. Có thể thanh toán ngay.', 'is-found');
+			const discountPercent = getCustomerDiscountPercent(customer);
+			if (discountPercent > 0) {
+				setCustomerStatus(`Đã tìm thấy ${String(customer.tenkhachhang || 'khách hàng')} - ưu đãi ${discountPercent}%. Đã áp dụng tự động vào tổng tiền.`, 'is-found');
+			} else {
+				setCustomerStatus(`Đã tìm thấy ${String(customer.tenkhachhang || 'khách hàng')} - chưa có ưu đãi theo hạng hiện tại.`, 'is-found');
+			}
 			return;
 		}
 
@@ -869,6 +1009,7 @@
 
 		matchedCustomerByPhone = findCustomerByPhone(normalizedPhone);
 		applyMatchedCustomer(matchedCustomerByPhone);
+		renderCart();
 	}
 
 	async function loadCustomers() {
@@ -925,6 +1066,7 @@
 			name: finalName,
 			phone,
 			matched,
+			discountPercent: getCustomerDiscountPercent(matched),
 		};
 	}
 
@@ -1037,6 +1179,7 @@
 		if (!items.length) {
 			tbody.innerHTML = '<tr><td colspan="4">Giỏ đang trống.</td></tr>';
 			document.getElementById('cartSubTotal').textContent = '0 đ';
+			updateDiscountSummaryUI({ discountPercent: 0, discountAmount: 0 });
 			document.getElementById('cartTotalAmount').textContent = '0 đ';
 			updateTransferBox();
 			return;
@@ -1063,8 +1206,10 @@
 			`;
 		}).join('');
 
-		document.getElementById('cartSubTotal').textContent = formatVnd(total);
-		document.getElementById('cartTotalAmount').textContent = formatVnd(total);
+		const amounts = calculateCartAmounts(total);
+		document.getElementById('cartSubTotal').textContent = formatVnd(amounts.subTotal);
+		updateDiscountSummaryUI(amounts);
+		document.getElementById('cartTotalAmount').textContent = formatVnd(amounts.total);
 		updateTransferBox();
 
 		tbody.querySelectorAll('.cart-plus-btn').forEach((btn) => {
@@ -1156,12 +1301,15 @@
 		renderCart();
 	}
 
-	async function submitCheckoutPayload(method, customerInfo) {
+	async function submitCheckoutPayload(method, customerInfo, amounts) {
 		const payload = {
 			customer_name: String(customerInfo?.name || 'Khách lẻ'),
 			customer_phone: String(customerInfo?.phone || ''),
 			staff_name: 'Nhân viên',
 			payment_method: method,
+			discount_percent: Number(amounts?.discountPercent || 0),
+			discount_amount: Number(amounts?.discountAmount || 0),
+			subtotal_amount: Number(amounts?.subTotal || 0),
 			items: Array.from(cartStore.values()).map((item) => ({
 				id: Number(item.id || 0),
 				item_type: String(item.item_type || 'product'),
@@ -1214,10 +1362,11 @@
 		}
 
 		let total = getCartTotal();
+		let checkoutAmounts = calculateCartAmounts();
 		let createdInvoice = null;
 		const checkedOutItems = Array.from(cartStore.values()).map((item) => ({ ...item }));
 		try {
-			const created = await submitCheckoutPayload(method, customerInfo);
+			const created = await submitCheckoutPayload(method, customerInfo, checkoutAmounts);
 			createdInvoice = (created && created.data) ? created.data : null;
 			if (createdInvoice && typeof createdInvoice === 'object') {
 				total = Number(createdInvoice.tongtien || total);
@@ -1239,7 +1388,11 @@
 			speakPaymentSuccess(total);
 		}
 
-		latestInvoiceForPrint = buildInvoiceData(createdInvoice, customerInfo, method, total, checkedOutItems);
+		latestInvoiceForPrint = buildInvoiceData(createdInvoice, {
+			...customerInfo,
+			discountPercent: checkoutAmounts.discountPercent,
+			discountAmount: checkoutAmounts.discountAmount,
+		}, method, total, checkedOutItems);
 		renderInvoicePopup(latestInvoiceForPrint);
 		const popupOpened = openInvoicePopup();
 		if (!popupOpened) {

@@ -22,3 +22,6 @@
 *.wmv
 *.flv
 *.m4v
+
+# Ignore sensitive local config
+oauth-config.php

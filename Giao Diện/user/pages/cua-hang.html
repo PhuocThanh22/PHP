@@ -545,6 +545,20 @@
         transform: translateY(-8px);
     }
 
+    .product-card.is-out-of-stock {
+        opacity: 0.58;
+        filter: saturate(0.72);
+    }
+
+    .product-card.is-out-of-stock:hover {
+        transform: none;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    .product-card.is-out-of-stock:hover .product-image img {
+        transform: none;
+    }
+
     @media (max-width: 1400px) {
         .shop-toolbar {
             grid-template-columns: minmax(240px, 1.6fr) minmax(220px, 1fr) repeat(2, minmax(160px, 0.85fr));
@@ -769,6 +783,40 @@
     .overlay-btn.add-cart[disabled]:hover {
         background: #ffffff;
         transform: none;
+    }
+
+    .product-card.is-out-of-stock .product-overlay {
+        background: rgba(0, 0, 0, 0.78);
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        pointer-events: none;
+    }
+
+    .overlay-out-stock {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 140px;
+        height: 46px;
+        padding: 0 16px;
+        border-radius: 10px;
+        background: transparent;
+        border: none;
+        color: #ff2a2a;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+        box-shadow: none;
+        transform: scale(1) translateY(0);
+        opacity: 1;
+        transition: transform 2.75s cubic-bezier(0.22, 1, 0.36, 1), opacity 2.75s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .product-card:hover .overlay-out-stock {
+        transform: scale(1) translateY(0);
+        opacity: 1;
     }
 
     .product-info {
@@ -2594,6 +2642,63 @@
         return Number.isFinite(parsed) ? parsed : 0;
     };
 
+    const parsePriceRangeValue = (rangeValue) => {
+        const raw = String(rangeValue || '').trim();
+        if (!raw) {
+            return { min: 0, max: Number.POSITIVE_INFINITY };
+        }
+
+        if (/^\d+\+$/.test(raw)) {
+            return {
+                min: parseInt(raw, 10) * 1000,
+                max: Number.POSITIVE_INFINITY,
+            };
+        }
+
+        if (/^\d+\s*-\s*\d+$/.test(raw)) {
+            const [minPart, maxPart] = raw.split('-').map((part) => parseInt(part, 10));
+            const min = Number.isFinite(minPart) ? minPart * 1000 : 0;
+            const max = Number.isFinite(maxPart) ? maxPart * 1000 : Number.POSITIVE_INFINITY;
+            return { min, max };
+        }
+
+        return { min: 0, max: Number.POSITIVE_INFINITY };
+    };
+
+    const shopPopupLockState = {
+        quickView: false,
+        checkoutQuick: false,
+    };
+
+    const lockShopPageScroll = (popupKey) => {
+        if (!popupKey || shopPopupLockState[popupKey]) return;
+        shopPopupLockState[popupKey] = true;
+
+        if (typeof window.__lockBackgroundScroll === 'function') {
+            window.__lockBackgroundScroll();
+            return;
+        }
+
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+    };
+
+    const unlockShopPageScroll = (popupKey) => {
+        if (!popupKey || !shopPopupLockState[popupKey]) return;
+        shopPopupLockState[popupKey] = false;
+
+        if (typeof window.__unlockBackgroundScroll === 'function') {
+            window.__unlockBackgroundScroll();
+            return;
+        }
+
+        const hasAnyShopPopupOpen = Object.values(shopPopupLockState).some(Boolean);
+        if (!hasAnyShopPopupOpen) {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        }
+    };
+
     const getProductsApiCandidates = () => {
         const base = window.location.href;
         const candidates = [];
@@ -3373,8 +3478,7 @@
         }
 
         document.getElementById('quickViewModal').style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
+        lockShopPageScroll('quickView');
 
         if (Number(item.id || 0) > 0) {
             const reviewPayload = await fetchProductReviews(item.id);
@@ -3489,7 +3593,7 @@
         updateResultsSummary(productsToRender.length, products.length);
 
         grid.innerHTML = productsToRender.map(product => `
-            <div class="product-card">
+            <div class="product-card ${product.isOutOfStock ? 'is-out-of-stock' : ''}">
                 <div class="product-image">
                     <img src="${product.image}" alt="${product.name}" onerror="handleShopImageFallback(this)">
                     ${product.isOutOfStock ? `<div class="product-badge out-stock">Hết hàng</div>` : ''}
@@ -3499,9 +3603,11 @@
                     </button>
 
                     <div class="product-overlay">
-                        <button class="overlay-btn add-cart" data-action="add-cart" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" data-out-of-stock="${product.isOutOfStock ? '1' : '0'}" title="${product.isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'}" ${product.isOutOfStock ? 'disabled' : ''}>
-                            <i data-feather="shopping-cart" style="width: 20px; height: 20px;"></i>
-                        </button>
+                        ${product.isOutOfStock
+                            ? '<span class="overlay-out-stock">Hết hàng</span>'
+                            : `<button class="overlay-btn add-cart" data-action="add-cart" data-name="${product.name.replace(/"/g, '&quot;')}" data-price="${product.price}" data-image="${product.image}" data-out-of-stock="0" title="Thêm vào giỏ">
+                                <i data-feather="shopping-cart" style="width: 20px; height: 20px;"></i>
+                            </button>`}
                     </div>
                 </div>
 
@@ -3945,7 +4051,7 @@
             // Price filter
             if (priceRange) {
                 const price = getProductPriceNumber(product);
-                const [min, max] = priceRange.split('-').map(p => parseInt(p) * 1000 || Infinity);
+                const { min, max } = parsePriceRangeValue(priceRange);
                 if (price < min || price > max) return false;
             }
 
@@ -4046,8 +4152,7 @@
 
     const closeQuickView = () => {
         document.getElementById('quickViewModal').style.display = 'none';
-        document.body.style.overflow = '';
-        document.documentElement.style.overflow = '';
+        unlockShopPageScroll('quickView');
     };
     window.closeQuickView = closeQuickView;
 
@@ -4078,11 +4183,13 @@
         qty.value = '1';
 
         modal.style.display = 'flex';
+        lockShopPageScroll('checkoutQuick');
     };
 
     const closeCheckoutQuickModal = () => {
         const modal = document.getElementById('checkoutQuickModal');
         if (modal) modal.style.display = 'none';
+        unlockShopPageScroll('checkoutQuick');
     };
 
     window.closeCheckoutQuickModal = closeCheckoutQuickModal;

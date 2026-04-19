@@ -33,19 +33,8 @@
 </script>
 
 <!-- Wishlist / Favorites Page -->
-<section class="favorites-section" style="padding-top: 50px; padding-bottom: 100px;">
+<section class="favorites-section" style="padding-top: 24px; padding-bottom: 100px;">
     <div class="container-fluid px-5">
-        <!-- Header -->
-        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 50px;">
-            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #E53935 0%, #FF6B6B 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                <i data-feather="heart" style="width: 28px; height: 28px; color: white; fill: white;"></i>
-            </div>
-            <div>
-                <h1 style="font-size: 32px; margin: 0; font-weight: 700;">Danh sách yêu thích</h1>
-                <p style="color: #999; margin: 5px 0 0 0; font-size: 14px;" id="wishlistCount">0 sản phẩm</p>
-            </div>
-        </div>
-
         <!-- Content -->
         <div id="favoriteContentArea"></div>
     </div>
@@ -74,7 +63,7 @@
 
 <style>
     .favorites-section {
-        background: linear-gradient(180deg, #f7faf8 0%, #f1f5f3 100%);
+        background: transparent;
     }
 
     .favorite-grid {
@@ -495,7 +484,9 @@
         const countElement = document.getElementById('wishlistCount');
 
         const totalFavorites = wishlist.length + serviceWishlist.length;
-        countElement.textContent = `${totalFavorites} mục yêu thích`;
+        if (countElement) {
+            countElement.textContent = `${totalFavorites} mục yêu thích`;
+        }
 
         if (totalFavorites === 0) {
             contentArea.innerHTML = `

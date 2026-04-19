@@ -36,7 +36,7 @@
   <style>
     .customer-module {
       padding: 40px 0 90px;
-      background: linear-gradient(180deg, #f8f9fa 0%, #eef1f4 100%);
+      background: transparent;
     }
 
     .customer-shell {
@@ -1199,6 +1199,8 @@
       const SAMPLE_VOUCHER_CODES = new Set(['PET10', 'FREESHIP']);
       const ONLINE_ORDER_SYNC_KEY = 'onlineOrderSyncSignal';
       const SERVICE_BOOKING_SYNC_KEY = 'serviceBookingSyncSignal';
+      const VOUCHER_SYNC_KEY = 'userVoucherSyncSignal';
+      const VOUCHER_SYNC_CHANNEL = 'user-voucher-sync';
       const realtimeApi = window.AppSessionRealtime || (window.parent && window.parent.AppSessionRealtime);
 
       const store = {
@@ -1331,6 +1333,11 @@
       };
 
       const authUserSnapshot = getCurrentAuthUser();
+      const resolveVoucherStorageKey = (authUser) => {
+        const userId = Number(authUser?.id || authUser?.user_id || authUser?.userId || 0);
+        return userId > 0 ? `userVouchers:u:${userId}` : 'userVouchers';
+      };
+      KEYS.vouchers = resolveVoucherStorageKey(authUserSnapshot);
       const currentRole = normalizeRole(authUserSnapshot?.role || '');
       const isAuthenticatedCustomer = !!authUserSnapshot && currentRole === 'user' && Number(authUserSnapshot?.id || 0) > 0;
 
@@ -1445,8 +1452,10 @@
 
       const mapOnlineStatusToLocal = (onlineStatus) => {
         const status = normalizeText(onlineStatus);
-        if (status === 'da_duyet') return 'delivered';
+        if (status === 'da_duyet' || status === 'hoan_tat' || status === 'hoanthanh') return 'delivered';
+        if (status === 'dang_giao' || status === 'shipping') return 'shipping';
         if (status === 'tu_choi') return 'rejected';
+        if (status === 'da_huy' || status === 'cancelled' || status === 'huy') return 'cancelled';
         return 'pending';
       };
 
@@ -1877,7 +1886,8 @@
           const samePhone = identity.phone && normalizePhone(serverOrder?.sodienthoai) === normalizePhone(identity.phone);
           const sameEmail = identity.email && normalizeText(serverOrder?.email) === identity.email;
 
-          if (identity.hasAuth && !samePhone && !sameEmail) {
+          const hasIdentityContact = Boolean(identity.phone || identity.email);
+          if (identity.hasAuth && hasIdentityContact && !samePhone && !sameEmail) {
             return;
           }
 
@@ -3402,6 +3412,70 @@
         }
       };
 
+      const startVoucherRealtimeSync = () => {
+        let reloadTimer = null;
+
+        const shouldHandleVoucherSignal = (payload = null) => {
+          const identity = getCurrentUserIdentity();
+          const currentUserId = Number(identity.id || 0);
+          const payloadUserId = Number(payload?.userId || 0);
+          const payloadStorageKey = String(payload?.storageKey || '').trim();
+
+          if (payloadUserId > 0 && currentUserId > 0) {
+            return payloadUserId === currentUserId;
+          }
+
+          if (payloadStorageKey !== '' && payloadStorageKey !== KEYS.vouchers) {
+            return false;
+          }
+
+          return true;
+        };
+
+        const requestReload = () => {
+          if (reloadTimer) {
+            window.clearTimeout(reloadTimer);
+          }
+          reloadTimer = window.setTimeout(() => {
+            reloadTimer = null;
+            renderVouchers();
+            renderDashboard();
+          }, 120);
+        };
+
+        window.addEventListener('storage', (event) => {
+          if (event.key === KEYS.vouchers) {
+            requestReload();
+            return;
+          }
+
+          if (event.key !== VOUCHER_SYNC_KEY || !event.newValue) {
+            return;
+          }
+
+          try {
+            const payload = JSON.parse(event.newValue);
+            if (!shouldHandleVoucherSignal(payload)) return;
+            requestReload();
+          } catch (e) {
+            requestReload();
+          }
+        });
+
+        if ('BroadcastChannel' in window) {
+          try {
+            const channel = new BroadcastChannel(VOUCHER_SYNC_CHANNEL);
+            channel.onmessage = (event) => {
+              const payload = event && event.data && typeof event.data === 'object' ? event.data : null;
+              if (!shouldHandleVoucherSignal(payload)) return;
+              requestReload();
+            };
+          } catch (e) {
+            // ignore channel errors
+          }
+        }
+      };
+
       syncProfileFromAuthUser();
       seedData();
       bindEvents();
@@ -3409,6 +3483,7 @@
       syncOrderReviewsFromServer();
       startOnlineOrderStatusSync();
       startServiceBookingStatusSync();
+      startVoucherRealtimeSync();
 
       if (typeof feather !== 'undefined') {
         feather.replace();

@@ -29,7 +29,11 @@ body > .hero-section.hero-video-mode:not(.shop-mode):not(.inner-mode):not(.conte
 body {
     font-family: 'Poppins', sans-serif;
     color: #000;
-    background-color: #eef1f4;
+    background:
+        radial-gradient(1200px 360px at 12% -6%, rgba(31, 143, 77, 0.12), transparent 62%),
+        radial-gradient(980px 340px at 86% 8%, rgba(252, 211, 77, 0.14), transparent 60%),
+        linear-gradient(180deg, #f7faf8 0%, #f3f6f4 100%);
+    background-attachment: fixed;
     overflow-x: hidden;
 }
 
@@ -925,7 +929,7 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 /* Categories Section */
 .categories-section {
     padding: 60px 0 18px;
-    background: #fff4e6 !important;
+    background: #f1f1f1 !important;
     position: relative;
     z-index: 2;
 }
@@ -1291,7 +1295,7 @@ a, button, input, textarea, select, .btn, .nav-link, .form-control {
 /* Featured Products Section */
 .featured-section {
     padding: 72px 0;
-    background: #ebe8e8;
+    background: #e9e6e6 !important;
 }
 
 .featured-showcase-head {
@@ -5769,7 +5773,7 @@ html {
 
         .pet-footer {
             position: relative;
-            background-color: #ebebed;
+            background-color: #ffffff;
             color: #161616;
             padding: 34px 0 12px;
             overflow: hidden;
@@ -5819,11 +5823,7 @@ html {
             content: '';
             position: absolute;
             inset: 0;
-            background-image:
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170' viewBox='0 0 170 170'%3E%3Cg fill='%23797979' fill-opacity='0.08'%3E%3Ccircle cx='84' cy='102' r='18'/%3E%3Ccircle cx='55' cy='74' r='9'/%3E%3Ccircle cx='78' cy='62' r='9'/%3E%3Ccircle cx='100' cy='62' r='9'/%3E%3Ccircle cx='123' cy='74' r='9'/%3E%3C/g%3E%3C/svg%3E");
-            background-repeat: repeat;
-            background-size: 220px 220px;
-            background-position: 0 0;
+            background: transparent;
             pointer-events: none;
         }
 
@@ -5835,7 +5835,7 @@ html {
             border-radius: 50%;
             right: -58px;
             bottom: -82px;
-            background: #1F8F4D;
+            background: transparent;
             pointer-events: none;
         }
 
@@ -5862,8 +5862,9 @@ html {
         }
 
         .footer-brand-mark {
-            width: 38px;
-            height: 38px;
+            width: 150px;
+            height: auto;
+            max-width: 100%;
             display: block;
         }
 
@@ -6044,8 +6045,8 @@ html {
             }
 
             .footer-brand-mark {
-                width: 40px;
-                height: 40px;
+                width: 132px;
+                height: auto;
             }
 
             .pet-footer-title {

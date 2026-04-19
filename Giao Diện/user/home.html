@@ -1206,6 +1206,14 @@
         const addRippleEffect = () => {
             document.querySelectorAll('.btn, button').forEach(button => {
                 button.addEventListener('click', function(e) {
+                    if (this.closest('.user-chat-floating, #userChatFloating, #userChatPanel, #userChatToggle')) {
+                        return;
+                    }
+
+                    if (this.closest('.voucher-hunt-modal, #voucherHuntBackdrop')) {
+                        return;
+                    }
+
                     const ripple = document.createElement('span');
                     const rect = this.getBoundingClientRect();
                     const size = Math.max(rect.width, rect.height);
@@ -2683,13 +2691,7 @@
             <div class="pet-footer-top">
                 <div class="pet-footer-brand">
                     <a class="pet-footer-logo" href="javascript:void(0)" onclick="resetToHome()" aria-label="Pet Shop Home">
-                        <svg class="footer-brand-mark" viewBox="0 0 30 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                            <path d="M7.5 8C8.88071 8 10 6.88071 10 5.5C10 4.11929 8.88071 3 7.5 3C6.11929 3 5 4.11929 5 5.5C5 6.88071 6.11929 8 7.5 8Z" fill="#FD7E14"/>
-                            <path d="M22.5 8C23.8807 8 25 6.88071 25 5.5C25 4.11929 23.8807 3 22.5 3C21.1193 3 20 4.11929 20 5.5C20 6.88071 21.1193 8 22.5 8Z" fill="#FD7E14"/>
-                            <path d="M3.5 15C4.88071 15 6 13.8807 6 12.5C6 11.1193 4.88071 10 3.5 10C2.11929 10 1 11.1193 1 12.5C1 13.8807 2.11929 15 3.5 15Z" fill="#FD7E14"/>
-                            <path d="M26.5 15C27.8807 15 29 13.8807 29 12.5C29 11.1193 27.8807 10 26.5 10C25.1193 10 24 11.1193 24 12.5C24 13.8807 25.1193 15 26.5 15Z" fill="#FD7E14"/>
-                            <path d="M15 21C19.4183 21 23 17.4183 23 13C23 8.58172 19.4183 5 15 5C10.5817 5 7 8.58172 7 13C7 17.4183 10.5817 21 15 21Z" fill="#000"/>
-                        </svg>
+                        <img src="img/logo.png" alt="3 Chú Cún Con" class="footer-brand-mark">
                     </a>
                     <p class="pet-footer-desc">Chúng tôi mang đến sản phẩm và dịch vụ chăm sóc thú cưng chất lượng cao, giúp bé cưng khỏe mạnh, vui vẻ và hạnh phúc mỗi ngày.</p>
                     <div class="pet-footer-social">
@@ -3440,17 +3442,58 @@
             `;
         };
 
+        const normalizeFeaturedCategoryKey = (value) => {
+            return String(value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+        };
+
         const getFeaturedCategories = (products) => {
             const map = new Map();
             products.forEach((product) => {
-                const category = String(product.tendanhmuc || '').trim();
-                if (!category) return;
-                if (!map.has(category)) {
-                    map.set(category, { key: category, label: category });
+                const categoryLabel = String(product.tendanhmuc || '').trim();
+                const categoryKey = normalizeFeaturedCategoryKey(categoryLabel);
+                if (!categoryLabel || !categoryKey) return;
+                if (!map.has(categoryKey)) {
+                    map.set(categoryKey, { key: categoryKey, label: categoryLabel });
                 }
             });
 
             return [{ key: 'all', label: 'Tất cả' }, ...Array.from(map.values())];
+        };
+
+        const fetchFeaturedCategoriesFromDb = async () => {
+            const candidates = getHomeApiCandidates('get_categories');
+
+            for (const candidate of candidates) {
+                const separator = candidate.includes('?') ? '&' : '?';
+                const url = `${candidate}${separator}_t=${Date.now()}`;
+
+                try {
+                    const response = await fetch(url, { cache: 'no-store' });
+                    if (!response.ok) continue;
+
+                    const payload = await response.json();
+                    if (!payload || payload.ok !== true || !Array.isArray(payload.data)) continue;
+
+                    const map = new Map();
+                    payload.data.forEach((row) => {
+                        const label = String(row?.tendanhmuc || '').trim();
+                        const key = normalizeFeaturedCategoryKey(label);
+                        if (!label || !key) return;
+                        if (!map.has(key)) {
+                            map.set(key, { key, label });
+                        }
+                    });
+
+                    return Array.from(map.values());
+                } catch (error) {
+                    // try next candidate
+                }
+            }
+
+            return [];
         };
 
         const renderFeaturedFilters = (categories) => {
@@ -3502,10 +3545,10 @@
         const renderFeaturedProducts = (categoryKey = 'all') => {
             if (!featuredTrackEl) return;
 
-            const selected = String(categoryKey || 'all').trim();
+            const selected = normalizeFeaturedCategoryKey(categoryKey || 'all');
             const pool = selected === 'all'
                 ? featuredProductsSource
-                : featuredProductsSource.filter((product) => String(product.tendanhmuc || '').trim() === selected);
+                : featuredProductsSource.filter((product) => normalizeFeaturedCategoryKey(product.tendanhmuc) === selected);
 
             const firstTen = pool.slice(0, 10);
             const displayRows = firstTen.length > 4
@@ -3560,7 +3603,24 @@
 
                     if (featuredProductsSource.length === 0) continue;
 
-                    const categories = getFeaturedCategories(featuredProductsSource);
+                    const categoriesFromProducts = getFeaturedCategories(featuredProductsSource)
+                        .filter((item) => item.key !== 'all');
+                    const categoriesFromDb = await fetchFeaturedCategoriesFromDb();
+                    const mergedCategoryMap = new Map();
+
+                    categoriesFromDb.forEach((item) => {
+                        if (!item || !item.key || !item.label) return;
+                        mergedCategoryMap.set(item.key, item);
+                    });
+
+                    categoriesFromProducts.forEach((item) => {
+                        if (!item || !item.key || !item.label) return;
+                        if (!mergedCategoryMap.has(item.key)) {
+                            mergedCategoryMap.set(item.key, item);
+                        }
+                    });
+
+                    const categories = [{ key: 'all', label: 'Tất cả' }, ...Array.from(mergedCategoryMap.values())];
                     featuredActiveCategory = 'all';
                     renderFeaturedFilters(categories);
                     renderFeaturedProducts('all');
@@ -5943,7 +6003,7 @@
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 0;
+        gap: 7px;
         background: #f7faf8;
     }
 
@@ -5953,7 +6013,7 @@
         flex-wrap: nowrap;
         gap: 6px;
         max-width: 100%;
-        margin-top: 1px;
+        margin-top: 0;
     }
 
     .user-chat-msg-row.incoming .user-chat-msg {
@@ -7080,6 +7140,18 @@
             try {
                 const uploadResult = await uploadChatMedia(kind, file);
                 if (!uploadResult.ok || !uploadResult.url) {
+                    if (kind === 'audio') {
+                        const localUrl = URL.createObjectURL(file);
+                        pushMessage('user', '', {
+                            type: 'audio',
+                            mediaUrl: localUrl,
+                            mimeType: file.type || 'audio/webm',
+                            fileName: file.name || `record-${Date.now()}.webm`,
+                            caption: '[Ghi âm tạm thời - chưa tải lên máy chủ]'
+                        });
+                        alert('Không tải được ghi âm lên máy chủ. Đã gửi bản ghi tạm thời trên thiết bị này.');
+                        return;
+                    }
                     alert(uploadResult.message || 'Không thể tải media lên máy chủ. Vui lòng thử lại.');
                     return;
                 }
@@ -7091,13 +7163,45 @@
                     fileName: uploadResult.fileName || file.name || `${kind}-${Date.now()}.${mimeToExt(file.type, kind === 'video' ? 'mp4' : (kind === 'audio' ? 'webm' : 'jpg'))}`
                 });
             } catch (error) {
+                if (kind === 'audio') {
+                    const localUrl = URL.createObjectURL(file);
+                    pushMessage('user', '', {
+                        type: 'audio',
+                        mediaUrl: localUrl,
+                        mimeType: file.type || 'audio/webm',
+                        fileName: file.name || `record-${Date.now()}.webm`,
+                        caption: '[Ghi âm tạm thời - chưa tải lên máy chủ]'
+                    });
+                    alert('Không kết nối được máy chủ. Đã gửi bản ghi tạm thời trên thiết bị này.');
+                    return;
+                }
                 alert('Không thể gửi tệp. Vui lòng thử lại.');
             }
         };
 
         const stopRecording = () => {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
+                try {
+                    if (typeof mediaRecorder.requestData === 'function') {
+                        mediaRecorder.requestData();
+                    }
+                } catch (e) {
+                    // ignore requestData errors on some browsers
+                }
+
+                try {
+                    mediaRecorder.stop();
+                } catch (e) {
+                    if (recordStream) {
+                        recordStream.getTracks().forEach((track) => track.stop());
+                        recordStream = null;
+                    }
+                    recordChunks = [];
+                    mediaRecorder = null;
+                    recordBtn.classList.remove('recording');
+                    recordBtn.title = 'Ghi âm';
+                    recordBtn.setAttribute('aria-label', 'Ghi âm');
+                }
             }
         };
 
@@ -7128,6 +7232,8 @@
                         } else if (blob.size > 0) {
                             const file = new File([blob], `record-${Date.now()}.${mimeToExt(mimeType, 'webm')}`, { type: mimeType });
                             await sendFileMessage('audio', file);
+                        } else {
+                            alert('Bản ghi âm quá ngắn hoặc chưa có dữ liệu. Vui lòng ghi âm lâu hơn một chút rồi thử lại.');
                         }
                     } finally {
                         if (recordStream) {
@@ -7142,7 +7248,7 @@
                     }
                 });
 
-                mediaRecorder.start();
+                mediaRecorder.start(250);
                 recordBtn.classList.add('recording');
                 recordBtn.title = 'Dừng ghi âm';
                 recordBtn.setAttribute('aria-label', 'Dừng ghi âm');
@@ -7320,6 +7426,12 @@
 
     .voucher-hunt-backdrop.show { display: flex; }
 
+    body.voucher-hunt-open .decorative-circle {
+        opacity: 0 !important;
+        visibility: hidden !important;
+        animation: none !important;
+    }
+
     .voucher-hunt-modal {
         width: min(980px, 100%);
         max-height: calc(100vh - 28px);
@@ -7462,6 +7574,8 @@
 <script>
 (() => {
     const VOUCHER_STORAGE_KEY = 'userVouchers';
+    const VOUCHER_SYNC_KEY = 'userVoucherSyncSignal';
+    const VOUCHER_SYNC_CHANNEL = 'user-voucher-sync';
     const AUTH_KEYS = ['authUser', 'userSession'];
 
     const state = {
@@ -7497,13 +7611,18 @@
         return 0;
     };
 
+    const getCurrentUserVoucherStorageKey = () => {
+        const userId = getCurrentUserId();
+        return userId > 0 ? `${VOUCHER_STORAGE_KEY}:u:${userId}` : VOUCHER_STORAGE_KEY;
+    };
+
     const readStoredVouchers = () => {
-        const parsed = parseJson(localStorage.getItem(VOUCHER_STORAGE_KEY));
+        const parsed = parseJson(localStorage.getItem(getCurrentUserVoucherStorageKey()));
         return Array.isArray(parsed) ? parsed : [];
     };
 
     const saveStoredVouchers = (list) => {
-        localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+        localStorage.setItem(getCurrentUserVoucherStorageKey(), JSON.stringify(Array.isArray(list) ? list : []));
     };
 
     const addVoucherToStorage = (voucher) => {
@@ -7512,6 +7631,33 @@
         if (exists) return;
         list.unshift(voucher);
         saveStoredVouchers(list);
+    };
+
+    const emitVoucherSyncSignal = (payload = {}) => {
+        const signal = {
+            time: Date.now(),
+            source: 'user',
+            entity: 'voucher',
+            userId: getCurrentUserId(),
+            storageKey: getCurrentUserVoucherStorageKey(),
+            ...payload,
+        };
+
+        try {
+            localStorage.setItem(VOUCHER_SYNC_KEY, JSON.stringify(signal));
+        } catch (e) {
+            // ignore storage errors
+        }
+
+        if ('BroadcastChannel' in window) {
+            try {
+                const channel = new BroadcastChannel(VOUCHER_SYNC_CHANNEL);
+                channel.postMessage(signal);
+                channel.close();
+            } catch (e) {
+                // ignore channel errors
+            }
+        }
     };
 
     const apiGet = async (api, params = {}) => {
@@ -8052,6 +8198,10 @@
 
             if (result && result.data) {
                 addVoucherToStorage(result.data);
+                emitVoucherSyncSignal({
+                    voucherId: Number(result.data.id || 0),
+                    code: String(result.data.code || result.data.magiamgia || ''),
+                });
             }
             setStatus(result.message || 'Nhận voucher thành công!', true);
             await loadVoucherHunt();
@@ -8069,6 +8219,7 @@
 
     const openVoucherModal = async () => {
         backdrop.classList.add('show');
+        document.body.classList.add('voucher-hunt-open');
         bubble.style.visibility = 'hidden';
         if (typeof window.__lockBackgroundScroll === 'function') {
             window.__lockBackgroundScroll();
@@ -8080,6 +8231,7 @@
     const closeVoucherModal = () => {
         if (!backdrop.classList.contains('show')) return;
         backdrop.classList.remove('show');
+        document.body.classList.remove('voucher-hunt-open');
         bubble.style.visibility = '';
         if (typeof window.__unlockBackgroundScroll === 'function') {
             window.__unlockBackgroundScroll();

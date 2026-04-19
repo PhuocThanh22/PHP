@@ -131,6 +131,8 @@
   .checkout-premium-page #checkoutPlaceOrderBtn {
     height: 50px !important;
     padding: 0 26px !important;
+    border: none !important;
+    outline: none !important;
     border-radius: 999px !important;
     background: linear-gradient(135deg, #21a35a 0%, #168f4a 100%) !important;
     box-shadow: 0 10px 22px rgba(33, 163, 90, 0.25);
@@ -144,6 +146,11 @@
     transform: translateY(-1px);
     box-shadow: 0 14px 24px rgba(33, 163, 90, 0.3);
     filter: brightness(0.97);
+  }
+
+  .checkout-premium-page #checkoutPlaceOrderBtn:focus-visible,
+  .checkout-premium-page #applyCouponBtn:focus-visible {
+    box-shadow: 0 0 0 4px rgba(33, 163, 90, 0.22) !important;
   }
 
   .checkout-premium-page table {
@@ -185,6 +192,59 @@
     font-size: 13px;
     line-height: 1.65;
     color: #64748b;
+  }
+
+  .checkout-payment-methods {
+    margin-top: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    display: grid;
+    gap: 8px;
+  }
+
+  .checkout-payment-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 600;
+  }
+
+  .checkout-transfer-box {
+    margin-top: 10px;
+    border: 1px solid #dbe6f5;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 12px;
+    display: none;
+  }
+
+  .checkout-transfer-box.show {
+    display: block;
+  }
+
+  .checkout-transfer-line {
+    font-size: 13px;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+
+  .checkout-transfer-qr-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0;
+  }
+
+  .checkout-transfer-qr {
+    width: min(230px, 100%);
+    aspect-ratio: 1/1;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    object-fit: contain;
+    background: #fff;
   }
 
   @media (max-width: 992px) {
@@ -434,15 +494,32 @@
             </tfoot>
           </table>
 
-          <p style="margin: 14px 0 8px; font-size: 16px; color: #334155; font-weight: 700;">Chuyển khoản ngân hàng</p>
-          <p class="checkout-payment-note">
-            Thực hiện thanh toán vào tài khoản ngân hàng của chúng tôi và ghi rõ mã đơn hàng trong nội dung chuyển khoản.
-          </p>
+          <div class="checkout-payment-methods">
+            <label class="checkout-payment-option" for="paymentMethodCod">
+              <input id="paymentMethodCod" type="radio" name="paymentMethod" value="COD" checked>
+              Thanh toán khi nhận hàng (COD)
+            </label>
+            <label class="checkout-payment-option" for="paymentMethodBank">
+              <input id="paymentMethodBank" type="radio" name="paymentMethod" value="BANK">
+              Chuyển khoản ngân hàng
+            </label>
+
+            <div id="checkoutTransferBox" class="checkout-transfer-box">
+              <div class="checkout-transfer-line">Ngân hàng: <b>BIDV</b> - STK: <b>6910984101</b></div>
+              <div class="checkout-transfer-line">Chủ tài khoản: <b>DO THANH HUY</b></div>
+              <div class="checkout-transfer-line">Số tiền: <b id="checkoutTransferAmount">0 ₫</b></div>
+              <div class="checkout-transfer-qr-wrap">
+                <img id="checkoutTransferQrImage" class="checkout-transfer-qr" alt="QR chuyển khoản" />
+              </div>
+              <div class="checkout-transfer-line" style="margin-bottom:0;">Nội dung CK: <b id="checkoutTransferContent">WEB-000000</b></div>
+            </div>
+          </div>
+
           <p class="checkout-payment-note">
             Dữ liệu cá nhân của bạn sẽ được dùng để xử lý đơn hàng và hỗ trợ trải nghiệm mua sắm theo chính sách riêng tư.
           </p>
 
-          <button id="checkoutPlaceOrderBtn" type="button" style="width: 100%; margin-top: 14px;" onmouseover="this.style.background='#000'" onmouseout="this.style.background='#22A35A'">Đặt hàng</button>
+          <button id="checkoutPlaceOrderBtn" type="button" style="width: 100%; margin-top: 14px;">Đặt hàng</button>
         </div>
       </div>
     </div>
@@ -466,6 +543,7 @@
 <script>
   const DIRECT_CHECKOUT_KEY = 'checkoutDirectItems';
   const USER_VOUCHERS_KEY = 'userVouchers';
+  const AUTH_KEYS = ['authUser', 'userSession'];
   const checkoutVoucherState = {
     code: '',
     voucher: null,
@@ -473,12 +551,51 @@
     discount: 0,
   };
 
+  const checkoutTransferConfig = {
+    bankCode: 'BIDV',
+    accountNumber: '6910984101',
+    accountName: 'DO THANH HUY',
+    template: 'compact2',
+  };
+
+  const checkoutPaymentState = {
+    method: 'COD',
+    transferContent: '',
+  };
+
   const parsePriceNumber = (value) => Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
   const formatVnMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`;
 
+  const parseJsonObject = (raw) => {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const getCurrentUserVoucherStorageKey = () => {
+    for (const key of AUTH_KEYS) {
+      const fromSession = parseJsonObject(sessionStorage.getItem(key));
+      const fromLocal = parseJsonObject(localStorage.getItem(key));
+      const candidates = [fromSession, fromLocal];
+
+      for (const user of candidates) {
+        if (!user) continue;
+        const id = Number(user.id || user.user_id || user.userId || 0);
+        if (Number.isFinite(id) && id > 0) {
+          return `${USER_VOUCHERS_KEY}:u:${id}`;
+        }
+      }
+    }
+
+    return USER_VOUCHERS_KEY;
+  };
+
   const getStoredVouchers = () => {
     try {
-      const raw = localStorage.getItem(USER_VOUCHERS_KEY);
+      const raw = localStorage.getItem(getCurrentUserVoucherStorageKey());
       const parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
@@ -517,7 +634,73 @@
     subtotalEl.textContent = formatVnMoney(subtotal);
     totalEl.textContent = formatVnMoney(finalTotal);
     totalEl.dataset.raw = String(finalTotal);
+    syncCheckoutPaymentUI();
   };
+
+  const buildCheckoutTransferContent = () => {
+    const seed = String(Date.now()).slice(-6);
+    return 'WEB-' + seed;
+  };
+
+  const buildCheckoutVietQrImageUrl = (amount, transferContent) => {
+    const bankCode = String(checkoutTransferConfig.bankCode || '').trim();
+    const accountNumber = String(checkoutTransferConfig.accountNumber || '').trim();
+    const template = String(checkoutTransferConfig.template || 'compact2').trim();
+    if (!bankCode || !accountNumber) return '';
+
+    const baseUrl = `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-${encodeURIComponent(template)}.png`;
+    const params = new URLSearchParams();
+    params.set('amount', String(Math.max(0, Math.round(Number(amount) || 0))));
+    if (transferContent) {
+      params.set('addInfo', String(transferContent));
+    }
+    if (checkoutTransferConfig.accountName) {
+      params.set('accountName', String(checkoutTransferConfig.accountName));
+    }
+    return `${baseUrl}?${params.toString()}`;
+  };
+
+  function syncCheckoutPaymentUI() {
+    const codInput = document.getElementById('paymentMethodCod');
+    const bankInput = document.getElementById('paymentMethodBank');
+    const transferBox = document.getElementById('checkoutTransferBox');
+    const transferAmount = document.getElementById('checkoutTransferAmount');
+    const transferContent = document.getElementById('checkoutTransferContent');
+    const transferQrImage = document.getElementById('checkoutTransferQrImage');
+    const totalEl = document.getElementById('checkoutTotal');
+
+    if (!codInput || !bankInput || !transferBox || !transferAmount || !transferContent || !transferQrImage || !totalEl) {
+      return;
+    }
+
+    const selectedMethod = bankInput.checked ? 'BANK' : 'COD';
+    checkoutPaymentState.method = selectedMethod;
+
+    if (selectedMethod !== 'BANK') {
+      transferBox.classList.remove('show');
+      return;
+    }
+
+    transferBox.classList.add('show');
+    const total = Math.max(0, Math.round(Number(totalEl.dataset.raw || 0)));
+    if (!checkoutPaymentState.transferContent) {
+      checkoutPaymentState.transferContent = buildCheckoutTransferContent();
+    }
+
+    transferAmount.textContent = formatVnMoney(total);
+    transferContent.textContent = checkoutPaymentState.transferContent;
+
+    const qrUrl = buildCheckoutVietQrImageUrl(total, checkoutPaymentState.transferContent);
+    transferQrImage.removeAttribute('src');
+    transferQrImage.alt = 'Đang tải mã QR chuyển khoản';
+    transferQrImage.onerror = () => {
+      transferQrImage.onerror = null;
+      transferQrImage.alt = 'Không tải được QR VietQR. Vui lòng kiểm tra mạng hoặc cấu hình ngân hàng.';
+    };
+    if (qrUrl) {
+      transferQrImage.src = `${qrUrl}&_t=${Date.now()}`;
+    }
+  }
 
   const getCheckoutItems = () => {
     try {
@@ -784,14 +967,7 @@
         return;
       }
 
-      const staticVouchers = [
-        { code: 'PET10', type: 'percent', value: 10, minOrder: 0, status: 'available', title: 'Giảm 10%' },
-        { code: 'GIAM10', type: 'percent', value: 10, minOrder: 0, status: 'available', title: 'Giảm 10%' },
-        { code: 'FREESHIP', type: 'fixed', value: 30000, minOrder: 199000, status: 'available', title: 'Giảm phí vận chuyển' },
-      ];
-
-      const allVouchers = [...getStoredVouchers(), ...staticVouchers];
-      const voucher = allVouchers.find((item) => {
+      const voucher = getStoredVouchers().find((item) => {
         const itemCode = String(item?.code || item?.magiamgia || '').trim().toUpperCase();
         const status = String(item?.status || 'available').trim().toLowerCase();
         return itemCode === code && status === 'available';
@@ -822,6 +998,22 @@
       couponBox.style.display = 'none';
       couponInvalidBox.style.display = 'block';
     });
+  })();
+
+  (function bindPaymentMethodSelection() {
+    const methodInputs = document.querySelectorAll('input[name="paymentMethod"]');
+    if (!methodInputs.length) return;
+
+    methodInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        if (input.value === 'BANK' && input.checked) {
+          checkoutPaymentState.transferContent = buildCheckoutTransferContent();
+        }
+        syncCheckoutPaymentUI();
+      });
+    });
+
+    syncCheckoutPaymentUI();
   })();
 
   (function bindCheckoutValidation() {
@@ -1267,6 +1459,10 @@
           image: normalizeProductImageUrl(item?.image || item?.hinhanh || item?.hinhanhsanpham || '')
         }))
       };
+
+      if (paymentMethod === 'chuyen_khoan' && checkoutPaymentState.transferContent) {
+        orderPayload.transfer_content = checkoutPaymentState.transferContent;
+      }
 
       try {
         const authUserRaw = sessionStorage.getItem('authUser') || localStorage.getItem('authUser');

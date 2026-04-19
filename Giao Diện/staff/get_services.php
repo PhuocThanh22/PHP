@@ -40,6 +40,24 @@ function app_staff_customer_tier_key(float $spending): string
     return 'dong';
 }
 
+function app_staff_customer_discount_percent(string $tierKey): float
+{
+    $normalized = app_lower(trim($tierKey));
+    if ($normalized === 'kim_cuong') {
+        return 10.0;
+    }
+    if ($normalized === 'bach_kim') {
+        return 8.0;
+    }
+    if ($normalized === 'vang') {
+        return 5.0;
+    }
+    if ($normalized === 'bac') {
+        return 3.0;
+    }
+    return 0.0;
+}
+
 function app_booking_ensure_table(mysqli $conn): bool
 {
     $sql = "
@@ -1381,6 +1399,9 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
         $staffName = trim((string) ($input['staff_name'] ?? 'Nhan vien'));
         $note = trim((string) ($input['note'] ?? ''));
         $paymentMethod = app_normalize_payment_method((string) ($input['payment_method'] ?? 'tien_mat'));
+        $discountPercentInput = (float) ($input['discount_percent'] ?? 0);
+        $discountAmountInput = (float) ($input['discount_amount'] ?? 0);
+        $subTotalInput = (float) ($input['subtotal_amount'] ?? 0);
         $rawItems = is_array($input['items'] ?? null) ? $input['items'] : [];
         $rawProductItems = [];
         $rawServiceItems = [];
@@ -1432,13 +1453,34 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
 
             $items = array_merge($productItems, $serviceItems);
 
-            $total = 0.0;
+            $subTotal = 0.0;
             foreach ($items as $item) {
-                $total += (float) ($item['price'] ?? 0) * (int) ($item['quantity'] ?? 0);
+                $subTotal += (float) ($item['price'] ?? 0) * (int) ($item['quantity'] ?? 0);
             }
 
-            if ($total <= 0) {
+            if ($subTotal <= 0) {
                 throw new RuntimeException('Tong tien don hang khong hop le');
+            }
+
+            $discountPercent = max(0.0, min(100.0, $discountPercentInput));
+            $discountAmount = max(0.0, $discountAmountInput);
+
+            if ($subTotalInput > 0) {
+                $subTotal = $subTotalInput;
+            }
+
+            if ($discountAmount <= 0.0 && $discountPercent > 0.0) {
+                $discountAmount = round($subTotal * $discountPercent / 100.0, 0);
+            }
+
+            if ($discountAmount > $subTotal) {
+                $discountAmount = $subTotal;
+            }
+
+            $total = max(0.0, $subTotal - $discountAmount);
+
+            if ($total <= 0) {
+                throw new RuntimeException('Tong thanh toan khong hop le sau khi ap dung khuyen mai');
             }
 
             $orderCode = app_generate_order_code('POS');
@@ -1504,6 +1546,9 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                     'tenkhachhang' => $responseCustomer,
                     'tennhanvien' => $staffName !== '' ? $staffName : 'Nhan vien',
                     'ngayban' => date('Y-m-d H:i:s'),
+                    'tamtinh' => $subTotal,
+                    'khuyenmaiphantram' => $discountPercent,
+                    'sotiengiam' => $discountAmount,
                     'tongtien' => $total,
                     'phuongthucthanhtoan' => $paymentMethod,
                     'trangthai' => 'hoan_tat',
@@ -2864,6 +2909,7 @@ function app_handle_staff_api(mysqli $conn, string $api): bool
                 'emailkhachhang' => (string) $row['emailkhachhang'],
                 'tongchitieukhachhang' => $spending,
                 'loaikhachhang' => $tierKey,
+                'phantramkhuyenmai' => app_staff_customer_discount_percent($tierKey),
                 'ngaytaokhachhang' => (string) $row['ngaytaokhachhang'],
                 'anhdaidiennguoidung' => (string) ($row['anhdaidiennguoidung'] ?? ''),
                 'anhdaidiennguoidung_url' => app_to_public_image_url((string) ($row['anhdaidiennguoidung'] ?? '')),
